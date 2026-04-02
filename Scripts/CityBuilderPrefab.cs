@@ -18,7 +18,7 @@ public class CityBuilderPrefab : MonoBehaviour
     public Vector2 footprintSize = new Vector2(8f, 8f);
 
     [Tooltip("Se attivo, tenta di calcolare automaticamente l'ingombro dai Renderer del prefab.")]
-    public bool autoComputeFromRenderers = false;
+    public bool autoComputeFromRenderers = true;
 
     [Tooltip("Offset locale dal centro lotto applicato alla posizione finale.")]
     public Vector3 pivotOffset = Vector3.zero;
@@ -36,6 +36,7 @@ public class CityBuilderPrefab : MonoBehaviour
         if (!Application.isPlaying && autoComputeFromRenderers)
         {
             AutoComputeFootprintInEditor();
+            AutoComputePivotOffsetInEditor();
         }
 #endif
     }
@@ -58,6 +59,47 @@ public class CityBuilderPrefab : MonoBehaviour
 
         footprintSize = autoSize;
         EditorUtility.SetDirty(this);
+    }
+
+    private void AutoComputePivotOffsetInEditor()
+    {
+        ApplyAutoGroundPivot(this);
+    }
+
+    private static void ApplyAutoGroundPivot(CityBuilderPrefab component)
+    {
+        Renderer[] renderers = component.GetComponentsInChildren<Renderer>(true);
+        if (renderers == null || renderers.Length == 0)
+        {
+            EditorUtility.DisplayDialog("Auto ground pivot", "Nessun Renderer trovato nel prefab.", "OK");
+            return;
+        }
+
+        Bounds combined = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null)
+            {
+                combined.Encapsulate(renderers[i].bounds);
+            }
+        }
+
+        Vector3 bottomCenterWorld = new Vector3(combined.center.x, combined.min.y, combined.center.z);
+
+        Undo.RecordObject(component, "Auto ground pivot");
+        component.pivotOffset = bottomCenterWorld;
+        EditorUtility.SetDirty(component);
+    }
+
+    private void Reset()
+    {
+        if (Application.isPlaying)
+        {
+            return;
+        }
+
+        AutoComputeFootprintInEditor();
+        AutoComputePivotOffsetInEditor();
     }
 #endif
 
