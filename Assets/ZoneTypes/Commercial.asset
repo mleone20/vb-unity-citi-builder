@@ -18,5 +18,6 @@ MonoBehaviour:
   description: Retail and office frontage.
   buildingPrefabs:
   - {fileID: 983308971785327471, guid: 197e6725a66095746a1e6b7c404f2086, type: 3}
+  - {fileID: 983308971785327471, guid: 3dd6f80cb571cc643825a45b63b623cd, type: 3}
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0
