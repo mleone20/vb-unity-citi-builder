@@ -412,6 +412,175 @@ public class CityManager : MonoBehaviour
         return report;
     }
 
+    public string WeldCloseNodes(float distanceThreshold)
+    {
+        if (cityData == null)
+        {
+            return "[CityManager] Salda Nodi: CityData nullo.";
+        }
+
+        distanceThreshold = Mathf.Max(0.01f, distanceThreshold);
+        float thresholdSqr = distanceThreshold * distanceThreshold;
+
+        List<CityNode> nodes = cityData.nodes;
+        if (nodes == null || nodes.Count < 2)
+        {
+            return "[CityManager] Salda Nodi: nodi insufficienti.";
+        }
+
+        Dictionary<int, int> mergeMap = new Dictionary<int, int>();
+        HashSet<int> nodesToRemove = new HashSet<int>();
+        int mergedClusterCount = 0;
+
+        bool[] visited = new bool[nodes.Count];
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            if (visited[i]) continue;
+            CityNode seed = nodes[i];
+            if (seed == null)
+            {
+                visited[i] = true;
+                continue;
+            }
+
+            Queue<int> queue = new Queue<int>();
+            List<int> clusterIndices = new List<int>();
+            visited[i] = true;
+            queue.Enqueue(i);
+
+            while (queue.Count > 0)
+            {
+                int current = queue.Dequeue();
+                clusterIndices.Add(current);
+                CityNode nodeA = nodes[current];
+                if (nodeA == null) continue;
+
+                for (int j = 0; j < nodes.Count; j++)
+                {
+                    if (visited[j]) continue;
+                    CityNode nodeB = nodes[j];
+                    if (nodeB == null)
+                    {
+                        visited[j] = true;
+                        continue;
+                    }
+
+                    if ((nodeA.position - nodeB.position).sqrMagnitude <= thresholdSqr)
+                    {
+                        visited[j] = true;
+                        queue.Enqueue(j);
+                    }
+                }
+            }
+
+            if (clusterIndices.Count < 2)
+            {
+                continue;
+            }
+
+            CityNode survivor = nodes[clusterIndices[0]];
+            if (survivor == null)
+            {
+                continue;
+            }
+
+            Vector3 centroid = Vector3.zero;
+            int validCount = 0;
+            foreach (int idx in clusterIndices)
+            {
+                CityNode node = nodes[idx];
+                if (node == null) continue;
+                centroid += node.position;
+                validCount++;
+            }
+
+            if (validCount == 0)
+            {
+                continue;
+            }
+
+            centroid /= validCount;
+            survivor.position = centroid;
+
+            foreach (int idx in clusterIndices)
+            {
+                CityNode node = nodes[idx];
+                if (node == null) continue;
+
+                mergeMap[node.id] = survivor.id;
+                if (node.id != survivor.id)
+                {
+                    nodesToRemove.Add(node.id);
+                }
+            }
+
+            mergedClusterCount++;
+        }
+
+        if (nodesToRemove.Count == 0)
+        {
+            return "[CityManager] Salda Nodi: nessun nodo abbastanza vicino da unire.";
+        }
+
+        int removedSelfSegments = 0;
+        int removedDuplicateSegments = 0;
+        HashSet<string> uniquePairs = new HashSet<string>();
+
+        for (int i = cityData.segments.Count - 1; i >= 0; i--)
+        {
+            CitySegment seg = cityData.segments[i];
+            if (seg == null)
+            {
+                continue;
+            }
+
+            if (mergeMap.ContainsKey(seg.nodeA_ID)) seg.nodeA_ID = mergeMap[seg.nodeA_ID];
+            if (mergeMap.ContainsKey(seg.nodeB_ID)) seg.nodeB_ID = mergeMap[seg.nodeB_ID];
+
+            if (seg.nodeA_ID == seg.nodeB_ID)
+            {
+                cityData.segments.RemoveAt(i);
+                removedSelfSegments++;
+                continue;
+            }
+
+            int minId = Mathf.Min(seg.nodeA_ID, seg.nodeB_ID);
+            int maxId = Mathf.Max(seg.nodeA_ID, seg.nodeB_ID);
+            string key = minId + "_" + maxId;
+
+            if (!uniquePairs.Add(key))
+            {
+                cityData.segments.RemoveAt(i);
+                removedDuplicateSegments++;
+            }
+        }
+
+        for (int i = cityData.nodes.Count - 1; i >= 0; i--)
+        {
+            CityNode node = cityData.nodes[i];
+            if (node != null && nodesToRemove.Contains(node.id))
+            {
+                cityData.nodes.RemoveAt(i);
+            }
+        }
+
+        if (selectedNodeID != -1 && mergeMap.ContainsKey(selectedNodeID))
+        {
+            selectedNodeID = mergeMap[selectedNodeID];
+        }
+
+        string repairReport = RepairConnections();
+        string report = $"[CityManager] Salda Nodi completato. " +
+                        $"Cluster uniti: {mergedClusterCount}, " +
+                        $"Nodi fusi: {nodesToRemove.Count}, " +
+                        $"Segmenti loop rimossi: {removedSelfSegments}, " +
+                        $"Segmenti duplicati rimossi: {removedDuplicateSegments}. " +
+                        repairReport;
+
+        Debug.Log(report);
+        return report;
+    }
+
     // Test/Debug
     public void LogStats()
     {

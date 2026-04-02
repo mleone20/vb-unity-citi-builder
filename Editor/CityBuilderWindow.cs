@@ -24,6 +24,7 @@ public class CityBuilderWindow : EditorWindow
     private GUIStyle buttonStyle;
     private GUIStyle tabButtonStyle;
     private Vector2 scrollPosition = Vector2.zero;
+    private float weldNodesDistance = 1.0f;
 
     [MenuItem("Window/City Builder/City Builder Tool")]
     public static void ShowWindow()
@@ -317,6 +318,20 @@ public class CityBuilderWindow : EditorWindow
             EditorUtility.SetDirty(cityData);
             SceneView.RepaintAll();
             EditorUtility.DisplayDialog("Ripara Collegamenti", repairReport, "OK");
+        }
+
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Salda Nodi", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Distanza massima di fusione:");
+        weldNodesDistance = EditorGUILayout.Slider(weldNodesDistance, 0.1f, 10f);
+
+        if (GUILayout.Button("Salda nodi ravvicinati", buttonStyle))
+        {
+            Undo.RecordObject(cityData, "Salda Nodi Ravvicinati");
+            string weldReport = cityManager.WeldCloseNodes(weldNodesDistance);
+            EditorUtility.SetDirty(cityData);
+            SceneView.RepaintAll();
+            EditorUtility.DisplayDialog("Salda Nodi", weldReport, "OK");
         }
 
         if (GUILayout.Button("Setup Zone Types di Default", buttonStyle))
