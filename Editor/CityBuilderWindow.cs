@@ -201,7 +201,7 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.BeginHorizontal();
 
         GUI.color = currentMode == CityManager.BuildMode.Idle ? Color.yellow : Color.white;
-        if (GUILayout.Button("Idle"))
+        if (GUILayout.Button("Muovi nodi"))
         {
             cityManager.SetMode(CityManager.BuildMode.Idle);
         }
@@ -339,9 +339,7 @@ public class CityBuilderWindow : EditorWindow
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Edifici", EditorStyles.boldLabel);
-        EditorGUILayout.HelpBox("Colori e altezze edificio sono definiti negli asset ZoneType. Modifica gli asset ZoneType nell'Inspector per personalizzarli.", MessageType.Info);
-        EditorGUILayout.LabelField("Scale Globale Edifici:");
-        cityData.buildingScale = EditorGUILayout.Slider(cityData.buildingScale, 0.5f, 2f);
+        EditorGUILayout.HelpBox("Colori e altezze edificio sono definiti negli asset ZoneType. Modifica gli asset ZoneType nell'Inspector per personalizzarli.", MessageType.Info); 
 
         EditorGUILayout.LabelField($"Edifici visualizzati: {cityData.lots.Count}");
     }

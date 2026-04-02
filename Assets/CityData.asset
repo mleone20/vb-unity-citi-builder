@@ -16,10 +16,5 @@ MonoBehaviour:
   segments: []
   blocks: []
   lots: []
-  globalRoadWidth: 2.8
-  averageLotSize: 30.1
-  buildingScale: 1
-  heightResidential: 5
-  heightCommercial: 20
-  heightIndustrial: 12
-  heightSpecial: 8
+  globalRoadWidth: 3
+  averageLotSize: 30

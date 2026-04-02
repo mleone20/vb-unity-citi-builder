@@ -127,6 +127,9 @@ public class CityBlockEditor
 
     private static void ConfirmSuggestedBlocks(CityManager manager)
     {
+        List<ZoneType> availableZoneTypes = ZoneTypeEditorUtility.LoadAllZoneTypes();
+        ZoneType defaultZoneType = availableZoneTypes.Count > 0 ? availableZoneTypes[0] : null;
+
         if (!manager.GetCityData().blocks.Count.Equals(0))
         {
             if (!EditorUtility.DisplayDialog("Conferma", 
@@ -139,7 +142,11 @@ public class CityBlockEditor
 
         foreach (var vertexList in suggestedBlocks)
         {
-            manager.AddBlock(vertexList);
+            CityBlock newBlock = manager.AddBlock(vertexList);
+            if (newBlock != null && defaultZoneType != null)
+            {
+                manager.SetBlockZoning(newBlock.id, defaultZoneType);
+            }
         }
 
         Debug.Log($"[CityBlockEditor] {suggestedBlocks.Count} blocchi confermati!");

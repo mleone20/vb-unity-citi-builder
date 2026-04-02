@@ -285,7 +285,7 @@ public static class CityRenderer
         if (block == null) return;
 
         Color buildingColor = cityData.GetZoneColor(block.zoning);
-        float height = lot.buildingHeight * cityData.buildingScale;
+        float height = lot.buildingHeight;
 
         // Disegna outline del lotto al suolo
         if (lot.vertices != null && lot.vertices.Count >= 4)
