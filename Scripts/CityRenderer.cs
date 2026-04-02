@@ -287,16 +287,57 @@ public static class CityRenderer
         Color buildingColor = cityData.GetZoneColor(block.zoning);
         float height = lot.buildingHeight * cityData.buildingScale;
 
-        Vector3 center = lot.buildingCenter + Vector3.up * (height / 2f);
-        Vector3 size = new Vector3(5f, height, 5f);
+        // Disegna outline del lotto al suolo
+        if (lot.vertices != null && lot.vertices.Count >= 4)
+        {
+            Gizmos.color = buildingColor * 0.35f;
+            for (int i = 0; i < lot.vertices.Count; i++)
+            {
+                Gizmos.DrawLine(lot.vertices[i], lot.vertices[(i + 1) % lot.vertices.Count]);
+            }
 
-        // Disegna cubo solido
-        Gizmos.color = buildingColor;
-        DrawCube(center, size);
+            // Calcola frame locale dal lotto (frontSinistra[0], frontDestra[1], retroDestra[2], retroSinistra[3])
+            Vector3 frontL = lot.vertices[0];
+            Vector3 frontR = lot.vertices[1];
+            Vector3 backR  = lot.vertices[2];
+            Vector3 backL  = lot.vertices[3];
 
-        // Disegna outline wireframe
-        Gizmos.color = buildingColor * 0.6f;
-        DrawWireCube(center, size);
+            float lotWidth = Vector3.Distance(frontL, frontR);
+            float lotDepth = Vector3.Distance(frontL, backL);
+
+            // Margine interno per non coprire l'intero lotto
+            float mW = Mathf.Min(0.6f, lotWidth * 0.08f);
+            float mD = Mathf.Min(0.6f, lotDepth * 0.08f);
+            float buildingW = Mathf.Max(1f, lotWidth - mW * 2f);
+            float buildingD = Mathf.Max(1f, lotDepth - mD * 2f);
+
+            // Direzione forward = dall'asse frontale verso il retro
+            Vector3 lotForward = ((backL + backR) * 0.5f - (frontL + frontR) * 0.5f).normalized;
+            if (lotForward.sqrMagnitude < 0.001f) lotForward = Vector3.forward;
+
+            Quaternion rotation = Quaternion.LookRotation(lotForward, Vector3.up);
+            Vector3 buildingCenter3D = lot.buildingCenter + Vector3.up * (height * 0.5f);
+
+            Matrix4x4 oldMatrix = Gizmos.matrix;
+            Gizmos.matrix = Matrix4x4.TRS(buildingCenter3D, rotation, Vector3.one);
+
+            Vector3 bSize = new Vector3(buildingW, height, buildingD);
+            Gizmos.color = buildingColor;
+            Gizmos.DrawCube(Vector3.zero, bSize);
+            Gizmos.color = buildingColor * 0.65f;
+            Gizmos.DrawWireCube(Vector3.zero, bSize);
+
+            Gizmos.matrix = oldMatrix;
+        }
+        else
+        {
+            // Fallback per lotti legacy senza vertices
+            Vector3 center = lot.buildingCenter + Vector3.up * (height * 0.5f);
+            Gizmos.color = buildingColor;
+            DrawCube(center, new Vector3(5f, height, 5f));
+            Gizmos.color = buildingColor * 0.65f;
+            DrawWireCube(center, new Vector3(5f, height, 5f));
+        }
     }
 
     // ========== UTILITY DRAWING FUNCTIONS ==========
