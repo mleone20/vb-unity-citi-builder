@@ -322,9 +322,7 @@ public static class CityRenderer
             Gizmos.matrix = Matrix4x4.TRS(buildingCenter3D, rotation, Vector3.one);
 
             Vector3 bSize = new Vector3(buildingW, height, buildingD);
-            Gizmos.color = buildingColor;
-            Gizmos.DrawCube(Vector3.zero, bSize);
-            Gizmos.color = buildingColor * 0.65f;
+            Gizmos.color = new Color(buildingColor.r, buildingColor.g, buildingColor.b, 0.25f);
             Gizmos.DrawWireCube(Vector3.zero, bSize);
 
             Gizmos.matrix = oldMatrix;
@@ -333,9 +331,7 @@ public static class CityRenderer
         {
             // Fallback per lotti legacy senza vertices
             Vector3 center = lot.buildingCenter + Vector3.up * (height * 0.5f);
-            Gizmos.color = buildingColor;
-            DrawCube(center, new Vector3(5f, height, 5f));
-            Gizmos.color = buildingColor * 0.65f;
+            Gizmos.color = new Color(buildingColor.r, buildingColor.g, buildingColor.b, 0.25f);
             DrawWireCube(center, new Vector3(5f, height, 5f));
         }
     }
