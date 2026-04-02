@@ -345,7 +345,17 @@ public class CityBuilderWindow : EditorWindow
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Edifici", EditorStyles.boldLabel);
-        EditorGUILayout.HelpBox("Colori e altezze edificio sono definiti negli asset ZoneType. Modifica gli asset ZoneType nell'Inspector per personalizzarli.", MessageType.Info); 
+        EditorGUILayout.HelpBox("Lo spawn usa i prefab configurati in ZoneType. Ogni prefab dovrebbe avere il componente CityBuilderPrefab per il calcolo footprint.", MessageType.Info);
+
+        if (GUILayout.Button("Spawn Edifici da ZoneType", buttonStyle))
+        {
+            SpawnBuildingsFromZoneTypes();
+        }
+
+        if (GUILayout.Button("Cancella Edifici Spawnati", buttonStyle))
+        {
+            ClearSpawnedBuildings();
+        }
 
         EditorGUILayout.LabelField($"Edifici visualizzati: {cityData.lots.Count}");
     }
@@ -465,5 +475,38 @@ public class CityBuilderWindow : EditorWindow
 
         Debug.Log($"[CityBuilderWindow] Generati {lotCount} lotti!");
         EditorUtility.DisplayDialog("Successo", $"Generati {lotCount} lotti!", "OK");
+    }
+
+    private void SpawnBuildingsFromZoneTypes()
+    {
+        int choice = EditorUtility.DisplayDialogComplex(
+            "Spawn Edifici",
+            "Come vuoi gestire gli edifici già spawnati?",
+            "Cancella precedenti e spawn",
+            "Mantieni esistenti e spawn",
+            "Annulla"
+        );
+
+        if (choice == 2)
+        {
+            return;
+        }
+
+        CityBuildingSpawner.ExistingBuildingsHandling handling =
+            choice == 0
+                ? CityBuildingSpawner.ExistingBuildingsHandling.ClearExisting
+                : CityBuildingSpawner.ExistingBuildingsHandling.KeepExisting;
+
+        CityBuildingSpawner.SpawnReport report = CityBuildingSpawner.SpawnBuildings(cityManager, handling);
+        SceneView.RepaintAll();
+
+        EditorUtility.DisplayDialog("Spawn Edifici", report.ToMultilineString(), "OK");
+    }
+
+    private void ClearSpawnedBuildings()
+    {
+        int removedCount = CityBuildingSpawner.ClearSpawnedBuildings();
+        SceneView.RepaintAll();
+        EditorUtility.DisplayDialog("Cancella Edifici Spawnati", $"Oggetti rimossi: {removedCount}", "OK");
     }
 }

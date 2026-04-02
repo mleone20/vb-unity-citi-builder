@@ -12,6 +12,9 @@ public class ZoneTypeEditor : Editor
         SerializedProperty zoneColor = serializedObject.FindProperty("zoneColor");
         SerializedProperty buildingHeight = serializedObject.FindProperty("buildingHeight");
         SerializedProperty description = serializedObject.FindProperty("description");
+        SerializedProperty buildingPrefabs = serializedObject.FindProperty("buildingPrefabs");
+        SerializedProperty deterministicPrefabSelection = serializedObject.FindProperty("deterministicPrefabSelection");
+        SerializedProperty prefabSelectionSeed = serializedObject.FindProperty("prefabSelectionSeed");
 
         EditorGUILayout.LabelField("Zone Type", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(displayName, new GUIContent("Display Name"));
@@ -21,6 +24,15 @@ public class ZoneTypeEditor : Editor
         EditorGUILayout.LabelField("Visual", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(zoneColor, new GUIContent("Zone Color"));
         EditorGUILayout.PropertyField(buildingHeight, new GUIContent("Building Height"));
+
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Building Spawn", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(buildingPrefabs, new GUIContent("Building Prefabs"), true);
+        EditorGUILayout.PropertyField(deterministicPrefabSelection, new GUIContent("Deterministic Selection"));
+        if (deterministicPrefabSelection.boolValue)
+        {
+            EditorGUILayout.PropertyField(prefabSelectionSeed, new GUIContent("Selection Seed"));
+        }
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Preset", EditorStyles.boldLabel);

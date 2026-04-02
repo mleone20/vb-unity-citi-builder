@@ -16,3 +16,7 @@ MonoBehaviour:
   zoneColor: {r: 0.2, g: 0.45, b: 0.95, a: 1}
   buildingHeight: 14
   description: Retail and office frontage.
+  buildingPrefabs:
+  - {fileID: 983308971785327471, guid: 197e6725a66095746a1e6b7c404f2086, type: 3}
+  deterministicPrefabSelection: 1
+  prefabSelectionSeed: 0

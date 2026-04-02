@@ -13,6 +13,11 @@ public class ZoneType : ScriptableObject
     public float buildingHeight = 5.0f;
     [TextArea] public string description;
 
+    [Header("Building Prefabs")]
+    public List<GameObject> buildingPrefabs = new List<GameObject>();
+    public bool deterministicPrefabSelection = true;
+    public int prefabSelectionSeed = 0;
+
     public string GetDisplayName()
     {
         return string.IsNullOrWhiteSpace(displayName) ? name : displayName;
