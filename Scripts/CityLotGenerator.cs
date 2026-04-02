@@ -64,6 +64,26 @@ public static class CityLotGenerator
                 Vector3 backL = ClampInsidePolygon(frontL, frontL + inward * depth, verts);
                 Vector3 backR = ClampInsidePolygon(frontR, frontR + inward * depth, verts);
 
+                List<Vector3> lotVertices = new List<Vector3> { frontL, frontR, backR, backL };
+                float lotArea = CalculatePolygonAreaXZ(lotVertices);
+                if (lotArea < cityData.minLotArea)
+                {
+                    continue;
+                }
+
+                float frontage = Vector3.Distance(frontL, frontR);
+                float depthLeft = Vector3.Distance(frontL, backL);
+                float depthRight = Vector3.Distance(frontR, backR);
+                float depth2 = (depthLeft + depthRight) * 0.5f;
+                float shorterSide = Mathf.Max(0.01f, Mathf.Min(frontage, depth2));
+                float longerSide = Mathf.Max(frontage, depth2);
+                float aspectRatio = longerSide / shorterSide;
+
+                if (aspectRatio > cityData.maxLotAspectRatio)
+                {
+                    continue;
+                }
+
                 // Registra l'area come occupata PRIMA di passare al lotto successivo.
                 occupied.Add(ToXZ(frontL, frontR, backR, backL));
 
@@ -71,7 +91,7 @@ public static class CityLotGenerator
                 {
                     buildingCenter = (frontL + frontR + backL + backR) * 0.25f,
                     buildingHeight = buildingHeight,
-                    vertices       = new List<Vector3> { frontL, frontR, backR, backL }
+                    vertices       = lotVertices
                 });
                 tempID++;
             }
@@ -185,4 +205,22 @@ public static class CityLotGenerator
 
     private static Vector2[] ToXZ(Vector3 a, Vector3 b, Vector3 c, Vector3 d) =>
         new Vector2[] { new Vector2(a.x, a.z), new Vector2(b.x, b.z), new Vector2(c.x, c.z), new Vector2(d.x, d.z) };
+
+    private static float CalculatePolygonAreaXZ(List<Vector3> vertices)
+    {
+        if (vertices == null || vertices.Count < 3)
+        {
+            return 0f;
+        }
+
+        float area = 0f;
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            Vector3 a = vertices[i];
+            Vector3 b = vertices[(i + 1) % vertices.Count];
+            area += a.x * b.z - b.x * a.z;
+        }
+
+        return Mathf.Abs(area) * 0.5f;
+    }
 }

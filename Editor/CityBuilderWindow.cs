@@ -306,6 +306,12 @@ public class CityBuilderWindow : EditorWindow
             cityManager.SetAverageLotSize(avgLotSize);
         }
 
+        EditorGUILayout.LabelField("Area Minima Lotto (m²):");
+        cityData.minLotArea = EditorGUILayout.Slider(cityData.minLotArea, 1f, 500f);
+
+        EditorGUILayout.LabelField("Rapporto Max Lato Lungo/Corto:");
+        cityData.maxLotAspectRatio = EditorGUILayout.Slider(cityData.maxLotAspectRatio, 1f, 10f);
+
         if (GUILayout.Button("Genera Lotti per tutti i Blocchi", buttonStyle))
         {
             GenerateAllLots();

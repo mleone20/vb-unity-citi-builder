@@ -19,7 +19,9 @@ public class CityData : ScriptableObject
     
     [Header("Parametri Globali")]
     [Range(1f, 10f)] [SerializeField] public float globalRoadWidth = 3.0f;
-    [Range(10f, 100f)] [SerializeField] public float averageLotSize = 30.0f; 
+    [Range(10f, 100f)] [SerializeField] public float averageLotSize = 30.0f;
+    [Range(1f, 500f)] [SerializeField] public float minLotArea = 40.0f;
+    [Range(1f, 10f)] [SerializeField] public float maxLotAspectRatio = 3.0f;
     // Counter per generare ID unici
     private int nextNodeID = 0;
     private int nextSegmentID = 0;
@@ -34,7 +36,9 @@ public class CityData : ScriptableObject
         CityData clone = ScriptableObject.CreateInstance<CityData>();
         
         clone.globalRoadWidth = this.globalRoadWidth;
-        clone.averageLotSize = this.averageLotSize; 
+        clone.averageLotSize = this.averageLotSize;
+        clone.minLotArea = this.minLotArea;
+        clone.maxLotAspectRatio = this.maxLotAspectRatio;
         
         // Deep clone collections
         foreach (var node in nodes)
