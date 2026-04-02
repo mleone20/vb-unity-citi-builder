@@ -129,6 +129,10 @@ public class CityLot
     public List<Vector3> vertices = new List<Vector3>();
     public Vector3 buildingCenter;
     public float buildingHeight = 5.0f;
+    
+    // Proprietà per lotti variabili
+    public float sizeFactor = 1.0f;  // Moltiplicatore dimensione (0.6 = piccolo, 1.4 = grande)
+    public float lotGap = 0.05f;     // Gap specifico per questo lotto
 
     public CityLot(int id, int blockID)
     {

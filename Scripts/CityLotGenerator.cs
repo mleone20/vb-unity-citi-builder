@@ -44,13 +44,39 @@ public static class CityLotGenerator
             maxDepth         = Mathf.Max(maxDepth, 3f);
 
             int   count      = Mathf.Max(1, Mathf.RoundToInt(edgeLength / avgLotSize));
-            float frontWidth = edgeLength / count;
+            float baseWidth  = edgeLength / count;
+            float currentPos = 0f;  // Traccia la posizione corrente lungo l'edge
 
-            for (int lotIdx = 0; lotIdx < count; lotIdx++)
+            int lotIdx = 0;
+            while (lotIdx < count && currentPos < edgeLength)
             {
-                float gap   = frontWidth * 0.04f;
-                float tFrom = Mathf.Clamp01((lotIdx       * frontWidth + gap) / edgeLength);
-                float tTo   = Mathf.Clamp01(((lotIdx + 1) * frontWidth - gap) / edgeLength);
+                // Calcola un sizeFactor proceduralmente deterministico
+                float sizeFactor = CalculateLotSizeFactor(block.id, edgeIdx, lotIdx, cityData);
+                
+                // Calcola la larghezza di questo lotto scalata dal sizeFactor
+                float lotWidth = baseWidth * sizeFactor;
+                
+                // Calcola il gap in base al sizeFactor (lotti più grandi = gap più ampio)
+                float normalizedSizeFactor = (sizeFactor - cityData.minLotSizeFactor) / (cityData.maxLotSizeFactor - cityData.minLotSizeFactor);
+                normalizedSizeFactor = Mathf.Clamp01(normalizedSizeFactor);
+                float lotGap = Mathf.Lerp(cityData.gapMinimum, cityData.gapMaximum, normalizedSizeFactor);
+                
+                // Calcola le posizioni reali del lotto lungo l'edge
+                float posFrom = currentPos + lotGap;
+                float posTo   = posFrom + lotWidth;
+                
+                // Controlla se il lotto rientra nell'edge
+                if (posTo > edgeLength)
+                {
+                    // Riduci la larghezza per adattarsi alla fine dell'edge
+                    lotWidth = edgeLength - posFrom;
+                    if (lotWidth < baseWidth * 0.3f) break;  // Troppo piccolo, interrompi
+                    posTo = edgeLength - lotGap;
+                }
+                
+                // Normalizza le posizioni a parametri t [0, 1]
+                float tFrom = Mathf.Clamp01(posFrom / edgeLength);
+                float tTo   = Mathf.Clamp01(posTo / edgeLength);
 
                 Vector3 roadFL = Vector3.Lerp(edgeStart, edgeEnd, tFrom);
                 Vector3 roadFR = Vector3.Lerp(edgeStart, edgeEnd, tTo);
@@ -59,7 +85,13 @@ public static class CityLotGenerator
 
                 // Binary-search: trova la profondità massima NON sovrapposta.
                 float depth = FindMaxDepthNoOverlap(frontL, frontR, inward, maxDepth, occupied, verts);
-                if (depth < 2f) continue;
+                if (depth < 2f)
+                {
+                    // Se questo lotto non può avere profondità sufficiente, passa al prossimo
+                    currentPos = posTo + lotGap;
+                    lotIdx++;
+                    continue;
+                }
 
                 Vector3 backL = ClampInsidePolygon(frontL, frontL + inward * depth, verts);
                 Vector3 backR = ClampInsidePolygon(frontR, frontR + inward * depth, verts);
@@ -68,6 +100,8 @@ public static class CityLotGenerator
                 float lotArea = CalculatePolygonAreaXZ(lotVertices);
                 if (lotArea < cityData.minLotArea)
                 {
+                    currentPos = posTo + lotGap;
+                    lotIdx++;
                     continue;
                 }
 
@@ -81,6 +115,8 @@ public static class CityLotGenerator
 
                 if (aspectRatio > cityData.maxLotAspectRatio)
                 {
+                    currentPos = posTo + lotGap;
+                    lotIdx++;
                     continue;
                 }
 
@@ -91,16 +127,57 @@ public static class CityLotGenerator
                 {
                     buildingCenter = (frontL + frontR + backL + backR) * 0.25f,
                     buildingHeight = buildingHeight,
-                    vertices       = lotVertices
+                    vertices       = lotVertices,
+                    sizeFactor     = sizeFactor,
+                    lotGap         = lotGap
                 });
                 tempID++;
+                
+                // Avanza alla posizione successiva
+                currentPos = posTo + lotGap;
+                lotIdx++;
             }
         }
 
         return lots;
     }
 
-    // ── Binary-search profondità ─────────────────────────────────────────────────
+    // ── Calcolo Size Factor Procedurale ───────────────────────────────────────
+
+    /// <summary>
+    /// Calcola un sizeFactor deterministico per un lotto specifico.
+    /// Usa Perlin noise per variabilità naturale ma ripetitiva.
+    /// </summary>
+    private static float CalculateLotSizeFactor(int blockID, int edgeIdx, int lotIdx, CityData cityData)
+    {
+        // Seed
+        float seed = Random.Range(0f, 10000f) + blockID * 100f + edgeIdx * 10f + lotIdx;
+
+        // Combina Perlin noise per un effetto ripetitivo e naturale
+        float noiseVal = Mathf.PerlinNoise(seed + edgeIdx * 0.5f, blockID * 0.1f + lotIdx * 0.1f);
+        
+        // Normalizza il Perlin noise da [0, 1] (PerlinNoise restituisce generalmente 0-1)
+        noiseVal = Mathf.Clamp01(noiseVal);
+        
+        // Aggiungi una variazione basata su lotIdx per maggior diversità
+        float lotVariation = Mathf.Sin(lotIdx * 0.7f + blockID * 0.1f) * 0.3f;
+        lotVariation = (lotVariation + 1.0f) * 0.5f; // Normalizza a [0, 1]
+        
+        // Combina noise e variazione
+        float combinedFactor = (noiseVal * 0.6f + lotVariation * 0.4f);
+        combinedFactor = Mathf.Clamp01(combinedFactor);
+        
+        // Applica densityInfluence per modulare l'effetto
+        if (cityData.densityInfluence < 0.001f)
+        {
+            combinedFactor = 0.5f; // Se densityInfluence è 0, tutti i lotti hanno la stessa dimensione
+        }
+        
+        // Mappa in range [minLotSizeFactor, maxLotSizeFactor]
+        float sizeFactor = Mathf.Lerp(cityData.minLotSizeFactor, cityData.maxLotSizeFactor, combinedFactor);
+        
+        return sizeFactor;
+    }
 
     private static float FindMaxDepthNoOverlap(
         Vector3 frontL, Vector3 frontR, Vector3 inward,

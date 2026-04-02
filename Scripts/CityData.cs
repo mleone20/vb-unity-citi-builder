@@ -22,6 +22,13 @@ public class CityData : ScriptableObject
     [Range(10f, 100f)] [SerializeField] public float averageLotSize = 30.0f;
     [Range(1f, 500f)] [SerializeField] public float minLotArea = 40.0f;
     [Range(1f, 10f)] [SerializeField] public float maxLotAspectRatio = 3.0f;
+    
+    [Header("Parametri Lotti Variabili")]
+    [Range(0.4f, 1.0f)] [SerializeField] public float minLotSizeFactor = 0.6f;    // Scala minima del lotto (60% della media)
+    [Range(1.0f, 2.0f)] [SerializeField] public float maxLotSizeFactor = 1.4f;    // Scala massima del lotto (140% della media)
+    [Range(0.01f, 0.2f)] [SerializeField] public float gapMinimum = 0.05f;        // Gap minimo tra lotti (in unità)
+    [Range(0.02f, 0.3f)] [SerializeField] public float gapMaximum = 0.15f;        // Gap massimo tra lotti (in unità)
+    [Range(0.0f, 1.0f)] [SerializeField] public float densityInfluence = 0.5f;    // Quanto la densità influenza la dimensione (0=nessun effetto, 1=massimo)
     // Counter per generare ID unici
     private int nextNodeID = 0;
     private int nextSegmentID = 0;
@@ -39,6 +46,12 @@ public class CityData : ScriptableObject
         clone.averageLotSize = this.averageLotSize;
         clone.minLotArea = this.minLotArea;
         clone.maxLotAspectRatio = this.maxLotAspectRatio;
+        
+        clone.minLotSizeFactor = this.minLotSizeFactor;
+        clone.maxLotSizeFactor = this.maxLotSizeFactor;
+        clone.gapMinimum = this.gapMinimum;
+        clone.gapMaximum = this.gapMaximum;
+        clone.densityInfluence = this.densityInfluence;
         
         // Deep clone collections
         foreach (var node in nodes)
