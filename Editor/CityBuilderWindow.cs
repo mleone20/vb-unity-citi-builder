@@ -13,6 +13,7 @@ public class CityBuilderWindow : EditorWindow
         Roads,
         Blocks,
         Zoning,
+        Buildings,
         Tools,
         Statistics
     }
@@ -95,6 +96,9 @@ public class CityBuilderWindow : EditorWindow
             case EditorSection.Zoning:
                 DrawZoningSection();
                 break;
+            case EditorSection.Buildings:
+                DrawBuildingsSection();
+                break;
             case EditorSection.Tools:
                 DrawToolsSection();
                 break;
@@ -168,6 +172,11 @@ public class CityBuilderWindow : EditorWindow
         if (DrawSectionButton("Zoning", EditorSection.Zoning))
         {
             currentSection = EditorSection.Zoning;
+        }
+
+        if (DrawSectionButton("Edifici", EditorSection.Buildings))
+        {
+            currentSection = EditorSection.Buildings;
         }
 
         if (DrawSectionButton("Strumenti", EditorSection.Tools))
@@ -342,10 +351,15 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.LabelField($"Lotti totali: {cityData.lots.Count}");
+    }
 
+    private void DrawBuildingsSection()
+    {
+        EditorGUILayout.LabelField("EDIFICI", EditorStyles.boldLabel);
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Edifici", EditorStyles.boldLabel);
+
         EditorGUILayout.HelpBox("Lo spawn usa i prefab configurati in ZoneType. Ogni prefab dovrebbe avere il componente CityBuilderPrefab per il calcolo footprint.", MessageType.Info);
+        EditorGUILayout.Space();
 
         if (GUILayout.Button("Spawn Edifici da ZoneType", buttonStyle))
         {
@@ -357,6 +371,8 @@ public class CityBuilderWindow : EditorWindow
             ClearSpawnedBuildings();
         }
 
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField($"Lotti totali: {cityData.lots.Count}");
         EditorGUILayout.LabelField($"Edifici visualizzati: {cityData.lots.Count}");
     }
 
