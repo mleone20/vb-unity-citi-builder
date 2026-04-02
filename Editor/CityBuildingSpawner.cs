@@ -26,6 +26,7 @@ public static class CityBuildingSpawner
         public int lotsInvalidGeometry;
         public int prefabMissingMetadata;
         public int lotsOutOfFit;
+        public int lotFillingSlots;
 
         public string ToMultilineString()
         {
@@ -33,6 +34,7 @@ public static class CityBuildingSpawner
                 "Blocchi processati: " + processedBlocks + "\n" +
                 "Lotti processati: " + processedLots + "\n" +
                 "Edifici spawnati: " + spawnedBuildings + "\n" +
+                (lotFillingSlots > 0 ? "  di cui da lot filling: " + lotFillingSlots + "\n" : "") +
                 "Oggetti rimossi prima dello spawn: " + clearedObjects + "\n" +
                 "Blocchi senza zoning: " + blocksWithoutZoning + "\n" +
                 "Blocchi senza prefab zona: " + blocksWithoutPrefabs + "\n" +
@@ -42,7 +44,7 @@ public static class CityBuildingSpawner
         }
     }
 
-    public static SpawnReport SpawnBuildings(CityManager manager, ExistingBuildingsHandling handling)
+    public static SpawnReport SpawnBuildings(CityManager manager, ExistingBuildingsHandling handling, bool lotFilling = false)
     {
         SpawnReport report = new SpawnReport();
         if (manager == null)
@@ -99,6 +101,12 @@ public static class CityBuildingSpawner
                 if (!TryGetLotPose(lot, out Vector3 lotCenter, out Quaternion lotRotation, out float lotWidth, out float lotDepth))
                 {
                     report.lotsInvalidGeometry++;
+                    continue;
+                }
+
+                if (lotFilling)
+                {
+                    SpawnFillLot(lot, block, validPrefabs, blockParent, block.zoning, lotRotation, lotWidth, lotDepth, ref report);
                     continue;
                 }
 
@@ -279,6 +287,122 @@ public static class CityBuildingSpawner
 
         return prefabs[Random.Range(0, prefabs.Count)];
     }
+
+    // ── Lot Filling ──────────────────────────────────────────────────────────────
+
+    private static void SpawnFillLot(
+        CityLot lot, CityBlock block,
+        List<GameObject> validPrefabs, Transform blockParent,
+        ZoneType zone, Quaternion lotRotation,
+        float lotWidth, float lotDepth,
+        ref SpawnReport report)
+    {
+        if (lot.vertices == null || lot.vertices.Count < 4) return;
+
+        Vector3 frontL     = lot.vertices[0];
+        Vector3 frontR     = lot.vertices[1];
+        Vector3 backL      = lot.vertices[3];
+        Vector3 backR      = lot.vertices[2];
+        Vector3 widthDir   = (frontR - frontL).normalized;
+        Vector3 lotForward = ((backL + backR) * 0.5f - (frontL + frontR) * 0.5f).normalized;
+        if (lotForward.sqrMagnitude < 0.0001f) lotForward = Vector3.forward;
+        float groundY = lot.buildingCenter.y;
+
+        var candidates = new List<(GameObject go, CityBuilderPrefab meta)>();
+        bool anyMissingMeta = false;
+        foreach (var p in validPrefabs)
+        {
+            CityBuilderPrefab m = p.GetComponent<CityBuilderPrefab>();
+            if (m != null) candidates.Add((p, m));
+            else           anyMissingMeta = true;
+        }
+        if (anyMissingMeta) report.prefabMissingMetadata++;
+
+        // Fallback se nessun prefab ha CityBuilderPrefab
+        if (candidates.Count == 0)
+        {
+            GameObject fallback = PickPrefab(validPrefabs, zone, block.id, lot.id, 0);
+            if (fallback != null)
+            {
+                CityBuilderPrefab fm = fallback.GetComponent<CityBuilderPrefab>();
+                Vector3 pos = lot.buildingCenter;
+                if (fm != null) pos.y = groundY - fm.pivotOffset.y;
+                InstantiateBuilding(fallback, pos, lotRotation, blockParent, block.id, lot.id, 0, ref report);
+            }
+            return;
+        }
+
+        const float buildingGap = 0.2f;
+        float cursor = 0f;
+        int placed   = 0;
+
+        while (cursor < lotWidth)
+        {
+            float remaining = lotWidth - cursor;
+            bool found = false;
+            (GameObject go, CityBuilderPrefab meta) best = default;
+
+            for (int attempt = 0; attempt < candidates.Count; attempt++)
+            {
+                int idx = PickFillIndex(zone, block.id, lot.id, placed, attempt, candidates.Count);
+                var c   = candidates[idx];
+                Vector2 fp = c.meta.GetFootprintSize();
+                if (fp.x <= remaining && fp.y <= lotDepth)
+                {
+                    best  = c;
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) break;
+
+            Vector2 footprint = best.meta.GetFootprintSize();
+            Vector3 worldPos  = frontL
+                + widthDir   * (cursor + footprint.x * 0.5f)
+                + lotForward * (lotDepth * 0.5f);
+            worldPos.y = groundY - best.meta.pivotOffset.y;
+
+            InstantiateBuilding(best.go, worldPos, lotRotation, blockParent, block.id, lot.id, placed, ref report);
+
+            cursor += footprint.x + buildingGap;
+            placed++;
+        }
+
+        if (placed == 0) report.lotsOutOfFit++;
+        report.lotFillingSlots += placed;
+    }
+
+    private static int PickFillIndex(ZoneType zone, int blockId, int lotId, int placed, int attempt, int count)
+    {
+        if (zone != null && zone.deterministicPrefabSelection)
+        {
+            int hash = 17;
+            hash = hash * 31 + zone.prefabSelectionSeed;
+            hash = hash * 31 + blockId;
+            hash = hash * 31 + lotId;
+            hash = hash * 31 + placed;
+            hash = hash * 31 + attempt;
+            return Mathf.Abs(hash) % count;
+        }
+        return (placed + attempt) % count;
+    }
+
+    private static void InstantiateBuilding(
+        GameObject prefab, Vector3 worldPos, Quaternion rotation,
+        Transform parent, int blockId, int lotId, int slot,
+        ref SpawnReport report)
+    {
+        GameObject instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+        if (instance == null) instance = Object.Instantiate(prefab);
+        instance.name = prefab.name + "_B" + blockId + "_L" + lotId + (slot > 0 ? "_F" + slot : "");
+        Undo.RegisterCreatedObjectUndo(instance, "Spawn Building");
+        instance.transform.SetParent(parent, true);
+        instance.transform.SetPositionAndRotation(worldPos, rotation);
+        report.spawnedBuildings++;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
 
     private static bool TryGetLotPose(CityLot lot, out Vector3 center, out Quaternion rotation, out float width, out float depth)
     {
