@@ -45,6 +45,9 @@ public class CitySceneHandle
         // Anteprima live della catena nodi quando si crea un blocco manualmente.
         CityBlockEditor.DrawManualSelectionPreview(cachedCityManager);
 
+        // Anteprima blocchi auto-rilevati (non ancora confermati).
+        CityBlockEditor.DrawSuggestedBlocksPreview();
+
         // Processa eventi keyboard/mouse
         ProcessSceneViewInput(sceneView, cachedCityManager, mode);
     }

@@ -55,6 +55,12 @@ public class CityBlockEditor
             SuggestBlocksFromGraph(cityData);
         }
 
+        if (showingPreview && GUILayout.Button("Nascondi Anteprima Suggeriti", GUILayout.Height(24)))
+        {
+            showingPreview = false;
+            SceneView.RepaintAll();
+        }
+
         if (GUILayout.Button("Conferma Blocchi Suggeriti", GUILayout.Height(30)))
         {
             if (suggestedBlocks.Count > 0)
@@ -109,10 +115,13 @@ public class CityBlockEditor
         {
             showingPreview = true;
             Debug.Log($"[CityBlockEditor] {suggestedBlocks.Count} blocchi suggeriti!");
+            SceneView.RepaintAll();
         }
         else
         {
+            showingPreview = false;
             Debug.LogWarning("[CityBlockEditor] Nessun blocco rilevato. Verifica che il grafo stradale sia chiuso.");
+            SceneView.RepaintAll();
         }
     }
 
@@ -136,6 +145,7 @@ public class CityBlockEditor
         Debug.Log($"[CityBlockEditor] {suggestedBlocks.Count} blocchi confermati!");
         suggestedBlocks.Clear();
         showingPreview = false;
+        SceneView.RepaintAll();
     }
 
     public static void AddNodeToManualSelection(CityManager manager, int nodeId)
@@ -275,19 +285,18 @@ public class CityBlockEditor
     {
         if (!showingPreview) return;
 
-        Gizmos.color = new Color(1, 1, 0, 0.3f); // Giallo semi-trasparente
-
-        foreach (var blockVertices in suggestedBlocks)
+        for (int blockIndex = 0; blockIndex < suggestedBlocks.Count; blockIndex++)
         {
+            List<Vector3> blockVertices = suggestedBlocks[blockIndex];
             if (blockVertices.Count < 3) continue;
 
             // Disegna outline
-            Gizmos.color = Color.yellow;
+            Handles.color = new Color(1f, 0.85f, 0.2f, 1f);
             for (int i = 0; i < blockVertices.Count; i++)
             {
                 Vector3 v1 = blockVertices[i];
                 Vector3 v2 = blockVertices[(i + 1) % blockVertices.Count];
-                Gizmos.DrawLine(v1, v2);
+                Handles.DrawAAPolyLine(4f, v1, v2);
             }
 
             // Centroide
@@ -295,8 +304,12 @@ public class CityBlockEditor
             foreach (var v in blockVertices) center += v;
             center /= blockVertices.Count;
 
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawCube(center, Vector3.one * 0.5f);
+            float markerSize = HandleUtility.GetHandleSize(center) * 0.08f;
+            Handles.color = Color.yellow;
+            Handles.DrawSolidDisc(center, Vector3.up, markerSize);
+            Handles.Label(center + Vector3.up * (markerSize * 2f), $"Preview B{blockIndex + 1}");
         }
+
+        Handles.color = Color.white;
     }
 }

@@ -11,7 +11,8 @@ public class CityBuilderWindow : EditorWindow
     {
         Nodes,
         Roads,
-        BlocksAndZoning,
+        Blocks,
+        Zoning,
         Tools,
         Statistics
     }
@@ -88,8 +89,11 @@ public class CityBuilderWindow : EditorWindow
             case EditorSection.Roads:
                 DrawRoadsSection();
                 break;
-            case EditorSection.BlocksAndZoning:
-                DrawBlocksAndZoningSection();
+            case EditorSection.Blocks:
+                DrawBlocksSection();
+                break;
+            case EditorSection.Zoning:
+                DrawZoningSection();
                 break;
             case EditorSection.Tools:
                 DrawToolsSection();
@@ -156,9 +160,14 @@ public class CityBuilderWindow : EditorWindow
             currentSection = EditorSection.Roads;
         }
 
-        if (DrawSectionButton("Blocchi e Zoning", EditorSection.BlocksAndZoning))
+        if (DrawSectionButton("Blocchi", EditorSection.Blocks))
         {
-            currentSection = EditorSection.BlocksAndZoning;
+            currentSection = EditorSection.Blocks;
+        }
+
+        if (DrawSectionButton("Zoning", EditorSection.Zoning))
+        {
+            currentSection = EditorSection.Zoning;
         }
 
         if (DrawSectionButton("Strumenti", EditorSection.Tools))
@@ -244,9 +253,9 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.LabelField($"Nodi disponibili: {cityData.nodes.Count}");
     }
 
-    private void DrawBlocksAndZoningSection()
+    private void DrawBlocksSection()
     {
-        EditorGUILayout.LabelField("BLOCCHI E ZONING", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("BLOCCHI", EditorStyles.boldLabel);
         EditorGUILayout.Space();
 
         CityManager.BuildMode currentMode = cityManager.GetCurrentMode();
@@ -258,6 +267,22 @@ public class CityBuilderWindow : EditorWindow
             cityManager.SetMode(CityManager.BuildMode.CreateBlock);
         }
 
+        GUI.color = Color.white;
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.Space();
+
+        bool dummyBlockUiState = true;
+        CityBlockEditor.DrawBlockEditorUI(cityManager, ref dummyBlockUiState);
+    }
+
+    private void DrawZoningSection()
+    {
+        EditorGUILayout.LabelField("ZONING", EditorStyles.boldLabel);
+        EditorGUILayout.Space();
+
+        CityManager.BuildMode currentMode = cityManager.GetCurrentMode();
+        EditorGUILayout.BeginHorizontal();
+
         GUI.color = currentMode == CityManager.BuildMode.AssignZoning ? Color.yellow : Color.white;
         if (GUILayout.Button("Assegna Zoning", buttonStyle))
         {
@@ -266,10 +291,6 @@ public class CityBuilderWindow : EditorWindow
 
         GUI.color = Color.white;
         EditorGUILayout.EndHorizontal();
-        EditorGUILayout.Space();
-
-        bool dummyBlockUiState = true;
-        CityBlockEditor.DrawBlockEditorUI(cityManager, ref dummyBlockUiState);
 
         EditorGUILayout.Space();
         CityZoningEditor.DrawZoningEditorUI(cityManager);
@@ -289,6 +310,30 @@ public class CityBuilderWindow : EditorWindow
         {
             GenerateAllLots();
         }
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("Cancella tutti i Lotti", buttonStyle))
+        {
+            Undo.RecordObject(cityData, "Cancella Tutti i Lotti");
+            int removedLots = cityManager.ClearAllLots();
+            EditorUtility.SetDirty(cityData);
+            SceneView.RepaintAll();
+            EditorUtility.DisplayDialog("Cancella Lotti", $"Lotti rimossi: {removedLots}", "OK");
+        }
+
+        int selectedBlockID = cityManager.GetSelectedBlockID();
+        using (new EditorGUI.DisabledScope(selectedBlockID < 0 || cityData.GetBlock(selectedBlockID) == null))
+        {
+            if (GUILayout.Button("Cancella Lotti del Blocco Selezionato", buttonStyle))
+            {
+                Undo.RecordObject(cityData, "Cancella Lotti Blocco");
+                int removedLots = cityManager.ClearLotsForBlock(selectedBlockID);
+                EditorUtility.SetDirty(cityData);
+                SceneView.RepaintAll();
+                EditorUtility.DisplayDialog("Cancella Lotti", $"Lotti rimossi dal blocco {selectedBlockID}: {removedLots}", "OK");
+            }
+        }
+        EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.LabelField($"Lotti totali: {cityData.lots.Count}");
 

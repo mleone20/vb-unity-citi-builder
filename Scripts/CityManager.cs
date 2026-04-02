@@ -255,6 +255,60 @@ public class CityManager : MonoBehaviour
         return cityData?.lots.Count ?? 0;
     }
 
+    public int ClearAllLots()
+    {
+        if (cityData == null)
+        {
+            return 0;
+        }
+
+        int removedCount = cityData.lots.Count;
+        cityData.lots.Clear();
+
+        foreach (CityBlock block in cityData.blocks)
+        {
+            if (block != null)
+            {
+                block.lotIDs.Clear();
+            }
+        }
+
+        Debug.Log($"[CityManager] Lotti rimossi: {removedCount}");
+        return removedCount;
+    }
+
+    public int ClearLotsForBlock(int blockID)
+    {
+        if (cityData == null)
+        {
+            return 0;
+        }
+
+        CityBlock block = cityData.GetBlock(blockID);
+        if (block == null)
+        {
+            return 0;
+        }
+
+        HashSet<int> lotIdsToRemove = new HashSet<int>(block.lotIDs);
+        int removedCount = 0;
+
+        for (int i = cityData.lots.Count - 1; i >= 0; i--)
+        {
+            CityLot lot = cityData.lots[i];
+            if (lot != null && (lot.blockID == blockID || lotIdsToRemove.Contains(lot.id)))
+            {
+                cityData.lots.RemoveAt(i);
+                removedCount++;
+            }
+        }
+
+        block.lotIDs.Clear();
+
+        Debug.Log($"[CityManager] Lotti rimossi dal blocco {blockID}: {removedCount}");
+        return removedCount;
+    }
+
     // ========== PUBLIC API - Modalità Editor ==========
 
     public BuildMode GetCurrentMode() => currentMode;
