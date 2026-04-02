@@ -125,6 +125,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4d988d61a688546499686a9bd832fa37, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CityBuilderPrefab
-  footprintSize: {x: 8, y: 8}
+  footprintSize: {x: 10, y: 10}
   autoComputeFromRenderers: 1
-  pivotOffset: {x: 0, y: 0, z: 0}
+  pivotOffset: {x: 0, y: -0.5, z: 0}
