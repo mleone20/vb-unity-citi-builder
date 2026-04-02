@@ -64,7 +64,7 @@ public class CityBuilderPrefab : MonoBehaviour
     private void OnDrawGizmosSelected()
     {
         Vector2 size = GetFootprintSize();
-        Vector3 pivotWorld = transform.TransformPoint(pivotOffset);
+        Vector3 pivotWorld = pivotOffset;
 
         Matrix4x4 previousMatrix = Gizmos.matrix;
         Color previousColor = Gizmos.color;

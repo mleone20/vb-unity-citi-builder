@@ -121,7 +121,10 @@ public static class CityBuildingSpawner
                         report.lotsOutOfFit++;
                     }
 
-                    spawnPosition += lotRotation * metadata.pivotOffset;
+                    // Corregge solo Y: il pivot (tipicamente il fondo del building) deve atterrare
+                    // al livello del lotto. pivotOffset.y < 0 quando il fondo è sotto il pivot
+                    // del transform, quindi la sottrazione alza l'oggetto della giusta quantità.
+                    spawnPosition.y -= metadata.pivotOffset.y;
                 }
                 else
                 {
