@@ -50,10 +50,9 @@ public class CityBuilderPrefabEditor : Editor
         }
 
         Vector3 bottomCenterWorld = new Vector3(combined.center.x, combined.min.y, combined.center.z);
-        Vector3 localOffset = component.transform.InverseTransformPoint(bottomCenterWorld);
 
         Undo.RecordObject(component, "Auto ground pivot");
-        component.pivotOffset = localOffset;
+        component.pivotOffset = bottomCenterWorld;
         EditorUtility.SetDirty(component);
     }
 }
