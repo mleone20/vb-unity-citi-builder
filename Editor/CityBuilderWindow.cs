@@ -70,6 +70,9 @@ public class CityBuilderWindow : EditorWindow
             return;
         }
 
+        EditorGUILayout.HelpBox($"Modalità attuale: {cityManager.GetCurrentMode()}", MessageType.Info);
+        EditorGUILayout.Space();
+
         DrawSectionToolbar();
         EditorGUILayout.Space();
         EditorGUILayout.Separator();
@@ -202,8 +205,6 @@ public class CityBuilderWindow : EditorWindow
 
         GUI.color = Color.white;
         EditorGUILayout.EndHorizontal();
-
-        EditorGUILayout.HelpBox($"Modalità attuale: {currentMode}", MessageType.Info);
         EditorGUILayout.Space();
 
         EditorGUILayout.LabelField("Informazioni Nodi", EditorStyles.boldLabel);
@@ -228,8 +229,6 @@ public class CityBuilderWindow : EditorWindow
 
         GUI.color = Color.white;
         EditorGUILayout.EndHorizontal();
-
-        EditorGUILayout.HelpBox($"Modalità attuale: {currentMode}", MessageType.Info);
         EditorGUILayout.Space();
 
         EditorGUILayout.LabelField("Larghezza Strade Globale:");
@@ -267,8 +266,6 @@ public class CityBuilderWindow : EditorWindow
 
         GUI.color = Color.white;
         EditorGUILayout.EndHorizontal();
-
-        EditorGUILayout.HelpBox($"Modalità attuale: {currentMode}", MessageType.Info);
         EditorGUILayout.Space();
 
         bool dummyBlockUiState = true;
