@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>
 /// Editor script per assegnazione zoning ai blocchi.
@@ -8,7 +9,18 @@ using System.Collections.Generic;
 /// </summary>
 public static class CityZoningEditor
 {
-    private static int selectedBlockIDForZoning = -1;
+    public static int GetSelectedBlockIDForZoning(CityManager manager)
+    {
+        return manager != null ? manager.GetSelectedBlockID() : -1;
+    }
+
+    public static void SetSelectedBlockForZoning(CityManager manager, int blockID)
+    {
+        if (manager != null)
+        {
+            manager.SetSelectedBlockID(blockID);
+        }
+    }
 
     public static void DrawZoningEditorUI(CityManager manager)
     {
@@ -18,10 +30,24 @@ public static class CityZoningEditor
         EditorGUILayout.LabelField("ZONING - Assegnazione Destinazioni", EditorStyles.boldLabel);
         EditorGUILayout.Space();
 
+        List<ZoneType> zoneTypes = ZoneTypeEditorUtility.LoadAllZoneTypes();
+        if (zoneTypes.Count == 0)
+        {
+            EditorGUILayout.HelpBox("Nessun ZoneType asset trovato. Crea almeno un asset ZoneType da Assets/Create/City Builder/Zone Type.", MessageType.Warning);
+            return;
+        }
+
         if (cityData.blocks.Count == 0)
         {
             EditorGUILayout.HelpBox("Nessun blocco disponibile. Crea blocchi prima.", MessageType.Info);
             return;
+        }
+
+        int selectedBlockIDForZoning = manager.GetSelectedBlockID();
+        if (selectedBlockIDForZoning < 0 || cityData.GetBlock(selectedBlockIDForZoning) == null)
+        {
+            selectedBlockIDForZoning = cityData.blocks[0].id;
+            manager.SetSelectedBlockID(selectedBlockIDForZoning);
         }
 
         // Selettore blocco
@@ -33,7 +59,7 @@ public static class CityZoningEditor
         for (int i = 0; i < cityData.blocks.Count; i++)
         {
             CityBlock block = cityData.blocks[i];
-            blockLabels[i] = $"Block {block.id} - {block.zoning}";
+            blockLabels[i] = $"Block {block.id} - {ZoneTypeEditorUtility.GetZoneDisplayName(block.zoning)}";
             
             if (block.id == selectedBlockIDForZoning)
                 currentBlockIndex = i;
@@ -44,6 +70,7 @@ public static class CityZoningEditor
         if (newBlockIndex >= 0)
         {
             selectedBlockIDForZoning = cityData.blocks[newBlockIndex].id;
+            manager.SetSelectedBlockID(selectedBlockIDForZoning);
         }
 
         EditorGUILayout.Space();
@@ -63,39 +90,32 @@ public static class CityZoningEditor
                 // Selettore zoning
                 EditorGUILayout.LabelField("Destinazione d'uso:", EditorStyles.label);
 
-                ZoneType currentZoning = selectedBlock.zoning;
-                
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Residenziale (Verde)"))
-                {
-                    manager.SetBlockZoning(selectedBlock.id, ZoneType.Residential);
-                }
-                EditorGUILayout.EndHorizontal();
+                int selectedZoneIndex = Mathf.Max(0, zoneTypes.IndexOf(selectedBlock.zoning));
+                string[] zoneLabels = zoneTypes.Select(z => ZoneTypeEditorUtility.GetZoneDisplayName(z)).ToArray();
+                int newZoneIndex = EditorGUILayout.Popup("Zone Type", selectedZoneIndex, zoneLabels);
+                ZoneType newZone = zoneTypes[newZoneIndex];
 
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Commerciale (Blu)"))
+                if (newZone != selectedBlock.zoning)
                 {
-                    manager.SetBlockZoning(selectedBlock.id, ZoneType.Commercial);
+                    manager.SetBlockZoning(selectedBlock.id, newZone);
                 }
-                EditorGUILayout.EndHorizontal();
 
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Industriale (Giallo)"))
+                EditorGUILayout.Space();
+                EditorGUILayout.LabelField("Assegnazione Rapida:", EditorStyles.label);
+                foreach (ZoneType zoneType in zoneTypes)
                 {
-                    manager.SetBlockZoning(selectedBlock.id, ZoneType.Industrial);
+                    Color previousColor = GUI.color;
+                    GUI.color = zoneType.zoneColor;
+                    if (GUILayout.Button(ZoneTypeEditorUtility.GetZoneDisplayName(zoneType)))
+                    {
+                        manager.SetBlockZoning(selectedBlock.id, zoneType);
+                    }
+                    GUI.color = previousColor;
                 }
-                EditorGUILayout.EndHorizontal();
-
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Speciale (Grigio)"))
-                {
-                    manager.SetBlockZoning(selectedBlock.id, ZoneType.Special);
-                }
-                EditorGUILayout.EndHorizontal();
 
                 EditorGUILayout.Space();
 
-                EditorGUILayout.LabelField($"Zoning attuale: {selectedBlock.zoning}", EditorStyles.label);
+                EditorGUILayout.LabelField($"Zoning attuale: {ZoneTypeEditorUtility.GetZoneDisplayName(selectedBlock.zoning)}", EditorStyles.label);
                 
                 Color zoningColor = cityData.GetZoneColor(selectedBlock.zoning);
                 EditorGUILayout.ColorField("Colore zona:", zoningColor);
@@ -111,22 +131,21 @@ public static class CityZoningEditor
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Statistiche Zoning:", EditorStyles.boldLabel);
 
-        int resCount = 0, comCount = 0, indCount = 0, specCount = 0;
+        Dictionary<string, int> counts = new Dictionary<string, int>();
 
         foreach (var block in cityData.blocks)
         {
-            switch (block.zoning)
+            string label = ZoneTypeEditorUtility.GetZoneDisplayName(block.zoning);
+            if (!counts.ContainsKey(label))
             {
-                case ZoneType.Residential: resCount++; break;
-                case ZoneType.Commercial: comCount++; break;
-                case ZoneType.Industrial: indCount++; break;
-                case ZoneType.Special: specCount++; break;
+                counts[label] = 0;
             }
+            counts[label]++;
         }
 
-        EditorGUILayout.LabelField($"  Residenziali: {resCount}", EditorStyles.label);
-        EditorGUILayout.LabelField($"  Commerciali: {comCount}", EditorStyles.label);
-        EditorGUILayout.LabelField($"  Industriali: {indCount}", EditorStyles.label);
-        EditorGUILayout.LabelField($"  Speciali: {specCount}", EditorStyles.label);
+        foreach (KeyValuePair<string, int> pair in counts.OrderBy(k => k.Key))
+        {
+            EditorGUILayout.LabelField($"  {pair.Key}: {pair.Value}", EditorStyles.label);
+        }
     }
 }

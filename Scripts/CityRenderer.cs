@@ -100,7 +100,7 @@ public static class CityRenderer
                 Gizmos.DrawCube(node.position, Vector3.one * adaptiveSize);
             }
 
-            DrawNodeIdLabel(node.id, node.position, adaptiveSize);
+            DrawNodeIdLabel(node.id, node.position, adaptiveSize, node.id == selectedNodeID);
             DrawNodeBrokenLinkError(node, cityData, adaptiveSize);
         }
     }
@@ -169,14 +169,14 @@ public static class CityRenderer
     }
 
 #if UNITY_EDITOR
-    private static void DrawNodeIdLabel(int nodeId, Vector3 nodePosition, float adaptiveSize)
+    private static void DrawNodeIdLabel(int nodeId, Vector3 nodePosition, float adaptiveSize, bool isSelected)
     {
-        Handles.color = Color.white;
+        Handles.color = isSelected ? Color.red : Color.white;
         Vector3 labelPos = nodePosition + Vector3.up * (adaptiveSize * 1.4f);
         Handles.Label(labelPos, nodeId.ToString());
     }
 #else
-    private static void DrawNodeIdLabel(int nodeId, Vector3 nodePosition, float adaptiveSize) { }
+    private static void DrawNodeIdLabel(int nodeId, Vector3 nodePosition, float adaptiveSize, bool isSelected) { }
 #endif
 
     private static float GetAdaptiveNodeSize(Vector3 worldPosition)
@@ -194,17 +194,17 @@ public static class CityRenderer
 
     // ========== DISEGNO BLOCCHI ==========
 
-    public static void DrawBlocks(CityData cityData)
+    public static void DrawBlocks(CityData cityData, int selectedBlockID = -1)
     {
         if (cityData == null) return;
 
         foreach (var block in cityData.blocks)
         {
-            DrawSingleBlock(block, cityData);
+            DrawSingleBlock(block, cityData, block != null && block.id == selectedBlockID);
         }
     }
 
-    private static void DrawSingleBlock(CityBlock block, CityData cityData)
+    private static void DrawSingleBlock(CityBlock block, CityData cityData, bool isSelected)
     {
         if (block.vertices.Count < 3) return;
 
@@ -227,17 +227,23 @@ public static class CityRenderer
         Vector3 center = block.GetCenter();
         Gizmos.color = blockColor;
         Gizmos.DrawCube(center, Vector3.one * 0.2f);
-        DrawBlockIdLabel(block.id, center);
+        DrawBlockIdLabel(block.id, center, isSelected);
+
+        if (isSelected)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(center, 0.45f);
+        }
     }
 
 #if UNITY_EDITOR
-    private static void DrawBlockIdLabel(int blockId, Vector3 center)
+    private static void DrawBlockIdLabel(int blockId, Vector3 center, bool isSelected)
     {
-        Handles.color = Color.white;
+        Handles.color = isSelected ? Color.red : Color.white;
         Handles.Label(center + Vector3.up * 0.3f, "B" + blockId);
     }
 #else
-    private static void DrawBlockIdLabel(int blockId, Vector3 center) { }
+    private static void DrawBlockIdLabel(int blockId, Vector3 center, bool isSelected) { }
 #endif
 
     private static void DrawFilledPolygon2D(List<Vector3> vertices, Color color)

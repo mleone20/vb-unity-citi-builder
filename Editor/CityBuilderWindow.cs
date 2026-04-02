@@ -296,27 +296,9 @@ public class CityBuilderWindow : EditorWindow
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Edifici", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("Colori e altezze edificio sono definiti negli asset ZoneType. Modifica gli asset ZoneType nell'Inspector per personalizzarli.", MessageType.Info);
         EditorGUILayout.LabelField("Scale Globale Edifici:");
         cityData.buildingScale = EditorGUILayout.Slider(cityData.buildingScale, 0.5f, 2f);
-
-        EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Altezze per Zona (in meter):");
-        EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField("Residenziale:");
-        cityData.heightResidential = EditorGUILayout.FloatField(cityData.heightResidential, GUILayout.Width(50));
-        EditorGUILayout.EndHorizontal();
-        EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField("Commerciale:");
-        cityData.heightCommercial = EditorGUILayout.FloatField(cityData.heightCommercial, GUILayout.Width(50));
-        EditorGUILayout.EndHorizontal();
-        EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField("Industriale:");
-        cityData.heightIndustrial = EditorGUILayout.FloatField(cityData.heightIndustrial, GUILayout.Width(50));
-        EditorGUILayout.EndHorizontal();
-        EditorGUILayout.BeginHorizontal();
-        EditorGUILayout.LabelField("Speciale:");
-        cityData.heightSpecial = EditorGUILayout.FloatField(cityData.heightSpecial, GUILayout.Width(50));
-        EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.LabelField($"Edifici visualizzati: {cityData.lots.Count}");
     }
@@ -335,6 +317,11 @@ public class CityBuilderWindow : EditorWindow
             EditorUtility.SetDirty(cityData);
             SceneView.RepaintAll();
             EditorUtility.DisplayDialog("Ripara Collegamenti", repairReport, "OK");
+        }
+
+        if (GUILayout.Button("Setup Zone Types di Default", buttonStyle))
+        {
+            CityBuilderMenu.SetupDefaultZoneTypes();
         }
 
         EditorGUILayout.Space();

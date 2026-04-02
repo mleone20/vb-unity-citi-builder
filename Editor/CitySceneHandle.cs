@@ -294,7 +294,7 @@ public class CitySceneHandle
     }
 
     /// <summary>
-    /// Gestisce click in modalità AssignZoning: assegna zona a blocco
+    /// Gestisce click in modalità AssignZoning: seleziona blocco dalla scena
     /// </summary>
     private static void HandleAssignZoningClick(Ray ray, CityManager manager)
     {
@@ -310,8 +310,9 @@ public class CitySceneHandle
             return;
         }
 
-        // Mostra menu di scelta zoning
-        ShowZoningMenu(block, manager);
+        CityZoningEditor.SetSelectedBlockForZoning(manager, block.id);
+        Debug.Log($"[AssignZoning] Blocco selezionato: {block.id}");
+        SceneView.RepaintAll();
     }
 
     /// <summary>
@@ -321,17 +322,21 @@ public class CitySceneHandle
     {
         GenericMenu menu = new GenericMenu();
 
-        menu.AddItem(new GUIContent("Residential (Verde)"), block.zoning == ZoneType.Residential,
-            () => manager.SetBlockZoning(block.id, ZoneType.Residential));
-
-        menu.AddItem(new GUIContent("Commercial (Blu)"), block.zoning == ZoneType.Commercial,
-            () => manager.SetBlockZoning(block.id, ZoneType.Commercial));
-
-        menu.AddItem(new GUIContent("Industrial (Giallo)"), block.zoning == ZoneType.Industrial,
-            () => manager.SetBlockZoning(block.id, ZoneType.Industrial));
-
-        menu.AddItem(new GUIContent("Special (Grigio Scuro)"), block.zoning == ZoneType.Special,
-            () => manager.SetBlockZoning(block.id, ZoneType.Special));
+        var zoneTypes = ZoneTypeEditorUtility.LoadAllZoneTypes();
+        if (zoneTypes.Count == 0)
+        {
+            menu.AddDisabledItem(new GUIContent("Nessun ZoneType asset disponibile"));
+        }
+        else
+        {
+            foreach (ZoneType zoneType in zoneTypes)
+            {
+                ZoneType capturedZone = zoneType;
+                string label = ZoneTypeEditorUtility.GetZoneDisplayName(capturedZone);
+                menu.AddItem(new GUIContent(label), block.zoning == capturedZone,
+                    () => manager.SetBlockZoning(block.id, capturedZone));
+            }
+        }
 
         menu.ShowAsContext();
     }
@@ -370,7 +375,7 @@ public class CitySceneHandle
         }
         else if (mode == CityManager.BuildMode.AssignZoning)
         {
-            Handles.Label(Vector3.zero, "[AssignZoning Mode] Click blocco per zoning | Ctrl rimuove nodo");
+            Handles.Label(Vector3.zero, "[AssignZoning Mode] Click area blocco per selezionarlo nella UI Zoning | Ctrl rimuove nodo");
         }
         else if (mode == CityManager.BuildMode.CreateBlock)
         {

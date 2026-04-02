@@ -2,14 +2,21 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// Enum per le destinazioni d'uso delle zone
+/// Asset che descrive una destinazione d'uso della città.
+/// Colore e altezza edificio sono ora definiti per zona tramite ScriptableObject.
 /// </summary>
-public enum ZoneType
+[CreateAssetMenu(fileName = "ZoneType", menuName = "City Builder/Zone Type")]
+public class ZoneType : ScriptableObject
 {
-    Residential,  // Verde - 1-5 piani
-    Commercial,   // Blu - 10-25 piani
-    Industrial,   // Giallo - 8-15 piani
-    Special       // Grigio scuro - strutture speciali
+    public string displayName = "New Zone";
+    public Color zoneColor = Color.white;
+    public float buildingHeight = 5.0f;
+    [TextArea] public string description;
+
+    public string GetDisplayName()
+    {
+        return string.IsNullOrWhiteSpace(displayName) ? name : displayName;
+    }
 }
 
 /// <summary>
@@ -57,7 +64,7 @@ public class CityBlock
 {
     public int id;
     public List<Vector3> vertices = new List<Vector3>();
-    public ZoneType zoning = ZoneType.Residential;
+    public ZoneType zoning;
     public List<int> lotIDs = new List<int>();
 
     public CityBlock(int id)

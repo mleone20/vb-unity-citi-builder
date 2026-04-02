@@ -21,12 +21,6 @@ public class CityData : ScriptableObject
     [Range(1f, 10f)] [SerializeField] public float globalRoadWidth = 3.0f;
     [Range(10f, 100f)] [SerializeField] public float averageLotSize = 30.0f;
     [Range(0.5f, 2f)] [SerializeField] public float buildingScale = 1.0f;
-    
-    [Header("Altezze per Zona")]
-    [SerializeField] public float heightResidential = 5.0f;
-    [SerializeField] public float heightCommercial = 20.0f;
-    [SerializeField] public float heightIndustrial = 12.0f;
-    [SerializeField] public float heightSpecial = 8.0f;
 
     // Counter per generare ID unici
     private int nextNodeID = 0;
@@ -44,10 +38,6 @@ public class CityData : ScriptableObject
         clone.globalRoadWidth = this.globalRoadWidth;
         clone.averageLotSize = this.averageLotSize;
         clone.buildingScale = this.buildingScale;
-        clone.heightResidential = this.heightResidential;
-        clone.heightCommercial = this.heightCommercial;
-        clone.heightIndustrial = this.heightIndustrial;
-        clone.heightSpecial = this.heightSpecial;
         
         // Deep clone collections
         foreach (var node in nodes)
@@ -129,26 +119,17 @@ public class CityData : ScriptableObject
 
     public float GetZoneHeight(ZoneType zone)
     {
-        return zone switch
+        if (zone != null)
         {
-            ZoneType.Residential => heightResidential,
-            ZoneType.Commercial => heightCommercial,
-            ZoneType.Industrial => heightIndustrial,
-            ZoneType.Special => heightSpecial,
-            _ => 5.0f
-        };
+            return Mathf.Max(0.1f, zone.buildingHeight);
+        }
+
+        return 5.0f;
     }
 
     public Color GetZoneColor(ZoneType zone)
     {
-        return zone switch
-        {
-            ZoneType.Residential => Color.green,
-            ZoneType.Commercial => Color.blue,
-            ZoneType.Industrial => Color.yellow,
-            ZoneType.Special => new Color(0.3f, 0.3f, 0.3f, 1f),
-            _ => Color.white
-        };
+        return zone != null ? zone.zoneColor : Color.white;
     }
 
     // ========== ID GENERATION ==========
