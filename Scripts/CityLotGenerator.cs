@@ -45,6 +45,15 @@ public static class CityLotGenerator
 
             int   count      = Mathf.Max(1, Mathf.RoundToInt(edgeLength / avgLotSize));
             float baseWidth  = edgeLength / count;
+            
+            // Guida la larghezza del lotto dalle dimensioni medie dei prefab della zona
+            float avgPrefabWidth = GetAveragePrefabWidthFromZone(zone);
+            if (avgPrefabWidth > 0.5f)
+            {
+                // Clamp baseWidth in un range ragionevole attorno alla larghezza media dei prefab
+                baseWidth = Mathf.Clamp(baseWidth, avgPrefabWidth * 0.8f, avgPrefabWidth * 1.5f);
+            }
+            
             float currentPos = 0f;  // Traccia la posizione corrente lungo l'edge
 
             int lotIdx = 0;
@@ -142,6 +151,38 @@ public static class CityLotGenerator
         return lots;
     }
 
+    // ── Helper per Prefab-Aware Sizing ────────────────────────────────────────
+
+    /// <summary>
+    /// Calcola la larghezza media dei prefab di una zona per guidare il sizing dei lotti.
+    /// </summary>
+    private static float GetAveragePrefabWidthFromZone(ZoneType zone)
+    {
+        if (zone == null || zone.buildingPrefabs == null || zone.buildingPrefabs.Count == 0)
+            return 0f;
+        
+        float totalWidth = 0f;
+        int count = 0;
+        
+        foreach (GameObject prefab in zone.buildingPrefabs)
+        {
+            if (prefab == null) continue;
+            
+            CityBuilderPrefab metadata = prefab.GetComponent<CityBuilderPrefab>();
+            if (metadata != null)
+            {
+                Vector2 footprint = metadata.GetFootprintSize();
+                if (footprint.x > 0.1f)
+                {
+                    totalWidth += footprint.x;
+                    count++;
+                }
+            }
+        }
+        
+        return count > 0 ? totalWidth / count : 0f;
+    }
+
     // ── Calcolo Size Factor Procedurale ───────────────────────────────────────
 
     /// <summary>
@@ -150,8 +191,8 @@ public static class CityLotGenerator
     /// </summary>
     private static float CalculateLotSizeFactor(int blockID, int edgeIdx, int lotIdx, CityData cityData)
     {
-        // Seed
-        float seed = Random.Range(0f, 10000f) + blockID * 100f + edgeIdx * 10f + lotIdx;
+        // Seed deterministico da game state (no Random per ripetibilità)
+        float seed = blockID * 100f + edgeIdx * 10f + lotIdx;
 
         // Combina Perlin noise per un effetto ripetitivo e naturale
         float noiseVal = Mathf.PerlinNoise(seed + edgeIdx * 0.5f, blockID * 0.1f + lotIdx * 0.1f);

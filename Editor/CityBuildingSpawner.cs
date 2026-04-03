@@ -127,6 +127,7 @@ public static class CityBuildingSpawner
                     if (!fits)
                     {
                         report.lotsOutOfFit++;
+                        continue;  // Salta lo spawn se il prefab non rientra nel lotto
                     }
 
                     // Corregge solo Y: il pivot (tipicamente il fondo del building) deve atterrare
