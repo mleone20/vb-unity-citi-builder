@@ -415,6 +415,9 @@ public class CitySceneHandle
             // Mostra help text
             Handles.Label(Vector3.zero, "[AddNodes Mode] Click aggiunge nodo | Shift connette ultimo nodo | Ctrl rimuove nodo");
             DrawAddNodePreview(manager);
+
+            // Forza refresh continuo della SceneView per una preview realmente live.
+            sceneView.Repaint();
         }
         else if (mode == CityManager.BuildMode.Idle)
         {
@@ -480,6 +483,36 @@ public class CitySceneHandle
 
         Handles.color = new Color(0.2f, 1f, 0.9f, 0.95f);
         Handles.DrawWireDisc(previewPosition, Vector3.up, radius * 1.15f);
+
+        bool shiftPressed = currentEvent.shift;
+        if (shiftPressed)
+        {
+            CityNode sourceNode = manager.GetNode(lastAddedNodeID);
+            if (sourceNode != null)
+            {
+                CityNode existingNode = manager.FindNearestNode(previewPosition, 2.0f);
+                bool willAttachToExisting = existingNode != null && existingNode.id != sourceNode.id;
+                Vector3 targetPosition = willAttachToExisting ? existingNode.position : previewPosition;
+
+                Handles.color = new Color(1f, 0.85f, 0.2f, 0.95f);
+                Handles.DrawAAPolyLine(5f, sourceNode.position, targetPosition);
+
+                float endpointRadius = HandleUtility.GetHandleSize(targetPosition) * 0.1f;
+                Handles.DrawWireDisc(targetPosition, Vector3.up, endpointRadius);
+
+                if (willAttachToExisting)
+                {
+                    Handles.Label(targetPosition + Vector3.up * (endpointRadius * 2f),
+                        $"Connessione -> Nodo {existingNode.id}");
+                }
+            }
+            else
+            {
+                Handles.color = new Color(1f, 0.75f, 0.2f, 0.95f);
+                Handles.Label(previewPosition + Vector3.up * (radius * 2.1f),
+                    "Shift: aggiungi prima un nodo sorgente");
+            }
+        }
 
         if (SnapToGridEnabled)
         {
