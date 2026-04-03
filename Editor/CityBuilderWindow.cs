@@ -9,8 +9,7 @@ public class CityBuilderWindow : EditorWindow
 {
     private enum EditorSection
     {
-        Nodes,
-        Roads,
+        Paths,
         Blocks,
         Zoning,
         Buildings,
@@ -20,7 +19,7 @@ public class CityBuilderWindow : EditorWindow
 
     private CityManager cityManager;
     private CityData cityData;
-    private EditorSection currentSection = EditorSection.Nodes;
+    private EditorSection currentSection = EditorSection.Paths;
 
     private GUIStyle headerStyle;
     private GUIStyle buttonStyle;
@@ -84,11 +83,8 @@ public class CityBuilderWindow : EditorWindow
 
         switch (currentSection)
         {
-            case EditorSection.Nodes:
-                DrawNodesSection();
-                break;
-            case EditorSection.Roads:
-                DrawRoadsSection();
+            case EditorSection.Paths:
+                DrawPathsSection();
                 break;
             case EditorSection.Blocks:
                 DrawBlocksSection();
@@ -165,14 +161,9 @@ public class CityBuilderWindow : EditorWindow
 
         EditorGUILayout.BeginHorizontal();
 
-        if (DrawSectionButton("Nodi", EditorSection.Nodes))
+        if (DrawSectionButton("Percorsi", EditorSection.Paths))
         {
-            currentSection = EditorSection.Nodes;
-        }
-
-        if (DrawSectionButton("Strade", EditorSection.Roads))
-        {
-            currentSection = EditorSection.Roads;
+            currentSection = EditorSection.Paths;
         }
 
         if (DrawSectionButton("Blocchi", EditorSection.Blocks))
@@ -211,7 +202,7 @@ public class CityBuilderWindow : EditorWindow
         return pressed;
     }
 
-    private void DrawNodesSection()
+    private void DrawPathsSection()
     {
         EditorGUILayout.LabelField("NODI", EditorStyles.boldLabel);
         EditorGUILayout.Space();
@@ -232,24 +223,6 @@ public class CityBuilderWindow : EditorWindow
             cityManager.SetMode(CityManager.BuildMode.AddNodes);
         }
 
-        GUI.color = Color.white;
-        EditorGUILayout.EndHorizontal();
-        EditorGUILayout.Space();
-
-        EditorGUILayout.LabelField("Informazioni Nodi", EditorStyles.boldLabel);
-        EditorGUILayout.LabelField($"Nodi totali: {cityData.nodes.Count}");
-        EditorGUILayout.LabelField($"Nodo selezionato: {cityManager.GetSelectedNodeID()}");
-    }
-
-    private void DrawRoadsSection()
-    {
-        EditorGUILayout.LabelField("STRADE", EditorStyles.boldLabel);
-        EditorGUILayout.Space();
-
-        CityManager.BuildMode currentMode = cityManager.GetCurrentMode();
-
-        EditorGUILayout.BeginHorizontal();
-
         GUI.color = currentMode == CityManager.BuildMode.ConnectNodes ? Color.yellow : Color.white;
         if (GUILayout.Button("Connetti Nodi"))
         {
@@ -260,6 +233,7 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
         EditorGUILayout.Space();
 
+        EditorGUILayout.LabelField("Strade", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("Larghezza Strade Globale:");
         float roadWidth = EditorGUILayout.Slider(cityData.globalRoadWidth, 1f, 10f);
         if (roadWidth != cityData.globalRoadWidth)
@@ -268,9 +242,10 @@ public class CityBuilderWindow : EditorWindow
         }
 
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Informazioni Strade", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Informazioni", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField($"Nodi totali: {cityData.nodes.Count}");
+        EditorGUILayout.LabelField($"Nodo selezionato: {cityManager.GetSelectedNodeID()}");
         EditorGUILayout.LabelField($"Segmenti totali: {cityData.segments.Count}");
-        EditorGUILayout.LabelField($"Nodi disponibili: {cityData.nodes.Count}");
     }
 
     private void DrawBlocksSection()
