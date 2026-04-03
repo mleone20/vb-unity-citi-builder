@@ -143,8 +143,19 @@ public class CityBuilderWindow : EditorWindow
 
     private void DrawHeader()
     {
-        EditorGUILayout.LabelField("🏙 CITY BUILDER TOOL", headerStyle);
+        EditorGUILayout.LabelField("\U0001f3d9 CITY BUILDER TOOL", headerStyle);
         EditorGUILayout.LabelField("Editor-Only Procedural City Layout Designer", EditorStyles.helpBox);
+        EditorGUILayout.Space();
+
+        bool isActive = CitySceneHandle.IsEnabled;
+        GUI.color = isActive ? new Color(0.3f, 1f, 0.4f) : new Color(1f, 0.75f, 0.3f);
+        string toggleLabel = isActive ? "\u25cf  City Builder ATTIVO  (click per disabilitare)" : "\u25cb  City Builder DISABILITATO  (click per abilitare)";
+        if (GUILayout.Button(toggleLabel, GUILayout.Height(30)))
+        {
+            CitySceneHandle.IsEnabled = !CitySceneHandle.IsEnabled;
+            SceneView.RepaintAll();
+        }
+        GUI.color = Color.white;
     }
 
     private void DrawSectionToolbar()

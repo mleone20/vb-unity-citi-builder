@@ -9,6 +9,8 @@ using UnityEditor.SceneManagement;
 /// </summary>
 public class CitySceneHandle
 {
+    public static bool IsEnabled = false;
+
     private static CityManager cachedCityManager;
     private static bool isInitialized = false;
     private static int lastAddedNodeID = -1;
@@ -37,7 +39,12 @@ public class CitySceneHandle
 
         if (cachedCityManager == null) return;
 
+        if (!IsEnabled) return;
+
         CityManager.BuildMode mode = cachedCityManager.GetCurrentMode();
+
+        // Overlay in alto a sinistra della SceneView
+        DrawSceneOverlay(sceneView);
 
         // Disegna prima l'handle: così Unity può assegnare il controllo al gizmo.
         DrawSelectedNodeMoveHandle(cachedCityManager);
@@ -50,6 +57,25 @@ public class CitySceneHandle
 
         // Processa eventi keyboard/mouse
         ProcessSceneViewInput(sceneView, cachedCityManager, mode);
+    }
+
+    private static void DrawSceneOverlay(SceneView sceneView)
+    {
+        Handles.BeginGUI();
+        var bgStyle = new GUIStyle(GUI.skin.box)
+        {
+            normal = { background = Texture2D.whiteTexture }
+        };
+        var labelStyle = new GUIStyle(EditorStyles.boldLabel)
+        {
+            fontSize = 13,
+            normal = { textColor = new Color(0.15f, 0.9f, 0.35f) }
+        };
+        GUI.color = new Color(0f, 0f, 0f, 0.55f);
+        GUI.Box(new Rect(8f, 8f, 200f, 28f), GUIContent.none, bgStyle);
+        GUI.color = Color.white;
+        GUI.Label(new Rect(14f, 10f, 192f, 24f), "\u26a1 CITY BUILDER MODE", labelStyle);
+        Handles.EndGUI();
     }
 
     /// <summary>
