@@ -10,6 +10,13 @@ public class CityBlockEditor
 {
     private static List<List<Vector3>> suggestedBlocks = new List<List<Vector3>>();
     private static bool showingPreview = false;
+
+    public static void ClearPreview()
+    {
+        suggestedBlocks.Clear();
+        showingPreview = false;
+        SceneView.RepaintAll();
+    }
     private static List<int> selectedManualNodeIds = new List<int>();
 
     public static void DrawBlockEditorUI(CityManager manager, ref bool isEditingBlocks)

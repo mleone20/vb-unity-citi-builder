@@ -416,6 +416,7 @@ public class CityBuilderWindow : EditorWindow
         if (GUILayout.Button("🗑️ Cancella Tutto", buttonStyle))
         {
             cityManager.ResetCity();
+            CityBlockEditor.ClearPreview();
         }
         GUI.color = Color.white;
     }

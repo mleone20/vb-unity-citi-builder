@@ -337,10 +337,8 @@ public static class CityBuildingSpawner
         return true;
     }
 
-    private static Vector3 GetLotStreetDirection(CityLot lot)
-    {
-        Vector3 frontL = lot.vertices[0];
-        Vector3 frontR = lot.vertices[1];
+    private static Vector3 ComputeLotMatchedSpawnPosition(
+        CityBuilderPrefab metadata, Vector3 lotCenter, Quaternion spawnRotation)
     {
         Vector3 pivotOffsetXZ = new Vector3(metadata.pivotOffset.x, 0f, metadata.pivotOffset.z);
         Vector3 worldPivotOffsetXZ = spawnRotation * pivotOffsetXZ;
