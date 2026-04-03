@@ -161,12 +161,18 @@ public class CityBuilderPrefab : MonoBehaviour
         if (bestEntry != null)
         {
             Vector3 localEntry = transform.InverseTransformPoint(bestEntry.position);
+            Vector3 doorForwardLocal = transform.InverseTransformDirection(bestEntry.forward);
+            Vector3 inverseDoorForward = new Vector3(-doorForwardLocal.x, 0f, -doorForwardLocal.z);
+            bool hasDoorDirection = inverseDoorForward.sqrMagnitude > 0.0001f;
+
             if (longestSideIsX)
             {
                 float distToMinZ = Mathf.Abs(localEntry.z - boundsMin.z);
                 float distToMaxZ = Mathf.Abs(boundsMax.z - localEntry.z);
                 bool useMaxSide = distToMaxZ < distToMinZ;
-                defaultDirection = useMaxSide ? Vector3.forward : Vector3.back;
+                defaultDirection = hasDoorDirection
+                    ? inverseDoorForward.normalized
+                    : (useMaxSide ? Vector3.forward : Vector3.back);
                 defaultOffset = new Vector3(
                     Mathf.Clamp(localEntry.x, boundsMin.x, boundsMax.x),
                     0f,
@@ -177,7 +183,9 @@ public class CityBuilderPrefab : MonoBehaviour
                 float distToMinX = Mathf.Abs(localEntry.x - boundsMin.x);
                 float distToMaxX = Mathf.Abs(boundsMax.x - localEntry.x);
                 bool useMaxSide = distToMaxX < distToMinX;
-                defaultDirection = useMaxSide ? Vector3.right : Vector3.left;
+                defaultDirection = hasDoorDirection
+                    ? inverseDoorForward.normalized
+                    : (useMaxSide ? Vector3.right : Vector3.left);
                 defaultOffset = new Vector3(
                     useMaxSide ? boundsMax.x : boundsMin.x,
                     0f,
@@ -197,6 +205,21 @@ public class CityBuilderPrefab : MonoBehaviour
         Transform[] transforms = GetComponentsInChildren<Transform>(true);
         Transform best = null;
         float bestScore = float.MaxValue;
+        Vector3 pivotLocal = pivotOffset;
+
+        float heightSpan = 1f;
+        if (TryCalculateLocalRendererBounds(out Bounds localBounds))
+        {
+            heightSpan = Mathf.Max(MinFootprint, localBounds.size.y);
+        }
+
+        float sideSpan = longestSideIsX
+            ? Mathf.Max(MinFootprint, boundsMax.x - boundsMin.x)
+            : Mathf.Max(MinFootprint, boundsMax.z - boundsMin.z);
+
+        float depthSpan = longestSideIsX
+            ? Mathf.Max(MinFootprint, boundsMax.z - boundsMin.z)
+            : Mathf.Max(MinFootprint, boundsMax.x - boundsMin.x);
 
         for (int i = 0; i < transforms.Length; i++)
         {
@@ -212,11 +235,33 @@ public class CityBuilderPrefab : MonoBehaviour
                 continue;
             }
 
+            
             Vector3 localPos = transform.InverseTransformPoint(candidate.position);
-            float score = longestSideIsX
+            float edgeDistance = longestSideIsX
                 ? Mathf.Min(Mathf.Abs(localPos.z - boundsMin.z), Mathf.Abs(boundsMax.z - localPos.z))
                 : Mathf.Min(Mathf.Abs(localPos.x - boundsMin.x), Mathf.Abs(boundsMax.x - localPos.x));
 
+            // Peso prioritario: vicinanza al pivot lungo il lato lungo dell'edificio.
+            float pivotAlongLongSide = longestSideIsX
+                ? Mathf.Abs(localPos.x - pivotLocal.x)
+                : Mathf.Abs(localPos.z - pivotLocal.z);
+
+            // Penalizza fortemente candidate lontane in altezza dal pivot (es. porte su tetto).
+            float pivotVerticalDistance = Mathf.Abs(localPos.y - pivotLocal.y);
+
+            float normalizedPivotDistance = pivotAlongLongSide / sideSpan;
+            float normalizedVerticalDistance = pivotVerticalDistance / heightSpan;
+            float normalizedEdgeDistance = edgeDistance / depthSpan;
+
+            // Distanza 3D dal pivot sui due assi davvero rilevanti per l'ingresso: lato lungo + quota.
+            float normalizedPivot3D = Mathf.Sqrt(
+                normalizedPivotDistance * normalizedPivotDistance +
+                normalizedVerticalDistance * normalizedVerticalDistance);
+
+            // Priorita': vicinanza al pivot (soprattutto in quota) >> posizione esterna sul bordo.
+            float score = normalizedPivot3D * 0.9f + normalizedEdgeDistance * 0.1f;
+
+            Debug.Log($"Valutando candidate '{candidate.name}': pivotPlanar={pivotAlongLongSide:F2} (norm {normalizedPivotDistance:F2}), pivotY={pivotVerticalDistance:F2} (norm {normalizedVerticalDistance:F2}), edgeDist={edgeDistance:F2} (norm {normalizedEdgeDistance:F2}), score={score:F3}");
             if (score < bestScore)
             {
                 bestScore = score;
@@ -224,7 +269,43 @@ public class CityBuilderPrefab : MonoBehaviour
             }
         }
 
+        if (best != null)
+        {
+            best = GetFurthestDoorAncestor(best);
+        }
+
+        Debug.Log($"Auto frontage: best entry candidate is '{best?.name}' with score {bestScore:F3}");
+
         return best;
+    }
+
+    private Transform GetFurthestDoorAncestor(Transform start)
+    {
+        if (start == null)
+        {
+            return null;
+        }
+
+        Transform furthestDoorNode = start;
+        Transform current = start.parent;
+
+        while (current != null && current != transform.parent)
+        {
+            string lowerName = current.name.ToLowerInvariant();
+            if (lowerName.Contains("door") || lowerName.Contains("entry"))
+            {
+                furthestDoorNode = current;
+            }
+
+            if (current == transform)
+            {
+                break;
+            }
+
+            current = current.parent;
+        }
+
+        return furthestDoorNode;
     }
 
     private bool TryCalculateLocalRendererBounds(out Bounds localBounds)
