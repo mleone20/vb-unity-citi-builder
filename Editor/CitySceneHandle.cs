@@ -269,22 +269,21 @@ public class CitySceneHandle
         }
 
         bool shiftPressed = Event.current.shift;
+        CityNode existingNode = manager.FindNearestNode(hitPoint, 2.0f);
 
-        if (shiftPressed)
+        // In AddNodes, cliccare vicino a un nodo esistente lo seleziona sempre:
+        // evita duplicati e consente di ripartire subito da quel nodo.
+        if (existingNode != null)
         {
-            CityNode existingNode = manager.FindNearestNode(hitPoint, 2.0f);
-
-            if (existingNode != null)
+            if (shiftPressed && lastAddedNodeID != -1 && lastAddedNodeID != existingNode.id)
             {
-                if (lastAddedNodeID != -1 && lastAddedNodeID != existingNode.id)
-                {
-                    manager.AddSegment(lastAddedNodeID, existingNode.id);
-                }
-
-                lastAddedNodeID = existingNode.id;
-                Debug.Log($"Nodo esistente agganciato: {existingNode.id}");
-                return;
+                manager.AddSegment(lastAddedNodeID, existingNode.id);
             }
+
+            manager.SetSelectedNodeID(existingNode.id);
+            lastAddedNodeID = existingNode.id;
+            Debug.Log($"Nodo selezionato in AddNodes: {existingNode.id}");
+            return;
         }
 
         CityNode newNode = manager.AddNode(hitPoint);
@@ -299,6 +298,7 @@ public class CitySceneHandle
                 }
             }
 
+            manager.SetSelectedNodeID(newNode.id);
             lastAddedNodeID = newNode.id;
             Debug.Log($"Nodo aggiunto a {hitPoint}");
         }
