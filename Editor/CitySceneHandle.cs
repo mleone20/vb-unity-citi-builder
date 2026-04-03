@@ -165,11 +165,23 @@ public class CitySceneHandle
         if (nearestNode != null)
         {
             manager.SetSelectedNodeID(nearestNode.id);
+            manager.SetSelectedLotID(-1);
             Debug.Log($"Nodo selezionato: {nearestNode.id}");
         }
         else
         {
             manager.SetSelectedNodeID(-1);
+
+            CityData cityData = manager.GetCityData();
+            if (cityData != null)
+            {
+                CityLot selectedLot = cityData.FindLotAtPosition(hitPoint);
+                manager.SetSelectedLotID(selectedLot != null ? selectedLot.id : -1);
+            }
+            else
+            {
+                manager.SetSelectedLotID(-1);
+            }
         }
     }
 

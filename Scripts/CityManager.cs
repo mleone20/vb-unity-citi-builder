@@ -15,6 +15,7 @@ public class CityManager : MonoBehaviour
     [SerializeField] private BuildMode currentMode = BuildMode.Idle;
     [SerializeField] private int selectedNodeID = -1;
     [SerializeField] private int selectedBlockID = -1;
+    [SerializeField] private int selectedLotID = -1;
 
     public enum BuildMode
     {
@@ -41,7 +42,7 @@ public class CityManager : MonoBehaviour
         if (cityData == null) return;
         CityRenderer.DrawRoads(cityData, selectedNodeID);
         CityRenderer.DrawBlocks(cityData, selectedBlockID);
-        CityRenderer.DrawBuildings(cityData);
+        CityRenderer.DrawBuildings(cityData, selectedLotID);
     }
 #endif
 
@@ -318,6 +319,8 @@ public class CityManager : MonoBehaviour
     public void SetSelectedNodeID(int nodeID) => selectedNodeID = nodeID;
     public int GetSelectedBlockID() => selectedBlockID;
     public void SetSelectedBlockID(int blockID) => selectedBlockID = blockID;
+    public int GetSelectedLotID() => selectedLotID;
+    public void SetSelectedLotID(int lotID) => selectedLotID = lotID;
 
     // ========== PUBLIC API - Parametri Globali ==========
 
@@ -350,6 +353,7 @@ public class CityManager : MonoBehaviour
         cityData.Clear();
         selectedNodeID = -1;
         selectedBlockID = -1;
+        selectedLotID = -1;
         currentMode = BuildMode.Idle;
         Debug.Log("[CityManager] Città resettata!");
     }

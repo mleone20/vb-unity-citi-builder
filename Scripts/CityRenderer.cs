@@ -211,6 +211,12 @@ public static class CityRenderer
         Color blockColor = cityData.GetZoneColor(block.zoning);
         Color outlineColor = new Color(0, 0, 0, 0.5f);
 
+        if (isSelected)
+        {
+            Color selectedFill = new Color(blockColor.r, blockColor.g, blockColor.b, 0.35f);
+            DrawSolidBlockArea(block.vertices, selectedFill);
+        }
+
         // Disegna outline del blocco
         Gizmos.color = outlineColor;
         for (int i = 0; i < block.vertices.Count; i++)
@@ -218,6 +224,17 @@ public static class CityRenderer
             Vector3 v1 = block.vertices[i];
             Vector3 v2 = block.vertices[(i + 1) % block.vertices.Count];
             Gizmos.DrawLine(v1, v2);
+        }
+
+        if (isSelected)
+        {
+            Gizmos.color = Color.Lerp(blockColor, Color.white, 0.2f);
+            for (int i = 0; i < block.vertices.Count; i++)
+            {
+                Vector3 v1 = block.vertices[i];
+                Vector3 v2 = block.vertices[(i + 1) % block.vertices.Count];
+                Gizmos.DrawLine(v1, v2);
+            }
         }
 
         // Disegna area riempita (tramite overlay sottile)
@@ -269,17 +286,17 @@ public static class CityRenderer
 
     // ========== DISEGNO EDIFICI ==========
 
-    public static void DrawBuildings(CityData cityData)
+    public static void DrawBuildings(CityData cityData, int selectedLotID = -1)
     {
         if (cityData == null) return;
 
         foreach (var lot in cityData.lots)
         {
-            DrawSingleBuilding(lot, cityData);
+            DrawSingleBuilding(lot, cityData, lot != null && lot.id == selectedLotID);
         }
     }
 
-    private static void DrawSingleBuilding(CityLot lot, CityData cityData)
+    private static void DrawSingleBuilding(CityLot lot, CityData cityData, bool isSelected)
     {
         CityBlock block = cityData.GetBlock(lot.blockID);
         if (block == null) return;
@@ -290,10 +307,25 @@ public static class CityRenderer
         // Disegna outline del lotto al suolo
         if (lot.vertices != null && lot.vertices.Count >= 4)
         {
+            if (isSelected)
+            {
+                Color selectedFill = new Color(buildingColor.r, buildingColor.g, buildingColor.b, 0.35f);
+                DrawSolidLotArea(lot.vertices, selectedFill);
+            }
+
             Gizmos.color = buildingColor * 0.35f;
             for (int i = 0; i < lot.vertices.Count; i++)
             {
                 Gizmos.DrawLine(lot.vertices[i], lot.vertices[(i + 1) % lot.vertices.Count]);
+            }
+
+            if (isSelected)
+            {
+                Gizmos.color = Color.Lerp(buildingColor, Color.white, 0.2f);
+                for (int i = 0; i < lot.vertices.Count; i++)
+                {
+                    Gizmos.DrawLine(lot.vertices[i], lot.vertices[(i + 1) % lot.vertices.Count]);
+                }
             }
 
             // Calcola frame locale dal lotto (frontSinistra[0], frontDestra[1], retroDestra[2], retroSinistra[3])
@@ -348,6 +380,34 @@ public static class CityRenderer
     {
         Gizmos.DrawWireCube(center, size);
     }
+
+#if UNITY_EDITOR
+    private static void DrawSolidBlockArea(List<Vector3> vertices, Color color)
+    {
+        if (vertices == null || vertices.Count < 3)
+        {
+            return;
+        }
+
+        Color previous = Handles.color;
+        Handles.color = color;
+        Handles.DrawAAConvexPolygon(vertices.ToArray());
+        Handles.color = previous;
+    }
+
+    private static void DrawSolidLotArea(List<Vector3> vertices, Color color)
+    {
+        if (vertices == null || vertices.Count < 3)
+        {
+            return;
+        }
+
+        Color previous = Handles.color;
+        Handles.color = color;
+        Handles.DrawAAConvexPolygon(vertices.ToArray());
+        Handles.color = previous;
+    }
+#endif
 
 #if UNITY_EDITOR
     /// <summary>

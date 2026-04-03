@@ -183,6 +183,24 @@ public class CityData : ScriptableObject
         return null;
     }
 
+    public CityLot FindLotAtPosition(Vector3 position)
+    {
+        foreach (var lot in lots)
+        {
+            if (lot == null || lot.vertices == null || lot.vertices.Count < 3)
+            {
+                continue;
+            }
+
+            if (IsPointInPolygon(position, lot.vertices))
+            {
+                return lot;
+            }
+        }
+
+        return null;
+    }
+
     private bool IsPointInPolygon(Vector3 point, List<Vector3> polygon)
     {
         if (polygon.Count < 3) return false;
