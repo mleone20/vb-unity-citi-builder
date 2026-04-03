@@ -75,6 +75,37 @@ public static class CityBuilderMenu
         EditorUtility.DisplayDialog("Setup Zone Types", message, "OK");
     }
 
+    [MenuItem("Tools/City Builder/Setup Default Road Profiles")]
+    public static void SetupDefaultRoadProfiles()
+    {
+        string baseFolder = "Assets/BSCCityBuilder/Assets/RoadProfiles";
+        if (!AssetDatabase.IsValidFolder("Assets/BSCCityBuilder/Assets"))
+        {
+            AssetDatabase.CreateFolder("Assets/BSCCityBuilder", "Assets");
+        }
+
+        if (!AssetDatabase.IsValidFolder(baseFolder))
+        {
+            AssetDatabase.CreateFolder("Assets/BSCCityBuilder/Assets", "RoadProfiles");
+        }
+
+        int createdCount = 0;
+        createdCount += CreateRoadProfileIfMissing(baseFolder, "Autostrada", RoadHierarchyLevel.Highway, 9.5f, new Color(0.75f, 0.25f, 0.2f), 6f, "Asse veloce ad alta capacità.");
+        createdCount += CreateRoadProfileIfMissing(baseFolder, "Strada Principale", RoadHierarchyLevel.MainRoad, 6.5f, new Color(0.95f, 0.65f, 0.2f), 4.5f, "Collega quartieri e distribuisce il traffico.");
+        createdCount += CreateRoadProfileIfMissing(baseFolder, "Via Locale", RoadHierarchyLevel.LocalStreet, 4.0f, new Color(0.45f, 0.65f, 0.95f), 3f, "Strada urbana di quartiere.");
+        createdCount += CreateRoadProfileIfMissing(baseFolder, "Vicolo", RoadHierarchyLevel.Alley, 2.2f, new Color(0.5f, 0.8f, 0.55f), 2f, "Connessione minuta o di servizio.");
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        string message = createdCount > 0
+            ? $"Creati {createdCount} asset RoadProfile in {baseFolder}."
+            : "Tutti i RoadProfile di default sono già presenti.";
+
+        Debug.Log($"[CityBuilder] {message}");
+        EditorUtility.DisplayDialog("Setup Road Profiles", message, "OK");
+    }
+
     private static int CreateZoneTypeIfMissing(string folder, string assetName, Color color, float buildingHeight, string description)
     {
         string[] existing = AssetDatabase.FindAssets($"t:ZoneType {assetName}");
@@ -96,6 +127,32 @@ public static class CityBuilderMenu
 
         string pathForAsset = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{assetName}.asset");
         AssetDatabase.CreateAsset(zoneType, pathForAsset);
+        return 1;
+    }
+
+    private static int CreateRoadProfileIfMissing(string folder, string assetName, RoadHierarchyLevel hierarchyLevel, float roadWidth, Color color, float intersectionClearanceRadius, string description)
+    {
+        string[] existing = AssetDatabase.FindAssets($"t:RoadProfile {assetName}");
+        for (int i = 0; i < existing.Length; i++)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(existing[i]);
+            RoadProfile existingAsset = AssetDatabase.LoadAssetAtPath<RoadProfile>(path);
+            if (existingAsset != null && existingAsset.GetDisplayName() == assetName)
+            {
+                return 0;
+            }
+        }
+
+        RoadProfile roadProfile = ScriptableObject.CreateInstance<RoadProfile>();
+        roadProfile.displayName = assetName;
+        roadProfile.hierarchyLevel = hierarchyLevel;
+        roadProfile.roadWidth = roadWidth;
+        roadProfile.debugColor = color;
+        roadProfile.intersectionClearanceRadius = intersectionClearanceRadius;
+        roadProfile.description = description;
+
+        string pathForAsset = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{assetName}.asset");
+        AssetDatabase.CreateAsset(roadProfile, pathForAsset);
         return 1;
     }
 }

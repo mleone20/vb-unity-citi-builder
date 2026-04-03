@@ -19,21 +19,19 @@ public static class CityRenderer
 
     // ========== DISEGNO STRADE ==========
 
-    public static void DrawRoads(CityData cityData, int selectedNodeID = -1)
+    public static void DrawRoads(CityData cityData, int selectedNodeID = -1, int selectedSegmentID = -1)
     {
         if (cityData == null) return;
 
         // Disegna segmenti (strade)
-        DrawSegments(cityData);
+        DrawSegments(cityData, selectedSegmentID);
 
         // Disegna nodi
         DrawNodes(cityData, selectedNodeID);
     }
 
-    private static void DrawSegments(CityData cityData)
+    private static void DrawSegments(CityData cityData, int selectedSegmentID)
     {
-        Gizmos.color = new Color(0.5f, 0.5f, 0.5f, 0.8f); // Grigio
-
         foreach (var segment in cityData.segments)
         {
             if (segment == null)
@@ -50,35 +48,57 @@ public static class CityRenderer
                 continue;
             }
 
-            Vector3 posA = nodeA.position;
-            Vector3 posB = nodeB.position;
-
-            // Disegna segmento come parallelogramma 3D (strada)
-            DrawRoadSegment(posA, posB, segment.width);
+            bool isSelected = segment.id == selectedSegmentID;
+            DrawRoadSegment(cityData, segment, isSelected);
         }
     }
 
-    private static void DrawRoadSegment(Vector3 posA, Vector3 posB, float width)
+    private static void DrawRoadSegment(CityData cityData, CitySegment segment, bool isSelected)
     {
-        Vector3 direction = (posB - posA).normalized;
-        Vector3 perpendicular = new Vector3(-direction.z, 0, direction.x).normalized * (width / 2f);
+        List<Vector3> sampledPoints = CityRoadGeometry.SampleSegment(cityData, segment, CityRoadGeometry.DefaultCurveSamples);
+        if (sampledPoints.Count < 2)
+        {
+            return;
+        }
 
-        // 4 angoli della strada
-        Vector3 p1 = posA - perpendicular;
-        Vector3 p2 = posA + perpendicular;
-        Vector3 p3 = posB + perpendicular;
-        Vector3 p4 = posB - perpendicular;
+        float width = CityRoadGeometry.GetRoadWidth(cityData, segment);
+        Color roadColor = CityRoadGeometry.GetRoadColor(segment);
+        Color borderColor = isSelected ? Color.yellow : roadColor;
 
-        // Disegna come wireframe rettangolo
-        Gizmos.DrawLine(p1, p2);
-        Gizmos.DrawLine(p2, p3);
-        Gizmos.DrawLine(p3, p4);
-        Gizmos.DrawLine(p4, p1);
+        for (int i = 1; i < sampledPoints.Count; i++)
+        {
+            Vector3 posA = sampledPoints[i - 1];
+            Vector3 posB = sampledPoints[i];
+            Vector3 direction = (posB - posA);
+            if (direction.sqrMagnitude < 0.0001f)
+            {
+                continue;
+            }
 
-        // Linea centrale per maggior chiarezza
-        Gizmos.color = new Color(0.3f, 0.3f, 0.3f, 0.5f);
-        Gizmos.DrawLine(posA, posB);
-        Gizmos.color = new Color(0.5f, 0.5f, 0.5f, 0.8f);
+            direction.Normalize();
+            Vector3 perpendicular = new Vector3(-direction.z, 0f, direction.x).normalized * (width / 2f);
+            Vector3 leftA = posA - perpendicular;
+            Vector3 rightA = posA + perpendicular;
+            Vector3 leftB = posB - perpendicular;
+            Vector3 rightB = posB + perpendicular;
+
+            Gizmos.color = borderColor;
+            Gizmos.DrawLine(leftA, leftB);
+            Gizmos.DrawLine(rightA, rightB);
+
+            if (i == 1)
+            {
+                Gizmos.DrawLine(leftA, rightA);
+            }
+
+            if (i == sampledPoints.Count - 1)
+            {
+                Gizmos.DrawLine(leftB, rightB);
+            }
+
+            Gizmos.color = Color.Lerp(roadColor, Color.black, 0.35f);
+            Gizmos.DrawLine(posA, posB);
+        }
     }
 
     private static void DrawNodes(CityData cityData, int selectedNodeID)

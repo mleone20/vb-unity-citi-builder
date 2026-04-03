@@ -45,6 +45,13 @@ Menu: Window > City Builder > City Builder Tool
 - **Azione**: Click su un blocco → popup scelta zona
 - **Opzioni**: Residenziale (verde), Commerciale (blu), Industriale (giallo), Speciale (grigio)
 
+### 🌀 Modalità: Modifica Segmenti (Idle)
+- **Seleziona**: Modalità "Idle" (nessuna modalità specifica)
+- **Azione**: Click su un segmento stradale nella Scene View → il segmento diventa giallo
+- **Risultato**: pannello "Segmento selezionato" appare nella sezione Paths della finestra editor
+- **Curve Bézier**: Cambia "Geometria" da "Straight" a "Bezier" → appaiono 2 maniglie ciano in Scene View da trascinare per curbare la strada
+- **Road Profile**: Assegna un profilo strada (Autostrada, Strada Principale, etc.) per cambiare larghezza e colore
+
 ---
 
 ## Workflow Completo
@@ -52,6 +59,7 @@ Menu: Window > City Builder > City Builder Tool
 ### Step 1: Traccia la Rete Stradale
 1. Modalità "Aggiungi Nodi" → clicca 4-5 volte per creare rettangolo
 2. Modalità "Connetti Nodi" → crea segmenti che racchiudono area (fare un quadrato/rettangolo chiuso)
+3. **(Opzionale)** Modalità "Idle" → clicca su un segmento → assegna Road Profile e converti in Bézier per creare curve organiche
 
 ### Step 2: Rileva Blocchi
 1. EditorWindow → sezione "Blocchi"
@@ -82,7 +90,10 @@ Menu: Window > City Builder > City Builder Tool
 | Elemento | Colore | Significato |
 |----------|--------|------------|
 | Nodo | Bianco/Giallo | Interszione strada (giallo = selezionato) |
-| Segmento | Grigio rettangolo | Strada |
+| Segmento | Grigio/Colorato rettangolo | Strada (colore varia con RoadProfile) |
+| Segmento selezionato | Giallo | Segmento pronto per modifica |
+| Maniglia Bézier | Ciano (sfera) | Handle di curva trascinabile |
+| Linea curva | Giallo | Preview della strada Bézier |
 | Blocco outline | Nero leggero | Contorno isolato |
 | Blocco riempimento | Verde/Blu/Giallo/Grigio | Zona assegnata |
 | Edificio cubo | Verde/Blu/Giallo/Grigio | Edificio per zona |
@@ -126,6 +137,13 @@ Menu: Window > City Builder > City Builder Tool
 5. Assegna una zona a blocco
 6. Genera Lotti
 7. Vedi edifici apparire!
+
+### 🌀 Creare Curve Organiche
+1. Traccia una rete stradale rettilinea di base
+2. Seleziona un segmento (click in Idle mode)
+3. Nel pannello "Segmento selezionato", cambia "Geometria" a "Bezier"
+4. In Scene View, trascina le due maniglie ciano per curbare la strada
+5. **(Opzionale)** Assegna un Road Profile per cambiare larghezza e colore della curva
 
 ### 🔧 Test Algoritmi
 - **Rileva Blocchi**: Funziona solo se il grafo forma cicli chiusi
@@ -186,6 +204,9 @@ Assets/BSCCityBuilder/
 - ✅ **Editor-only** - Niente export runtime per ora (futura feature)
 - ✅ **Unity 6 compatible** - HDRP supportato
 - ✅ **Single assembly** - No namespaces, Assembly-CSharp
+- ✅ **Curve Bézier cubiche** - Segmenti supportano geometria lineare o Bézier parametrica
+- ✅ **Road Profiles asset-based** - Gerarchia stradale configurabile (Autostrada, Strada Principale, Via Locale, Vicolo)
+- ✅ **Rendering per-segmento** - Larghezza e colore variano con il profilo strada assegnato
 
 ---
 
@@ -197,4 +218,4 @@ Assets/BSCCityBuilder/
 
 ---
 
-**Versione**: 1.0 | **Data**: 2 aprile 2026 | **Status**: Production Ready ✅
+**Versione**: 1.1 | **Data**: 3 aprile 2026 | **Status**: Curves & Road Profiles ✅

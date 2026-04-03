@@ -24,6 +24,12 @@ public class ZoneType : ScriptableObject
     }
 }
 
+public enum CitySegmentGeometryType
+{
+    Straight,
+    Bezier
+}
+
 /// <summary>
 /// Nodo di una strada (vertice del grafo stradale)
 /// </summary>
@@ -51,6 +57,10 @@ public class CitySegment
     public int nodeA_ID;
     public int nodeB_ID;
     public float width = 3.0f;
+    public RoadProfile roadProfile;
+    public CitySegmentGeometryType geometryType = CitySegmentGeometryType.Straight;
+    public Vector3 controlPointA;
+    public Vector3 controlPointB;
 
     public CitySegment(int id, int nodeA_ID, int nodeB_ID, float width = 3.0f)
     {
@@ -58,6 +68,28 @@ public class CitySegment
         this.nodeA_ID = nodeA_ID;
         this.nodeB_ID = nodeB_ID;
         this.width = width;
+    }
+
+    public bool IsCurved()
+    {
+        return geometryType == CitySegmentGeometryType.Bezier;
+    }
+
+    public float GetConfiguredWidth(float fallbackWidth = 3.0f)
+    {
+        if (roadProfile != null)
+        {
+            return Mathf.Max(0.5f, roadProfile.roadWidth);
+        }
+
+        return Mathf.Max(0.5f, width > 0f ? width : fallbackWidth);
+    }
+
+    public void ResetBezierHandles(Vector3 start, Vector3 end)
+    {
+        Vector3 delta = end - start;
+        controlPointA = start + delta / 3f;
+        controlPointB = end - delta / 3f;
     }
 }
 

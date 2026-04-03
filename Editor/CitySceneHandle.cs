@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using System.Collections.Generic;
 
 /// <summary>
 /// Editor script che cattura input dalla Scene View per la modalità City Builder.
@@ -50,6 +51,7 @@ public class CitySceneHandle
 
         // Disegna prima l'handle: così Unity può assegnare il controllo al gizmo.
         DrawSelectedNodeMoveHandle(cachedCityManager);
+        DrawSelectedSegmentHandles(cachedCityManager);
 
         // Anteprima live della catena nodi quando si crea un blocco manualmente.
         CityBlockEditor.DrawManualSelectionPreview(cachedCityManager);
@@ -172,7 +174,16 @@ public class CitySceneHandle
         }
         else
         {
+            CitySegment nearestSegment = manager.FindNearestSegment(hitPoint, 1.5f);
+            if (nearestSegment != null)
+            {
+                manager.SetSelectedSegmentID(nearestSegment.id);
+                Debug.Log($"Segmento selezionato: {nearestSegment.id}");
+                return;
+            }
+
             manager.SetSelectedNodeID(-1);
+            manager.SetSelectedSegmentID(-1);
 
             CityData cityData = manager.GetCityData();
             if (cityData != null)
@@ -184,6 +195,70 @@ public class CitySceneHandle
             {
                 manager.SetSelectedLotID(-1);
             }
+        }
+    }
+
+    private static void DrawSelectedSegmentHandles(CityManager manager)
+    {
+        if (manager.GetCurrentMode() != CityManager.BuildMode.Idle || manager.GetSelectedNodeID() != -1)
+        {
+            return;
+        }
+
+        int selectedSegmentID = manager.GetSelectedSegmentID();
+        if (selectedSegmentID == -1)
+        {
+            return;
+        }
+
+        CityData cityData = manager.GetCityData();
+        CitySegment selectedSegment = manager.GetSegment(selectedSegmentID);
+        if (cityData == null || selectedSegment == null)
+        {
+            return;
+        }
+
+        List<Vector3> sampledPoints = CityRoadGeometry.SampleSegment(cityData, selectedSegment, CityRoadGeometry.DefaultCurveSamples);
+        if (sampledPoints.Count >= 2)
+        {
+            Handles.color = Color.yellow;
+            Handles.DrawAAPolyLine(5f, sampledPoints.ToArray());
+        }
+
+        if (!selectedSegment.IsCurved())
+        {
+            return;
+        }
+
+        CityNode nodeA = cityData.GetNode(selectedSegment.nodeA_ID);
+        CityNode nodeB = cityData.GetNode(selectedSegment.nodeB_ID);
+        if (nodeA == null || nodeB == null)
+        {
+            return;
+        }
+
+        Handles.color = new Color(0.2f, 1f, 1f, 0.9f);
+        Handles.DrawDottedLine(nodeA.position, selectedSegment.controlPointA, 4f);
+        Handles.DrawDottedLine(nodeB.position, selectedSegment.controlPointB, 4f);
+        Handles.SphereHandleCap(0, selectedSegment.controlPointA, Quaternion.identity, HandleUtility.GetHandleSize(selectedSegment.controlPointA) * 0.08f, EventType.Repaint);
+        Handles.SphereHandleCap(0, selectedSegment.controlPointB, Quaternion.identity, HandleUtility.GetHandleSize(selectedSegment.controlPointB) * 0.08f, EventType.Repaint);
+
+        EditorGUI.BeginChangeCheck();
+        Vector3 newControlPointA = Handles.PositionHandle(selectedSegment.controlPointA, Quaternion.identity);
+        Vector3 newControlPointB = Handles.PositionHandle(selectedSegment.controlPointB, Quaternion.identity);
+        if (EditorGUI.EndChangeCheck())
+        {
+            if (SnapToGridEnabled)
+            {
+                newControlPointA = SnapToGrid(newControlPointA);
+                newControlPointB = SnapToGrid(newControlPointB);
+            }
+
+            Undo.RecordObject(cityData, "Move Road Curve Handles");
+            selectedSegment.controlPointA = newControlPointA;
+            selectedSegment.controlPointB = newControlPointB;
+            EditorUtility.SetDirty(cityData);
+            SceneView.RepaintAll();
         }
     }
 
@@ -421,7 +496,7 @@ public class CitySceneHandle
         }
         else if (mode == CityManager.BuildMode.Idle)
         {
-            Handles.Label(Vector3.zero, "[Idle Mode] Click seleziona nodo (giallo) | Drag handle per spostare | Ctrl rimuove nodo");
+            Handles.Label(Vector3.zero, "[Idle Mode] Click seleziona nodo o segmento | Drag handle per spostare nodi/maniglie curva | Ctrl rimuove nodo");
         }
         else if (mode == CityManager.BuildMode.ConnectNodes)
         {

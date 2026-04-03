@@ -14,6 +14,7 @@ public class CityManager : MonoBehaviour
     [Header("Stato Editor")]
     [SerializeField] private BuildMode currentMode = BuildMode.Idle;
     [SerializeField] private int selectedNodeID = -1;
+    [SerializeField] private int selectedSegmentID = -1;
     [SerializeField] private int selectedBlockID = -1;
     [SerializeField] private int selectedLotID = -1;
 
@@ -40,7 +41,7 @@ public class CityManager : MonoBehaviour
     private void OnDrawGizmos()
     {
         if (cityData == null) return;
-        CityRenderer.DrawRoads(cityData, selectedNodeID);
+        CityRenderer.DrawRoads(cityData, selectedNodeID, selectedSegmentID);
         CityRenderer.DrawBlocks(cityData, selectedBlockID);
         CityRenderer.DrawBuildings(cityData, selectedLotID);
     }
@@ -126,6 +127,11 @@ public class CityManager : MonoBehaviour
         return cityData?.FindNearestNode(position, threshold);
     }
 
+    public CitySegment FindNearestSegment(Vector3 position, float threshold = 1.5f)
+    {
+        return cityData?.FindNearestSegment(position, threshold);
+    }
+
     // ========== PUBLIC API - Segmenti ==========
 
     public CitySegment AddSegment(int nodeA_ID, int nodeB_ID)
@@ -162,7 +168,14 @@ public class CityManager : MonoBehaviour
     #endif
 
         int segmentID = cityData.GetNextSegmentID();
-        CitySegment newSegment = new CitySegment(segmentID, nodeA_ID, nodeB_ID, cityData.globalRoadWidth);
+        float width = cityData.defaultRoadProfile != null
+            ? Mathf.Max(0.5f, cityData.defaultRoadProfile.roadWidth)
+            : cityData.globalRoadWidth;
+        CitySegment newSegment = new CitySegment(segmentID, nodeA_ID, nodeB_ID, width)
+        {
+            roadProfile = cityData.defaultRoadProfile
+        };
+        CityRoadGeometry.ResetBezierHandles(cityData, newSegment);
         
         cityData.segments.Add(newSegment);
         nodeA.connectedSegmentIDs.Add(segmentID);
@@ -188,6 +201,11 @@ public class CityManager : MonoBehaviour
 
         if (nodeA != null) nodeA.connectedSegmentIDs.Remove(segmentID);
         if (nodeB != null) nodeB.connectedSegmentIDs.Remove(segmentID);
+
+        if (selectedSegmentID == segmentID)
+        {
+            selectedSegmentID = -1;
+        }
 
         cityData.segments.Remove(segment);
         Debug.Log($"[CityManager] Segmento rimosso: ID={segmentID}");
@@ -342,11 +360,37 @@ public class CityManager : MonoBehaviour
     public void SetMode(BuildMode mode) => currentMode = mode;
 
     public int GetSelectedNodeID() => selectedNodeID;
-    public void SetSelectedNodeID(int nodeID) => selectedNodeID = nodeID;
+    public void SetSelectedNodeID(int nodeID)
+    {
+        selectedNodeID = nodeID;
+        if (nodeID != -1)
+        {
+            selectedSegmentID = -1;
+            selectedLotID = -1;
+        }
+    }
+    public int GetSelectedSegmentID() => selectedSegmentID;
+    public void SetSelectedSegmentID(int segmentID)
+    {
+        selectedSegmentID = segmentID;
+        if (segmentID != -1)
+        {
+            selectedNodeID = -1;
+            selectedLotID = -1;
+        }
+    }
     public int GetSelectedBlockID() => selectedBlockID;
     public void SetSelectedBlockID(int blockID) => selectedBlockID = blockID;
     public int GetSelectedLotID() => selectedLotID;
-    public void SetSelectedLotID(int lotID) => selectedLotID = lotID;
+    public void SetSelectedLotID(int lotID)
+    {
+        selectedLotID = lotID;
+        if (lotID != -1)
+        {
+            selectedNodeID = -1;
+            selectedSegmentID = -1;
+        }
+    }
 
     // ========== PUBLIC API - Parametri Globali ==========
 
@@ -355,10 +399,13 @@ public class CityManager : MonoBehaviour
         if (cityData != null)
         {
             cityData.globalRoadWidth = Mathf.Clamp(width, 1f, 10f);
-            // Aggiorna tutti i segmenti
+            // Aggiorna solo i segmenti senza profilo, che usano il fallback globale.
             foreach (var seg in cityData.segments)
             {
-                seg.width = cityData.globalRoadWidth;
+                if (seg != null && seg.roadProfile == null)
+                {
+                    seg.width = cityData.globalRoadWidth;
+                }
             }
         }
     }
@@ -378,6 +425,7 @@ public class CityManager : MonoBehaviour
         
         cityData.Clear();
         selectedNodeID = -1;
+        selectedSegmentID = -1;
         selectedBlockID = -1;
         selectedLotID = -1;
         currentMode = BuildMode.Idle;
@@ -386,6 +434,72 @@ public class CityManager : MonoBehaviour
 
     public CityData GetCityData() => cityData;
     public void SetCityData(CityData data) => cityData = data;
+
+    public void SetSegmentRoadProfile(int segmentID, RoadProfile roadProfile)
+    {
+        if (cityData == null)
+        {
+            return;
+        }
+
+        CitySegment segment = cityData.GetSegment(segmentID);
+        if (segment == null)
+        {
+            return;
+        }
+
+        segment.roadProfile = roadProfile;
+        segment.width = roadProfile != null ? Mathf.Max(0.5f, roadProfile.roadWidth) : cityData.globalRoadWidth;
+    }
+
+    public void SetSegmentGeometryType(int segmentID, CitySegmentGeometryType geometryType)
+    {
+        if (cityData == null)
+        {
+            return;
+        }
+
+        CitySegment segment = cityData.GetSegment(segmentID);
+        if (segment == null)
+        {
+            return;
+        }
+
+        segment.geometryType = geometryType;
+        if (geometryType == CitySegmentGeometryType.Bezier)
+        {
+            CityRoadGeometry.ResetBezierHandles(cityData, segment);
+        }
+    }
+
+    public void ResetSegmentBezierHandles(int segmentID)
+    {
+        if (cityData == null)
+        {
+            return;
+        }
+
+        CitySegment segment = cityData.GetSegment(segmentID);
+        if (segment == null)
+        {
+            return;
+        }
+
+        CityRoadGeometry.ResetBezierHandles(cityData, segment);
+    }
+
+    public string AnalyzeIntersections(float mergeThreshold = 0.5f)
+    {
+        if (cityData == null)
+        {
+            return "[CityManager] Analisi intersezioni: CityData nullo.";
+        }
+
+        List<CityIntersectionCandidate> candidates = CityIntersectionUtility.DetectIntersections(cityData, CityRoadGeometry.DefaultCurveSamples, mergeThreshold);
+        string report = $"[CityManager] Intersezioni geometriche rilevate: {candidates.Count}.";
+        Debug.Log(report);
+        return report;
+    }
 
     public string RepairConnections()
     {
@@ -475,6 +589,11 @@ public class CityManager : MonoBehaviour
         if (selectedNodeID != -1 && cityData.GetNode(selectedNodeID) == null)
         {
             selectedNodeID = -1;
+        }
+
+        if (selectedSegmentID != -1 && cityData.GetSegment(selectedSegmentID) == null)
+        {
+            selectedSegmentID = -1;
         }
 
         string report = $"[CityManager] Ripara Collegamenti completato. " +

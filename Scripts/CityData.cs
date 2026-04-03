@@ -10,6 +10,7 @@ public class CityData : ScriptableObject
     [Header("Rete Stradale")]
     [SerializeField] public List<CityNode> nodes = new List<CityNode>();
     [SerializeField] public List<CitySegment> segments = new List<CitySegment>();
+    [SerializeField] public RoadProfile defaultRoadProfile;
     
     [Header("Blocchi e Zoning")]
     [SerializeField] public List<CityBlock> blocks = new List<CityBlock>();
@@ -40,6 +41,7 @@ public class CityData : ScriptableObject
         CityData clone = ScriptableObject.CreateInstance<CityData>();
         
         clone.globalRoadWidth = this.globalRoadWidth;
+        clone.defaultRoadProfile = this.defaultRoadProfile;
         
         clone.minLotSizeFactor = this.minLotSizeFactor;
         clone.maxLotSizeFactor = this.maxLotSizeFactor;
@@ -55,7 +57,14 @@ public class CityData : ScriptableObject
         
         foreach (var seg in segments)
         {
-            clone.segments.Add(new CitySegment(seg.id, seg.nodeA_ID, seg.nodeB_ID, seg.width));
+            CitySegment clonedSegment = new CitySegment(seg.id, seg.nodeA_ID, seg.nodeB_ID, seg.width)
+            {
+                roadProfile = seg.roadProfile,
+                geometryType = seg.geometryType,
+                controlPointA = seg.controlPointA,
+                controlPointB = seg.controlPointB
+            };
+            clone.segments.Add(clonedSegment);
         }
         
         foreach (var block in blocks)
@@ -164,6 +173,29 @@ public class CityData : ScriptableObject
             {
                 minDistance = dist;
                 nearest = node;
+            }
+        }
+
+        return nearest;
+    }
+
+    public CitySegment FindNearestSegment(Vector3 position, float threshold = 1.5f, int curveSamples = CityRoadGeometry.DefaultCurveSamples)
+    {
+        CitySegment nearest = null;
+        float minDistance = threshold;
+
+        foreach (var segment in segments)
+        {
+            if (segment == null)
+            {
+                continue;
+            }
+
+            float distance = CityRoadGeometry.DistancePointToSegmentPathXZ(this, segment, position, curveSamples);
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+                nearest = segment;
             }
         }
 

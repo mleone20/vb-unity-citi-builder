@@ -266,7 +266,28 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.Space();
 
         EditorGUILayout.LabelField("Strade", EditorStyles.boldLabel);
-        EditorGUILayout.LabelField("Larghezza Strade Globale:");
+        EditorGUILayout.HelpBox("La larghezza globale resta un fallback per i segmenti senza RoadProfile. I nuovi segmenti usano il profilo di default se assegnato.", MessageType.Info);
+        RoadProfile defaultRoadProfile = (RoadProfile)EditorGUILayout.ObjectField("Road Profile di default", cityData.defaultRoadProfile, typeof(RoadProfile), false);
+        if (defaultRoadProfile != cityData.defaultRoadProfile)
+        {
+            Undo.RecordObject(cityData, "Set Default Road Profile");
+            cityData.defaultRoadProfile = defaultRoadProfile;
+            EditorUtility.SetDirty(cityData);
+        }
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("Setup Road Profiles di Default", buttonStyle))
+        {
+            CityBuilderMenu.SetupDefaultRoadProfiles();
+        }
+
+        if (GUILayout.Button("Setup Zone Types di Default", buttonStyle))
+        {
+            CityBuilderMenu.SetupDefaultZoneTypes();
+        }
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.LabelField("Larghezza Strade Globale (fallback):");
         float roadWidth = EditorGUILayout.Slider(cityData.globalRoadWidth, 1f, 10f);
         if (roadWidth != cityData.globalRoadWidth)
         {
@@ -274,10 +295,14 @@ public class CityBuilderWindow : EditorWindow
         }
 
         EditorGUILayout.Space();
+        DrawSelectedSegmentInspector();
+
+        EditorGUILayout.Space();
         EditorGUILayout.LabelField("Informazioni", EditorStyles.boldLabel);
         EditorGUILayout.LabelField($"Nodi totali: {cityData.nodes.Count}");
         EditorGUILayout.LabelField($"Nodo selezionato: {cityManager.GetSelectedNodeID()}");
         EditorGUILayout.LabelField($"Segmenti totali: {cityData.segments.Count}");
+        EditorGUILayout.LabelField($"Segmento selezionato: {cityManager.GetSelectedSegmentID()}");
     }
 
     private void DrawBlocksSection()
@@ -432,6 +457,12 @@ public class CityBuilderWindow : EditorWindow
             CityBuilderMenu.SetupDefaultZoneTypes();
         }
 
+        if (GUILayout.Button("Analizza intersezioni geometriche", buttonStyle))
+        {
+            string report = cityManager.AnalyzeIntersections();
+            EditorUtility.DisplayDialog("Analisi Intersezioni", report, "OK");
+        }
+
         EditorGUILayout.Space();
 
         GUI.color = Color.cyan;
@@ -512,6 +543,68 @@ public class CityBuilderWindow : EditorWindow
 
         Debug.Log($"[CityBuilderWindow] Generati {lotCount} lotti!");
         EditorUtility.DisplayDialog("Successo", $"Generati {lotCount} lotti!", "OK");
+    }
+
+    private void DrawSelectedSegmentInspector()
+    {
+        EditorGUILayout.LabelField("Segmento selezionato", EditorStyles.boldLabel);
+
+        int selectedSegmentID = cityManager.GetSelectedSegmentID();
+        CitySegment selectedSegment = cityData.GetSegment(selectedSegmentID);
+        if (selectedSegment == null)
+        {
+            EditorGUILayout.HelpBox("In modalità Idle puoi cliccare un segmento per modificarne profilo e geometria.", MessageType.None);
+            return;
+        }
+
+        CityNode nodeA = cityData.GetNode(selectedSegment.nodeA_ID);
+        CityNode nodeB = cityData.GetNode(selectedSegment.nodeB_ID);
+        EditorGUILayout.LabelField($"ID: {selectedSegment.id}");
+        EditorGUILayout.LabelField($"Nodi: {selectedSegment.nodeA_ID} -> {selectedSegment.nodeB_ID}");
+        EditorGUILayout.LabelField($"Lunghezza stimata: {CityRoadGeometry.EstimateLength(cityData, selectedSegment):F2}");
+        EditorGUILayout.LabelField($"Larghezza effettiva: {CityRoadGeometry.GetRoadWidth(cityData, selectedSegment):F2}");
+
+        RoadProfile newProfile = (RoadProfile)EditorGUILayout.ObjectField("Road Profile", selectedSegment.roadProfile, typeof(RoadProfile), false);
+        if (newProfile != selectedSegment.roadProfile)
+        {
+            Undo.RecordObject(cityData, "Set Segment Road Profile");
+            cityManager.SetSegmentRoadProfile(selectedSegment.id, newProfile);
+            EditorUtility.SetDirty(cityData);
+        }
+
+        CitySegmentGeometryType newGeometryType = (CitySegmentGeometryType)EditorGUILayout.EnumPopup("Geometria", selectedSegment.geometryType);
+        if (newGeometryType != selectedSegment.geometryType)
+        {
+            Undo.RecordObject(cityData, "Set Segment Geometry");
+            cityManager.SetSegmentGeometryType(selectedSegment.id, newGeometryType);
+            EditorUtility.SetDirty(cityData);
+            SceneView.RepaintAll();
+        }
+
+        if (selectedSegment.geometryType == CitySegmentGeometryType.Bezier)
+        {
+            if (GUILayout.Button("Reset maniglie Bézier", buttonStyle))
+            {
+                Undo.RecordObject(cityData, "Reset Segment Curve Handles");
+                cityManager.ResetSegmentBezierHandles(selectedSegment.id);
+                EditorUtility.SetDirty(cityData);
+                SceneView.RepaintAll();
+            }
+
+            if (nodeA != null)
+            {
+                EditorGUILayout.Vector3Field("Control Point A", selectedSegment.controlPointA);
+            }
+
+            if (nodeB != null)
+            {
+                EditorGUILayout.Vector3Field("Control Point B", selectedSegment.controlPointB);
+            }
+        }
+        else
+        {
+            EditorGUILayout.HelpBox("Converti il segmento in Bézier per modificare le maniglie direttamente in Scene View.", MessageType.Info);
+        }
     }
 
     private void SpawnBuildingsFromZoneTypes()
