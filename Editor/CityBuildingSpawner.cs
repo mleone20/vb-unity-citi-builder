@@ -8,6 +8,7 @@ using System.Collections.Generic;
 public static class CityBuildingSpawner
 {
     private const string SpawnRootName = "CitySpawnedBuildings";
+    private const float FitTolerance = 0.05f;
 
     public enum ExistingBuildingsHandling
     {
@@ -132,7 +133,7 @@ public static class CityBuildingSpawner
                 if (metadata != null)
                 {
                     Vector2 footprint = metadata.GetAlignedFootprintSize();
-                    if (footprint.x > lotWidth || footprint.y > lotDepth)
+                    if (footprint.x > lotWidth + FitTolerance || footprint.y > lotDepth + FitTolerance)
                     {
                         report.lotsOutOfFit++;
                         continue;
@@ -141,11 +142,7 @@ public static class CityBuildingSpawner
                     Vector3 desiredFrontDirection = GetLotStreetDirection(lot);
                     Vector3 localFrontDirection = metadata.GetFrontageDirectionLocal();
                     spawnRotation = Quaternion.FromToRotation(localFrontDirection, desiredFrontDirection);
-
-                    Vector3 frontageAnchor = GetLotFrontageAnchor(lot);
-                    Vector3 frontageOffsetWorld = spawnRotation * new Vector3(metadata.frontageOffset.x, 0f, metadata.frontageOffset.z);
-                    spawnPosition = frontageAnchor - frontageOffsetWorld;
-                    spawnPosition.y -= metadata.pivotOffset.y;
+                    spawnPosition = ComputeLotMatchedSpawnPosition(metadata, lotCenter, spawnRotation);
                 }
                 else
                 {
@@ -294,21 +291,7 @@ public static class CityBuildingSpawner
 
         return lots;
     }
-
-    private static void InstantiateBuilding(
-        GameObject prefab, Vector3 worldPos, Quaternion rotation,
-        Transform parent, int blockId, int lotId, int slot,
-        ref SpawnReport report)
-    {
-        GameObject instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
-        if (instance == null) instance = Object.Instantiate(prefab);
-        instance.name = prefab.name + "_B" + blockId + "_L" + lotId + (slot > 0 ? "_F" + slot : "");
-        Undo.RegisterCreatedObjectUndo(instance, "Spawn Building");
-        instance.transform.SetParent(parent, true);
-        instance.transform.SetPositionAndRotation(worldPos, rotation);
-        report.spawnedBuildings++;
-    }
-
+ 
     // ─────────────────────────────────────────────────────────────────────────────
 
     private static bool TryGetLotPose(CityLot lot, out Vector3 center, out Quaternion rotation, out float width, out float depth)
@@ -364,10 +347,15 @@ public static class CityBuildingSpawner
         return -inward;
     }
 
-    private static Vector3 GetLotFrontageAnchor(CityLot lot)
+    private static Vector3 ComputeLotMatchedSpawnPosition(
+        CityBuilderPrefab metadata,
+        Vector3 lotCenter,
+        Quaternion spawnRotation)
     {
-        Vector3 frontL = lot.vertices[0];
-        Vector3 frontR = lot.vertices[1];
-        return (frontL + frontR) * 0.5f;
+        Vector3 pivotOffsetXZ = new Vector3(metadata.pivotOffset.x, 0f, metadata.pivotOffset.z);
+        Vector3 worldPivotOffsetXZ = spawnRotation * pivotOffsetXZ;
+        Vector3 spawnPosition = lotCenter - worldPivotOffsetXZ;
+        spawnPosition.y = lotCenter.y - metadata.pivotOffset.y;
+        return spawnPosition;
     }
 }
