@@ -13,7 +13,7 @@ public static class CityLotGenerator
 {
     private const float LotSafetyMargin = 0.05f;
 
-    public static List<CityLot> GenerateLotsForBlock(CityBlock block, ZoneType zoning, int blockIndex, CityData cityData)
+    public static List<CityLot> GenerateLotsForBlock(CityBlock block, ZoneType zoning, int blockIndex, CityData cityData, bool isExterior = false)
     {
         List<CityLot> lots = new List<CityLot>();
         if (block.vertices.Count < 3) return lots;
@@ -48,6 +48,9 @@ public static class CityLotGenerator
             Vector3 edgeMid = (edgeStart + edgeEnd) * 0.5f;
             if (Vector3.Dot(perp, blockCenter - edgeMid) < 0f) perp = -perp;
             Vector3 inward  = perp;
+            
+            // Se il blocco è orientato verso l'esterno, inverte la direzione
+            if (isExterior) inward = -inward;
 
             float cursor = 0f;
             int   lotIdx = 0;
@@ -89,8 +92,8 @@ public static class CityLotGenerator
                 Vector3 roadFR = Vector3.Lerp(edgeStart, edgeEnd, tTo);
                 Vector3 frontL = roadFL + inward * roadSetback;
                 Vector3 frontR = roadFR + inward * roadSetback;
-                Vector3 backL  = ClampInsidePolygon(frontL, frontL + inward * lotDepth, verts);
-                Vector3 backR  = ClampInsidePolygon(frontR, frontR + inward * lotDepth, verts);
+                Vector3 backL  = isExterior ? frontL + inward * lotDepth : ClampInsidePolygon(frontL, frontL + inward * lotDepth, verts);
+                Vector3 backR  = isExterior ? frontR + inward * lotDepth : ClampInsidePolygon(frontR, frontR + inward * lotDepth, verts);
 
                 // Tutti i fronti sullo stesso edge restano allineati sulla stessa frontage line.
                 frontL = ProjectPointOnFrontageLine(frontL, roadFL + inward * roadSetback, edgeDir);
@@ -99,7 +102,11 @@ public static class CityLotGenerator
                 // ── Validazione ──────────────────────────────────────────────
                 List<Vector3> lotVerts = new List<Vector3> { frontL, frontR, backR, backL };
 
-                if (!IsInsideBuildableArea(lotVerts, verts, roadSetback))
+                bool isLotValid = isExterior
+                    ? IsOutsideBuildableArea(lotVerts, verts, roadSetback)
+                    : IsInsideBuildableArea(lotVerts, verts, roadSetback);
+
+                if (!isLotValid)
                 {
                     cursor += cityData.gapMinimum;
                     lotIdx++;
@@ -231,6 +238,31 @@ public static class CityLotGenerator
         center /= vertices.Count;
 
         return PointInPolygonXZ(center, blockPolygon) && DistanceToPolygonEdgesXZ(center, blockPolygon) + 0.01f >= roadSetback;
+    }
+
+    private static bool IsOutsideBuildableArea(List<Vector3> vertices, List<Vector3> blockPolygon, float roadSetback)
+    {
+        if (vertices == null || vertices.Count == 0) return false;
+
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            if (PointInPolygonXZ(vertices[i], blockPolygon)) return false;
+
+            float edgeDistance = DistanceToPolygonEdgesXZ(vertices[i], blockPolygon);
+            if (edgeDistance + 0.01f < roadSetback)
+            {
+                return false;
+            }
+        }
+
+        Vector3 center = Vector3.zero;
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            center += vertices[i];
+        }
+        center /= vertices.Count;
+
+        return !PointInPolygonXZ(center, blockPolygon) && DistanceToPolygonEdgesXZ(center, blockPolygon) + 0.01f >= roadSetback;
     }
 
     private static float DistanceToPolygonEdgesXZ(Vector3 point, List<Vector3> polygon)

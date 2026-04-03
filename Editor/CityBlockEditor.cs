@@ -96,18 +96,30 @@ public class CityBlockEditor
 
         for (int i = 0; i < cityData.blocks.Count; i++)
         {
-            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             
             CityBlock block = cityData.blocks[i];
             EditorGUILayout.LabelField($"Block {block.id}: {block.vertices.Count} vertici, Area: {block.GetArea():F2}");
             
+            // Orientamento del blocco
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Orientamento:", GUILayout.Width(100));
+            BlockOrientation newOrientation = (BlockOrientation)EditorGUILayout.EnumPopup(block.orientation);
+            if (newOrientation != block.orientation)
+            {
+                block.orientation = newOrientation;
+            }
+            EditorGUILayout.EndHorizontal();
+            
+            EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("Rimuovi", GUILayout.Width(80)))
             {
                 cityData.blocks.RemoveAt(i);
                 return;
             }
-            
             EditorGUILayout.EndHorizontal();
+            
+            EditorGUILayout.EndVertical();
         }
     }
 

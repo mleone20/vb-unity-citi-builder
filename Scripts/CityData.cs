@@ -91,7 +91,8 @@ public class CityData : ScriptableObject
             {
                 zoning = block.zoning,
                 vertices = new List<Vector3>(block.vertices),
-                lotIDs = new List<int>(block.lotIDs)
+                lotIDs = new List<int>(block.lotIDs),
+                orientation = block.orientation
             };
             clone.blocks.Add(clonedBlock);
         }

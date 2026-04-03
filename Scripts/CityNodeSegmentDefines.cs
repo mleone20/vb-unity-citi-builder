@@ -31,6 +31,15 @@ public enum CitySegmentGeometryType
 }
 
 /// <summary>
+/// Orientamento del blocco: interno (edifici dentro il blocco) o esterno (edifici fuori dalla strada)
+/// </summary>
+public enum BlockOrientation
+{
+    Interior,
+    Exterior
+}
+
+/// <summary>
 /// Nodo di una strada (vertice del grafo stradale)
 /// </summary>
 [System.Serializable]
@@ -103,6 +112,7 @@ public class CityBlock
     public List<Vector3> vertices = new List<Vector3>();
     public ZoneType zoning;
     public List<int> lotIDs = new List<int>();
+    public BlockOrientation orientation = BlockOrientation.Interior;
 
     public CityBlock(int id)
     {

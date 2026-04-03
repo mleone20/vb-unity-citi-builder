@@ -606,11 +606,13 @@ public class CityBuilderWindow : EditorWindow
         for (int i = 0; i < cityData.blocks.Count; i++)
         {
             CityBlock block = cityData.blocks[i];
+            bool isExterior = block.orientation == BlockOrientation.Exterior;
             var generatedLots = CityLotGenerator.GenerateLotsForBlock(
                 block,
                 block.zoning,
                 i,
-                cityData
+                cityData,
+                isExterior
             );
 
             foreach (var lot in generatedLots)
