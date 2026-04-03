@@ -255,6 +255,15 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
         EditorGUILayout.Space();
 
+        CitySceneHandle.SnapToGridEnabled = EditorGUILayout.Toggle("Allinea nodi alla griglia", CitySceneHandle.SnapToGridEnabled);
+        using (new EditorGUI.DisabledScope(!CitySceneHandle.SnapToGridEnabled))
+        {
+            CitySceneHandle.GridSize = EditorGUILayout.FloatField("Passo griglia", CitySceneHandle.GridSize);
+            CitySceneHandle.GridSize = Mathf.Max(0.1f, CitySceneHandle.GridSize);
+        }
+
+        EditorGUILayout.Space();
+
         EditorGUILayout.LabelField("Strade", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("Larghezza Strade Globale:");
         float roadWidth = EditorGUILayout.Slider(cityData.globalRoadWidth, 1f, 10f);

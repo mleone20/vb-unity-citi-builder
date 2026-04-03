@@ -10,6 +10,8 @@ using UnityEditor.SceneManagement;
 public class CitySceneHandle
 {
     public static bool IsEnabled = false;
+    public static bool SnapToGridEnabled = false;
+    public static float GridSize = 5f;
 
     private static CityManager cachedCityManager;
     private static bool isInitialized = false;
@@ -212,6 +214,11 @@ public class CitySceneHandle
         Vector3 newPosition = Handles.PositionHandle(selectedNode.position, Quaternion.identity);
         if (EditorGUI.EndChangeCheck())
         {
+            if (SnapToGridEnabled)
+            {
+                newPosition = SnapToGrid(newPosition);
+            }
+
             Undo.RecordObject(cityData, "Move City Node");
             selectedNode.position = newPosition;
             EditorUtility.SetDirty(cityData);
@@ -256,6 +263,11 @@ public class CitySceneHandle
     {
         // Interseca con piano Y=0 (ground level)
         Vector3 hitPoint = RaycastToGround(ray);
+        if (SnapToGridEnabled)
+        {
+            hitPoint = SnapToGrid(hitPoint);
+        }
+
         bool shiftPressed = Event.current.shift;
 
         if (shiftPressed)
@@ -290,6 +302,14 @@ public class CitySceneHandle
             lastAddedNodeID = newNode.id;
             Debug.Log($"Nodo aggiunto a {hitPoint}");
         }
+    }
+
+    private static Vector3 SnapToGrid(Vector3 position)
+    {
+        float grid = Mathf.Max(0.1f, GridSize);
+        position.x = Mathf.Round(position.x / grid) * grid;
+        position.z = Mathf.Round(position.z / grid) * grid;
+        return position;
     }
 
     /// <summary>
@@ -394,6 +414,7 @@ public class CitySceneHandle
         {
             // Mostra help text
             Handles.Label(Vector3.zero, "[AddNodes Mode] Click aggiunge nodo | Shift connette ultimo nodo | Ctrl rimuove nodo");
+            DrawAddNodePreview(manager);
         }
         else if (mode == CityManager.BuildMode.Idle)
         {
@@ -435,6 +456,36 @@ public class CitySceneHandle
             return ray.origin + ray.direction * t;
         }
         return ray.origin + ray.direction * 10f; // Fallback se non interseca correttamente
+    }
+
+    private static void DrawAddNodePreview(CityManager manager)
+    {
+        Event currentEvent = Event.current;
+        if (currentEvent == null)
+        {
+            return;
+        }
+
+        Ray ray = HandleUtility.GUIPointToWorldRay(currentEvent.mousePosition);
+        Vector3 previewPosition = RaycastToGround(ray);
+        if (SnapToGridEnabled)
+        {
+            previewPosition = SnapToGrid(previewPosition);
+        }
+
+        float radius = HandleUtility.GetHandleSize(previewPosition) * 0.14f;
+
+        Handles.color = new Color(0.2f, 1f, 0.9f, 0.25f);
+        Handles.DrawSolidDisc(previewPosition, Vector3.up, radius);
+
+        Handles.color = new Color(0.2f, 1f, 0.9f, 0.95f);
+        Handles.DrawWireDisc(previewPosition, Vector3.up, radius * 1.15f);
+
+        if (SnapToGridEnabled)
+        {
+            Handles.Label(previewPosition + Vector3.up * (radius * 1.8f),
+                $"Snap ({previewPosition.x:F1}, {previewPosition.z:F1})");
+        }
     }
      
     private static void OnSceneSaved(UnityEngine.SceneManagement.Scene scene)
