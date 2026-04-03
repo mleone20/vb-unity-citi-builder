@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEditor;
-using System.Collections.Generic;
 
 /// <summary>
 /// EditorWindow principale per City Builder Tool.
@@ -310,28 +309,6 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Lotti", EditorStyles.boldLabel);
 
-        GUI.color = new Color(0.6f, 0.9f, 1f);
-        if (GUILayout.Button("Calcola Valori Ideali da Prefab", buttonStyle))
-        {
-            ComputeIdealLotParamsFromPrefabs();
-        }
-        GUI.color = Color.white;
-        EditorGUILayout.Space();
-
-        float avgLotSize = cityData.averageLotSize;
-        EditorGUILayout.LabelField("Dimensione Media Lotto:");
-        avgLotSize = EditorGUILayout.Slider(avgLotSize, 10f, 100f);
-        if (avgLotSize != cityData.averageLotSize)
-        {
-            cityManager.SetAverageLotSize(avgLotSize);
-        }
-
-        EditorGUILayout.LabelField("Area Minima Lotto (m²):");
-        cityData.minLotArea = EditorGUILayout.Slider(cityData.minLotArea, 1f, 500f);
-
-        EditorGUILayout.LabelField("Rapporto Max Lato Lungo/Corto:");
-        cityData.maxLotAspectRatio = EditorGUILayout.Slider(cityData.maxLotAspectRatio, 1f, 10f);
-
         if (GUILayout.Button("Genera Lotti per tutti i Blocchi", buttonStyle))
         {
             GenerateAllLots();
@@ -373,11 +350,13 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.Space();
 
         EditorGUILayout.LabelField("Opzioni Spawn", EditorStyles.boldLabel);
-        lotFillingEnabled = EditorGUILayout.Toggle(
-            new GUIContent("Lot Filling", "Se attivo, riempie ogni lotto con più prefab affiancati lungo la larghezza del lotto, sfruttando tutto lo spazio disponibile. Richiede CityBuilderPrefab su ogni prefab."),
-            lotFillingEnabled);
-        if (lotFillingEnabled)
-            EditorGUILayout.HelpBox("I prefab verranno disposti in fila lungo l'asse frontale del lotto. È necessario il componente CityBuilderPrefab su ogni prefab per leggerne il footprint.", MessageType.Info);
+        using (new EditorGUI.DisabledScope(true))
+        {
+            lotFillingEnabled = EditorGUILayout.Toggle(
+                new GUIContent("Lot Filling", "Disabilitato: policy attiva 1 lotto = 1 edificio assegnato."),
+                false);
+        }
+        EditorGUILayout.HelpBox("Lo spawn usa solo il prefab assegnato a ciascun lotto in fase di generazione. Un lotto corrisponde sempre a un edificio.", MessageType.Info);
         EditorGUILayout.Space();
 
         if (GUILayout.Button("Spawn Edifici da ZoneType", buttonStyle))
@@ -542,125 +521,5 @@ public class CityBuilderWindow : EditorWindow
         int removedCount = CityBuildingSpawner.ClearSpawnedBuildings();
         SceneView.RepaintAll();
         EditorUtility.DisplayDialog("Cancella Edifici Spawnati", $"Oggetti rimossi: {removedCount}", "OK");
-    }
-
-    private void ComputeIdealLotParamsFromPrefabs()
-    {
-        // Raccoglie tutti i ZoneType unici usati nei blocchi
-        var usedZoneTypes = new HashSet<ZoneType>();
-        foreach (var block in cityData.blocks)
-        {
-            if (block.zoning != null)
-                usedZoneTypes.Add(block.zoning);
-        }
-
-        // Se nessun blocco ha zoning, cerca tutti gli asset ZoneType nel progetto
-        if (usedZoneTypes.Count == 0)
-        {
-            string[] guids = AssetDatabase.FindAssets("t:ZoneType");
-            foreach (var guid in guids)
-            {
-                ZoneType zt = AssetDatabase.LoadAssetAtPath<ZoneType>(AssetDatabase.GUIDToAssetPath(guid));
-                if (zt != null) usedZoneTypes.Add(zt);
-            }
-        }
-
-        // Raccoglie i footprint da tutti i prefab
-        var footprints = new List<Vector2>();
-        int countWithComponent = 0;
-        int countFallback = 0;
-
-        foreach (var zoneType in usedZoneTypes)
-        {
-            foreach (var prefab in zoneType.buildingPrefabs)
-            {
-                if (prefab == null) continue;
-
-                CityBuilderPrefab cbp = prefab.GetComponent<CityBuilderPrefab>();
-                if (cbp != null)
-                {
-                    footprints.Add(cbp.GetFootprintSize());
-                    countWithComponent++;
-                }
-                else
-                {
-                    // Fallback: istanzia temporaneamente e calcola bounds dai renderer
-                    GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-                    instance.hideFlags = HideFlags.HideAndDontSave;
-                    try
-                    {
-                        Bounds bounds = new Bounds(Vector3.zero, Vector3.zero);
-                        bool hasRenderer = false;
-                        foreach (var r in instance.GetComponentsInChildren<Renderer>())
-                        {
-                            if (!hasRenderer) { bounds = r.bounds; hasRenderer = true; }
-                            else bounds.Encapsulate(r.bounds);
-                        }
-                        if (hasRenderer && bounds.size.x > 0f && bounds.size.z > 0f)
-                        {
-                            footprints.Add(new Vector2(bounds.size.x, bounds.size.z));
-                            countFallback++;
-                        }
-                    }
-                    finally
-                    {
-                        DestroyImmediate(instance);
-                    }
-                }
-            }
-        }
-
-        if (footprints.Count == 0)
-        {
-            EditorUtility.DisplayDialog(
-                "Calcolo Valori Ideali",
-                "Nessun prefab con dimensioni valide trovato nelle ZoneType.\nAssegna dei prefab alle ZoneType usate nei blocchi.",
-                "OK");
-            return;
-        }
-
-        // Calcola statistiche sui footprint
-        float sumMaxDim = 0f;
-        float minArea   = float.MaxValue;
-        float maxAspect = 0f;
-
-        foreach (var fp in footprints)
-        {
-            float w = Mathf.Max(0.01f, fp.x);
-            float d = Mathf.Max(0.01f, fp.y);
-            sumMaxDim += Mathf.Max(w, d);
-            minArea    = Mathf.Min(minArea, w * d);
-            float aspect = Mathf.Max(w, d) / Mathf.Min(w, d);
-            maxAspect  = Mathf.Max(maxAspect, aspect);
-        }
-
-        float avgMaxDim = sumMaxDim / footprints.Count;
-
-        // Deriva i parametri con margini adeguati
-        float suggestedAvgLotSize  = Mathf.Round(avgMaxDim * 1.5f);                       // 50% margine oltre la dimensione media del prefab
-        float suggestedMinLotArea  = Mathf.Round(minArea * 0.8f);                          // 20% sotto l'area del prefab più piccolo
-        float suggestedAspectRatio = Mathf.Round(maxAspect * 1.2f * 10f) / 10f;           // 20% buffer sul rapporto più estremo
-
-        // Clamp ai range degli slider
-        suggestedAvgLotSize  = Mathf.Clamp(suggestedAvgLotSize,  10f, 100f);
-        suggestedMinLotArea  = Mathf.Clamp(suggestedMinLotArea,  1f,  500f);
-        suggestedAspectRatio = Mathf.Clamp(suggestedAspectRatio, 1f,  10f);
-
-        string report =
-            $"Prefab analizzati: {footprints.Count}" +
-            $" ({countWithComponent} con CityBuilderPrefab, {countFallback} dai renderer)\n\n" +
-            $"Dimensione Media Lotto:  {suggestedAvgLotSize}  (attuale: {cityData.averageLotSize})\n" +
-            $"Area Minima Lotto:       {suggestedMinLotArea} m²  (attuale: {cityData.minLotArea})\n" +
-            $"Rapporto Lato Max:       {suggestedAspectRatio}  (attuale: {cityData.maxLotAspectRatio})\n\n" +
-            "Applicare i valori suggeriti?";
-
-        if (EditorUtility.DisplayDialog("Calcola Valori Ideali da Prefab", report, "Applica", "Annulla"))
-        {
-            Undo.RecordObject(cityData, "Calcola Valori Ideali Lotti");
-            cityData.averageLotSize    = suggestedAvgLotSize;
-            cityData.minLotArea        = suggestedMinLotArea;
-            cityData.maxLotAspectRatio = suggestedAspectRatio;
-            EditorUtility.SetDirty(cityData);
-        }
     }
 }

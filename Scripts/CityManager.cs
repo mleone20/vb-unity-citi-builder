@@ -334,16 +334,7 @@ public class CityManager : MonoBehaviour
         }
     }
 
-    public void SetAverageLotSize(float size)
-    {
-        if (cityData != null)
-        {
-            cityData.averageLotSize = Mathf.Clamp(size, 10f, 100f);
-        }
-    }
-
     public float GetGlobalRoadWidth() => cityData?.globalRoadWidth ?? 3.0f;
-    public float GetAverageLotSize() => cityData?.averageLotSize ?? 30.0f;
 
     // ========== UTILITY ==========
 

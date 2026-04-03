@@ -19,9 +19,6 @@ public class CityData : ScriptableObject
     
     [Header("Parametri Globali")]
     [Range(1f, 10f)] [SerializeField] public float globalRoadWidth = 3.0f;
-    [Range(10f, 100f)] [SerializeField] public float averageLotSize = 30.0f;
-    [Range(1f, 500f)] [SerializeField] public float minLotArea = 40.0f;
-    [Range(1f, 10f)] [SerializeField] public float maxLotAspectRatio = 3.0f;
     
     [Header("Parametri Lotti Variabili")]
     [Range(0.4f, 1.0f)] [SerializeField] public float minLotSizeFactor = 0.6f;    // Scala minima del lotto (60% della media)
@@ -43,9 +40,6 @@ public class CityData : ScriptableObject
         CityData clone = ScriptableObject.CreateInstance<CityData>();
         
         clone.globalRoadWidth = this.globalRoadWidth;
-        clone.averageLotSize = this.averageLotSize;
-        clone.minLotArea = this.minLotArea;
-        clone.maxLotAspectRatio = this.maxLotAspectRatio;
         
         clone.minLotSizeFactor = this.minLotSizeFactor;
         clone.maxLotSizeFactor = this.maxLotSizeFactor;

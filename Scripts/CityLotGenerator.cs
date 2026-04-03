@@ -26,7 +26,10 @@ public static class CityLotGenerator
 
         // Raccolta candidati prefab con metadata valida.
         List<(GameObject go, CityBuilderPrefab meta)> candidates = CollectCandidates(zoning);
-        bool hasCandidates = candidates.Count > 0;
+        if (candidates.Count == 0)
+        {
+            return lots;
+        }
 
         // Registro 2D (piano XZ) delle aree gia' occupate (anti-overlap SAT).
         List<Vector2[]> occupied = new List<Vector2[]>();
@@ -53,22 +56,10 @@ public static class CityLotGenerator
             {
                 // ── Seleziona prefab e dimensioni lotto ──────────────────────
                 float lotWidth, lotDepth;
-                int   prefabIndex;
-
-                if (hasCandidates)
-                {
-                    prefabIndex = PickCandidateIndex(blockIndex, edgeIdx, lotIdx, candidates.Count);
-                    Vector2 fp  = candidates[prefabIndex].meta.GetAlignedFootprintSize();
-                    lotWidth    = fp.x;
-                    lotDepth    = fp.y;
-                }
-                else
-                {
-                    // Fallback: nessun prefab con metadata → usa averageLotSize come lotto quadrato.
-                    prefabIndex = -1;
-                    lotWidth    = cityData.averageLotSize;
-                    lotDepth    = cityData.averageLotSize;
-                }
+                int   prefabIndex = PickCandidateIndex(blockIndex, edgeIdx, lotIdx, candidates.Count);
+                Vector2 fp        = candidates[prefabIndex].meta.GetAlignedFootprintSize();
+                lotWidth          = fp.x;
+                lotDepth          = fp.y;
 
                 // ── Gap procedurale deterministico ───────────────────────────
                 float gapNoise = Mathf.PerlinNoise(blockIndex * 0.13f + edgeIdx * 0.37f + lotIdx * 0.71f, 0.5f);
@@ -107,13 +98,6 @@ public static class CityLotGenerator
 
                 // ── Validazione ──────────────────────────────────────────────
                 List<Vector3> lotVerts = new List<Vector3> { frontL, frontR, backR, backL };
-
-                if (CalculatePolygonAreaXZ(lotVerts) < cityData.minLotArea)
-                {
-                    cursor += lotGap > 0f ? lotGap : cityData.gapMinimum;
-                    lotIdx++;
-                    continue;
-                }
 
                 if (!IsInsideBuildableArea(lotVerts, verts, roadSetback))
                 {
@@ -303,17 +287,4 @@ public static class CityLotGenerator
 
     private static Vector2[] ToXZ(Vector3 a, Vector3 b, Vector3 c, Vector3 d) =>
         new Vector2[] { new Vector2(a.x, a.z), new Vector2(b.x, b.z), new Vector2(c.x, c.z), new Vector2(d.x, d.z) };
-
-    private static float CalculatePolygonAreaXZ(List<Vector3> vertices)
-    {
-        if (vertices == null || vertices.Count < 3) return 0f;
-        float area = 0f;
-        for (int i = 0; i < vertices.Count; i++)
-        {
-            Vector3 a = vertices[i];
-            Vector3 b = vertices[(i + 1) % vertices.Count];
-            area += a.x * b.z - b.x * a.z;
-        }
-        return Mathf.Abs(area) * 0.5f;
-    }
 }

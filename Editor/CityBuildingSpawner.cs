@@ -91,6 +91,12 @@ public static class CityBuildingSpawner
             }
 
             List<GameObject> frontagePrefabs = CollectPrefabsWithMetadata(validPrefabs);
+            if (frontagePrefabs.Count == 0)
+            {
+                report.blocksWithoutPrefabs++;
+                report.prefabMissingMetadata++;
+                continue;
+            }
 
             Transform blockParent = GetOrCreateBlockParent(root, block.id);
             List<CityLot> lots = GetLotsForBlock(cityData, block.id);
@@ -106,23 +112,14 @@ public static class CityBuildingSpawner
                     continue;
                 }
 
-                if (lotFilling)
+                if (lot.assignedPrefabIndex < 0 || lot.assignedPrefabIndex >= frontagePrefabs.Count)
                 {
-                    SpawnFillLot(lot, block, validPrefabs, blockParent, block.zoning, lotRotation, lotWidth, lotDepth, ref report);
+                    report.lotsOutOfFit++;
                     continue;
                 }
 
-                // Usa l'indice prefab assegnato in fase di generazione lotti (Frontage system).
-                // Se non disponibile (-1) ricade sul PickPrefab deterministico.
-                GameObject prefab;
-                if (lot.assignedPrefabIndex >= 0 && lot.assignedPrefabIndex < frontagePrefabs.Count)
-                {
-                    prefab = frontagePrefabs[lot.assignedPrefabIndex];
-                }
-                else
-                {
-                    prefab = PickPrefab(validPrefabs, block.zoning, block.id, lot.id, lotIndex);
-                }
+                // Ogni lotto spawna esclusivamente il prefab scelto in fase di generazione.
+                GameObject prefab = frontagePrefabs[lot.assignedPrefabIndex];
 
                 if (prefab == null)
                 {
@@ -136,16 +133,11 @@ public static class CityBuildingSpawner
 
                 if (metadata != null)
                 {
-                    // Con il sistema Frontage la fit è garantita in fase di generazione.
-                    // Il check viene eseguito solo per lotti senza assignedPrefabIndex (fallback).
-                    if (lot.assignedPrefabIndex < 0)
+                    Vector2 footprint = metadata.GetAlignedFootprintSize();
+                    if (footprint.x > lotWidth || footprint.y > lotDepth)
                     {
-                        Vector2 footprint = metadata.GetAlignedFootprintSize();
-                        if (footprint.x > lotWidth || footprint.y > lotDepth)
-                        {
-                            report.lotsOutOfFit++;
-                            continue;
-                        }
+                        report.lotsOutOfFit++;
+                        continue;
                     }
 
                     Vector3 desiredFrontDirection = GetLotStreetDirection(lot);
@@ -174,6 +166,10 @@ public static class CityBuildingSpawner
                 instance.transform.SetPositionAndRotation(spawnPosition, spawnRotation);
 
                 report.spawnedBuildings++;
+                if (lotFilling)
+                {
+                    report.lotFillingSlots++;
+                }
             }
         }
 
@@ -303,133 +299,6 @@ public static class CityBuildingSpawner
         }
 
         return lots;
-    }
-
-    private static GameObject PickPrefab(List<GameObject> prefabs, ZoneType zone, int blockId, int lotId, int lotIndex)
-    {
-        if (prefabs == null || prefabs.Count == 0)
-        {
-            return null;
-        }
-
-        if (prefabs.Count == 1)
-        {
-            return prefabs[0];
-        }
-
-        if (zone != null && zone.deterministicPrefabSelection)
-        {
-            int hash = 17;
-            hash = hash * 31 + zone.prefabSelectionSeed;
-            hash = hash * 31 + blockId;
-            hash = hash * 31 + lotId;
-            hash = hash * 31 + lotIndex;
-            int index = Mathf.Abs(hash) % prefabs.Count;
-            return prefabs[index];
-        }
-
-        return prefabs[Random.Range(0, prefabs.Count)];
-    }
-
-    // ── Lot Filling ──────────────────────────────────────────────────────────────
-
-    private static void SpawnFillLot(
-        CityLot lot, CityBlock block,
-        List<GameObject> validPrefabs, Transform blockParent,
-        ZoneType zone, Quaternion lotRotation,
-        float lotWidth, float lotDepth,
-        ref SpawnReport report)
-    {
-        if (lot.vertices == null || lot.vertices.Count < 4) return;
-
-        Vector3 frontL     = lot.vertices[0];
-        Vector3 frontR     = lot.vertices[1];
-        Vector3 widthDir   = (frontR - frontL).normalized;
-        float groundY = lot.buildingCenter.y;
-
-        var candidates = new List<(GameObject go, CityBuilderPrefab meta)>();
-        bool anyMissingMeta = false;
-        foreach (var p in validPrefabs)
-        {
-            CityBuilderPrefab m = p.GetComponent<CityBuilderPrefab>();
-            if (m != null) candidates.Add((p, m));
-            else           anyMissingMeta = true;
-        }
-        if (anyMissingMeta) report.prefabMissingMetadata++;
-
-        // Fallback se nessun prefab ha CityBuilderPrefab
-        if (candidates.Count == 0)
-        {
-            GameObject fallback = PickPrefab(validPrefabs, zone, block.id, lot.id, 0);
-            if (fallback != null)
-            {
-                CityBuilderPrefab fm = fallback.GetComponent<CityBuilderPrefab>();
-                Vector3 pos = lot.buildingCenter;
-                if (fm != null) pos.y = groundY - fm.pivotOffset.y;
-                InstantiateBuilding(fallback, pos, lotRotation, blockParent, block.id, lot.id, 0, ref report);
-            }
-            return;
-        }
-
-        const float buildingGap = 0.2f;
-        float cursor = 0f;
-        int placed   = 0;
-
-        while (cursor < lotWidth)
-        {
-            float remaining = lotWidth - cursor;
-            bool found = false;
-            (GameObject go, CityBuilderPrefab meta) best = default;
-            Vector2 bestAlignedFootprint = Vector2.zero;
-
-            for (int attempt = 0; attempt < candidates.Count; attempt++)
-            {
-                int idx = PickFillIndex(zone, block.id, lot.id, placed, attempt, candidates.Count);
-                var c   = candidates[idx];
-                Vector2 fp = c.meta.GetAlignedFootprintSize();
-                if (fp.x <= remaining && fp.y <= lotDepth)
-                {
-                    best  = c;
-                    bestAlignedFootprint = fp;
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found) break;
-
-            Vector3 desiredFrontDirection = GetLotStreetDirection(lot);
-            Vector3 localFrontDirection = best.meta.GetFrontageDirectionLocal();
-            Quaternion spawnRotation = Quaternion.FromToRotation(localFrontDirection, desiredFrontDirection);
-
-            Vector3 frontageAnchor = frontL + widthDir * (cursor + bestAlignedFootprint.x * 0.5f);
-            Vector3 frontageOffsetWorld = spawnRotation * new Vector3(best.meta.frontageOffset.x, 0f, best.meta.frontageOffset.z);
-            Vector3 worldPos = frontageAnchor - frontageOffsetWorld;
-            worldPos.y = groundY - best.meta.pivotOffset.y;
-
-            InstantiateBuilding(best.go, worldPos, spawnRotation, blockParent, block.id, lot.id, placed, ref report);
-
-            cursor += bestAlignedFootprint.x + buildingGap;
-            placed++;
-        }
-
-        if (placed == 0) report.lotsOutOfFit++;
-        report.lotFillingSlots += placed;
-    }
-
-    private static int PickFillIndex(ZoneType zone, int blockId, int lotId, int placed, int attempt, int count)
-    {
-        if (zone != null && zone.deterministicPrefabSelection)
-        {
-            int hash = 17;
-            hash = hash * 31 + zone.prefabSelectionSeed;
-            hash = hash * 31 + blockId;
-            hash = hash * 31 + lotId;
-            hash = hash * 31 + placed;
-            hash = hash * 31 + attempt;
-            return Mathf.Abs(hash) % count;
-        }
-        return (placed + attempt) % count;
     }
 
     private static void InstantiateBuilding(
