@@ -93,6 +93,31 @@ public static class CityBuildingSpawner
         }
     }
 
+    public struct BlockFlattenReport
+    {
+        public int processedBlocks;
+        public int modifiedBlocks;
+        public int invalidBlocks;
+        public int blocksOutsideTerrain;
+        public int touchedHeightSamples;
+        public bool noTerrainFound;
+
+        public string ToMultilineString()
+        {
+            if (noTerrainFound)
+            {
+                return "Terrain attivo non trovato. Operazione annullata.";
+            }
+
+            return
+                "Blocchi processati: " + processedBlocks + "\n" +
+                "Blocchi modificati: " + modifiedBlocks + "\n" +
+                "Blocchi non validi: " + invalidBlocks + "\n" +
+                "Blocchi fuori area Terrain: " + blocksOutsideTerrain + "\n" +
+                "Campioni heightmap modificati: " + touchedHeightSamples;
+        }
+    }
+
     public static SpawnReport SpawnBuildings(CityManager manager, ExistingBuildingsHandling handling)
     {
         SpawnReport report = new SpawnReport();
@@ -314,7 +339,8 @@ public static class CityBuildingSpawner
                 maxZ,
                 targetHeightNormalized,
                 lotFalloff,
-                lotBlendStrength
+                lotBlendStrength,
+                false
             );
 
             if (touchedByLot > 0)
@@ -451,6 +477,115 @@ public static class CityBuildingSpawner
             {
                 EditorUtility.SetDirty(cityData);
             }
+        }
+
+        return report;
+    }
+
+    public static BlockFlattenReport FlattenTerrainUnderBlocks(CityManager manager)
+    {
+        BlockFlattenReport report = new BlockFlattenReport();
+        if (manager == null)
+        {
+            return report;
+        }
+
+        CityData cityData = manager.GetCityData();
+        if (cityData == null)
+        {
+            return report;
+        }
+
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain == null)
+        {
+            report.noTerrainFound = true;
+            return report;
+        }
+
+        TerrainData terrainData = terrain.terrainData;
+        if (terrainData == null)
+        {
+            report.noTerrainFound = true;
+            return report;
+        }
+
+        if (cityData.blocks == null || cityData.blocks.Count == 0)
+        {
+            return report;
+        }
+
+        int resolution = terrainData.heightmapResolution;
+        if (resolution < 2)
+        {
+            return report;
+        }
+
+        float blockFalloff = Mathf.Max(0.1f, cityData.roadTerrainFalloff);
+        float blockBlendStrength = Mathf.Clamp01(cityData.roadTerrainBlendStrength);
+
+        Undo.RecordObject(terrainData, "Flatten Terrain Under Blocks");
+        float[,] heights = terrainData.GetHeights(0, 0, resolution, resolution);
+        Vector3 terrainPosition = terrain.GetPosition();
+        Vector3 terrainSize = terrainData.size;
+        if (terrainSize.x <= 0f || terrainSize.y <= 0f || terrainSize.z <= 0f)
+        {
+            return report;
+        }
+
+        for (int i = 0; i < cityData.blocks.Count; i++)
+        {
+            CityBlock block = cityData.blocks[i];
+            report.processedBlocks++;
+
+            if (block == null || block.vertices == null || block.vertices.Count < 3)
+            {
+                report.invalidBlocks++;
+                continue;
+            }
+
+            List<Vector3> polygon = block.vertices;
+            if (!TryGetHeightmapBounds(polygon, terrainPosition, terrainSize, resolution, blockFalloff, out int minX, out int maxX, out int minZ, out int maxZ))
+            {
+                report.blocksOutsideTerrain++;
+                continue;
+            }
+
+            float avgY = 0f;
+            for (int v = 0; v < polygon.Count; v++)
+            {
+                avgY += polygon[v].y;
+            }
+
+            avgY /= polygon.Count;
+            float targetHeightNormalized = Mathf.Clamp01((avgY - terrainPosition.y) / terrainSize.y);
+            int touchedByBlock = ApplySoftFlattenPolygon(
+                heights,
+                resolution,
+                terrainPosition,
+                terrainSize,
+                polygon,
+                minX,
+                maxX,
+                minZ,
+                maxZ,
+                targetHeightNormalized,
+                blockFalloff,
+                blockBlendStrength,
+                true
+            );
+
+            if (touchedByBlock > 0)
+            {
+                report.modifiedBlocks++;
+                report.touchedHeightSamples += touchedByBlock;
+            }
+        }
+
+        if (report.touchedHeightSamples > 0)
+        {
+            terrainData.SetHeights(0, 0, heights);
+            EditorUtility.SetDirty(terrainData);
         }
 
         return report;
@@ -697,7 +832,8 @@ public static class CityBuildingSpawner
         int maxZ,
         float targetHeightNormalized,
         float falloffWorld,
-        float blendStrength)
+        float blendStrength,
+        bool forceInteriorFlat)
     {
         int touchedSamples = 0;
         const float epsilon = 0.0001f;
@@ -733,7 +869,20 @@ public static class CityBuildingSpawner
                 }
 
                 float previous = heights[z, x];
-                float effectiveBlend = Mathf.Clamp01(blend * blendStrength);
+                float effectiveBlend;
+                if (insidePolygon && forceInteriorFlat)
+                {
+                    effectiveBlend = 1f;
+                }
+                else if (insidePolygon)
+                {
+                    effectiveBlend = Mathf.Clamp01(blendStrength);
+                }
+                else
+                {
+                    effectiveBlend = Mathf.Clamp01(blend * blendStrength);
+                }
+
                 float blendedTarget = Mathf.Lerp(previous, targetHeightNormalized, effectiveBlend);
                 if (Mathf.Abs(previous - blendedTarget) <= epsilon)
                 {

@@ -179,7 +179,7 @@ public class CityBuilderWindow : EditorWindow
             cityManager.SetMode(CityManager.BuildMode.CreateBlock);
         }
 
-        if (DrawSectionButton("Zoning", EditorSection.Zoning))
+        if (DrawSectionButton("Lotti", EditorSection.Zoning))
         {
             currentSection = EditorSection.Zoning;
             cityManager.SetMode(CityManager.BuildMode.AssignZoning);
@@ -374,13 +374,20 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
         EditorGUILayout.Space();
 
+        if (GUILayout.Button("Flatten Terrain", buttonStyle))
+        {
+            FlattenTerrainUnderBlocks();
+        }
+
+        EditorGUILayout.Space();
+
         bool dummyBlockUiState = true;
         CityBlockEditor.DrawBlockEditorUI(cityManager, ref dummyBlockUiState);
     }
 
     private void DrawZoningSection()
     {
-        EditorGUILayout.LabelField("ZONING", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("LOTTI", EditorStyles.boldLabel);
         EditorGUILayout.Space();
 
         CityManager.BuildMode currentMode = cityManager.GetCurrentMode();
@@ -405,6 +412,11 @@ public class CityBuilderWindow : EditorWindow
         if (GUILayout.Button("Genera Lotti per tutti i Blocchi", buttonStyle))
         {
             GenerateAllLots();
+        }
+
+        if (GUILayout.Button("Flatten Terrain Under Lots", buttonStyle))
+        {
+            FlattenTerrainUnderLots();
         }
 
         EditorGUILayout.BeginHorizontal();
@@ -453,11 +465,6 @@ public class CityBuilderWindow : EditorWindow
         if (GUILayout.Button("Cancella Edifici Spawnati", buttonStyle))
         {
             ClearSpawnedBuildings();
-        }
-
-        if (GUILayout.Button("Flatten Terrain Under Lots", buttonStyle))
-        {
-            FlattenTerrainUnderLots();
         }
 
         float lotTerrainFalloff = EditorGUILayout.Slider("Falloff Lotti", cityData.lotTerrainFalloff, 0.1f, 10f);
@@ -791,5 +798,12 @@ public class CityBuilderWindow : EditorWindow
         CityBuildingSpawner.RoadFlattenReport report = CityBuildingSpawner.FlattenTerrainUnderRoads(cityManager);
         SceneView.RepaintAll();
         EditorUtility.DisplayDialog("Flatten Terrain Under Roads", report.ToMultilineString(), "OK");
+    }
+
+    private void FlattenTerrainUnderBlocks()
+    {
+        CityBuildingSpawner.BlockFlattenReport report = CityBuildingSpawner.FlattenTerrainUnderBlocks(cityManager);
+        SceneView.RepaintAll();
+        EditorUtility.DisplayDialog("Flatten Terrain Under Blocks", report.ToMultilineString(), "OK");
     }
 }
