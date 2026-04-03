@@ -110,7 +110,18 @@ public static class CityBuildingSpawner
                     continue;
                 }
 
-                GameObject prefab = PickPrefab(validPrefabs, block.zoning, block.id, lot.id, lotIndex);
+                // Usa l'indice prefab assegnato in fase di generazione lotti (Frontage system).
+                // Se non disponibile (-1) ricade sul PickPrefab deterministico.
+                GameObject prefab;
+                if (lot.assignedPrefabIndex >= 0 && lot.assignedPrefabIndex < validPrefabs.Count)
+                {
+                    prefab = validPrefabs[lot.assignedPrefabIndex];
+                }
+                else
+                {
+                    prefab = PickPrefab(validPrefabs, block.zoning, block.id, lot.id, lotIndex);
+                }
+
                 if (prefab == null)
                 {
                     report.blocksWithoutPrefabs++;
@@ -119,20 +130,29 @@ public static class CityBuildingSpawner
 
                 CityBuilderPrefab metadata = prefab.GetComponent<CityBuilderPrefab>();
                 Vector3 spawnPosition = lotCenter;
+                Quaternion spawnRotation = lotRotation;
 
                 if (metadata != null)
                 {
-                    Vector2 footprint = metadata.GetFootprintSize();
-                    bool fits = footprint.x <= lotWidth && footprint.y <= lotDepth;
-                    if (!fits)
+                    // Con il sistema Frontage la fit è garantita in fase di generazione.
+                    // Il check viene eseguito solo per lotti senza assignedPrefabIndex (fallback).
+                    if (lot.assignedPrefabIndex < 0)
                     {
-                        report.lotsOutOfFit++;
-                        continue;  // Salta lo spawn se il prefab non rientra nel lotto
+                        Vector2 footprint = metadata.GetFootprintSize();
+                        if (footprint.x > lotWidth || footprint.y > lotDepth)
+                        {
+                            report.lotsOutOfFit++;
+                            continue;
+                        }
                     }
 
-                    // Corregge solo Y: il pivot (tipicamente il fondo del building) deve atterrare
-                    // al livello del lotto. pivotOffset.y < 0 quando il fondo è sotto il pivot
-                    // del transform, quindi la sottrazione alza l'oggetto della giusta quantità.
+                    Vector3 desiredFrontDirection = GetLotStreetDirection(lot);
+                    Vector3 localFrontDirection = metadata.GetFrontageDirectionLocal();
+                    spawnRotation = Quaternion.FromToRotation(localFrontDirection, desiredFrontDirection);
+
+                    Vector3 frontageAnchor = GetLotFrontageAnchor(lot);
+                    Vector3 frontageOffsetWorld = spawnRotation * new Vector3(metadata.frontageOffset.x, 0f, metadata.frontageOffset.z);
+                    spawnPosition = frontageAnchor - frontageOffsetWorld;
                     spawnPosition.y -= metadata.pivotOffset.y;
                 }
                 else
@@ -149,7 +169,7 @@ public static class CityBuildingSpawner
                 instance.name = prefab.name + "_B" + block.id + "_L" + lot.id;
                 Undo.RegisterCreatedObjectUndo(instance, "Spawn Building");
                 instance.transform.SetParent(blockParent, true);
-                instance.transform.SetPositionAndRotation(spawnPosition, lotRotation);
+                instance.transform.SetPositionAndRotation(spawnPosition, spawnRotation);
 
                 report.spawnedBuildings++;
             }
@@ -442,5 +462,26 @@ public static class CityBuildingSpawner
         center = lot.buildingCenter;
 
         return true;
+    }
+
+    private static Vector3 GetLotStreetDirection(CityLot lot)
+    {
+        Vector3 frontL = lot.vertices[0];
+        Vector3 frontR = lot.vertices[1];
+        Vector3 backR = lot.vertices[2];
+        Vector3 backL = lot.vertices[3];
+        Vector3 inward = ((backL + backR) * 0.5f - (frontL + frontR) * 0.5f).normalized;
+        if (inward.sqrMagnitude < 0.0001f)
+        {
+            inward = Vector3.forward;
+        }
+        return -inward;
+    }
+
+    private static Vector3 GetLotFrontageAnchor(CityLot lot)
+    {
+        Vector3 frontL = lot.vertices[0];
+        Vector3 frontR = lot.vertices[1];
+        return (frontL + frontR) * 0.5f;
     }
 }

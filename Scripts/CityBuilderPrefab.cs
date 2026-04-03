@@ -6,6 +6,7 @@ using UnityEditor;
 #endif
 
 /// <summary>
+
 /// Metadati prefab edificio usati dal tool di spawn per valutare footprint e offset.
 /// Aggiungere questo componente sul prefab edificio.
 /// </summary>
@@ -23,9 +24,52 @@ public class CityBuilderPrefab : MonoBehaviour
     [Tooltip("Offset locale dal centro lotto applicato alla posizione finale.")]
     public Vector3 pivotOffset = Vector3.zero;
 
+    [Tooltip("Posizione del piano di affaccio (fronte edificio) in spazio locale. Indica la direzione frontale verso la strada.")]
+    public Vector3 frontageOffset = new Vector3(0f, 0f, -4f);
+
+    [Tooltip("Direzione locale della normale del piano Frontage. Permette di ruotare l'affaccio senza vincolarlo all'asse Z.")]
+    public Vector3 frontageDirection = Vector3.back;
+
+    [Tooltip("Altezza di visualizzazione del piano Frontage nel gizmo (non influenza la logica).")]
+    public float frontageDisplayHeight = 4f;
+
+    // Indica se frontageOffset è stato inizializzato almeno una volta (evita di sovrascrivere valori personalizzati).
+    [SerializeField] private bool frontageOffsetInitialized = false;
+    [SerializeField] private bool frontageDirectionInitialized = false;
+
     public Vector2 GetFootprintSize()
     {
         return new Vector2(Mathf.Max(MinFootprint, footprintSize.x), Mathf.Max(MinFootprint, footprintSize.y));
+    }
+
+    public Vector3 GetFrontageDirectionLocal()
+    {
+        Vector3 direction = new Vector3(frontageDirection.x, 0f, frontageDirection.z);
+        if (direction.sqrMagnitude < 0.0001f)
+        {
+            direction = new Vector3(frontageOffset.x, 0f, frontageOffset.z);
+        }
+
+        if (direction.sqrMagnitude < 0.0001f)
+        {
+            direction = Vector3.back;
+        }
+
+        return direction.normalized;
+    }
+
+    public Vector2 GetAlignedFootprintSize()
+    {
+        Vector2 size = GetFootprintSize();
+        Vector3 front = GetFrontageDirectionLocal();
+        Vector3 inward = -front;
+        Vector3 tangent = new Vector3(-front.z, 0f, front.x).normalized;
+        Vector3 localRight = Vector3.right;
+        Vector3 localForward = Vector3.forward;
+
+        float width = Mathf.Abs(Vector3.Dot(localRight, tangent)) * size.x + Mathf.Abs(Vector3.Dot(localForward, tangent)) * size.y;
+        float depth = Mathf.Abs(Vector3.Dot(localRight, inward)) * size.x + Mathf.Abs(Vector3.Dot(localForward, inward)) * size.y;
+        return new Vector2(Mathf.Max(MinFootprint, width), Mathf.Max(MinFootprint, depth));
     }
 
     private void OnValidate()
@@ -38,6 +82,18 @@ public class CityBuilderPrefab : MonoBehaviour
             AutoComputeFootprintInEditor();
             AutoComputePivotOffsetInEditor();
         }
+
+        if (!frontageOffsetInitialized)
+        {
+            AutoConfigureFrontageInEditor(false);
+        }
+
+        if (!frontageDirectionInitialized)
+        {
+            AutoConfigureFrontageInEditor(false);
+        }
+
+        frontageDirection = GetFrontageDirectionLocal();
 #endif
     }
 
@@ -100,6 +156,7 @@ public class CityBuilderPrefab : MonoBehaviour
 
         AutoComputeFootprintInEditor();
         AutoComputePivotOffsetInEditor();
+        AutoConfigureFrontageInEditor(true);
     }
 #endif
 
@@ -111,6 +168,7 @@ public class CityBuilderPrefab : MonoBehaviour
         Matrix4x4 previousMatrix = Gizmos.matrix;
         Color previousColor = Gizmos.color;
 
+        // -- Gizmo footprint (ciano) --
         Gizmos.matrix = Matrix4x4.TRS(pivotWorld, transform.rotation, Vector3.one);
         Gizmos.color = new Color(0.25f, 0.8f, 1f, 1f);
         Gizmos.DrawWireCube(Vector3.zero, new Vector3(size.x, 0.02f, size.y));
@@ -124,6 +182,32 @@ public class CityBuilderPrefab : MonoBehaviour
         Gizmos.DrawSphere(pivotWorld, pivotRadius);
         Gizmos.DrawLine(transform.position, pivotWorld);
 
+        // -- Gizmo Frontage (arancio) --
+        Vector3 frontageWorld = transform.TransformPoint(frontageOffset);
+
+        // Direzione frontale esplicita del prefab, indipendente dall'offset.
+        Vector3 frontageLocalDir = GetFrontageDirectionLocal();
+        Vector3 frontageFwdWorld = transform.TransformDirection(frontageLocalDir);
+
+        // Orientamento del piano: piano verticale la cui normale è frontageFwdWorld.
+        Quaternion frontageRot = Quaternion.LookRotation(frontageFwdWorld, Vector3.up);
+
+        Gizmos.matrix = Matrix4x4.TRS(frontageWorld, frontageRot, Vector3.one);
+        Gizmos.color = new Color(1f, 0.55f, 0f, 1f);
+        Gizmos.DrawWireCube(new Vector3(0f, frontageDisplayHeight * 0.5f, 0f),
+                            new Vector3(size.x, frontageDisplayHeight, 0.02f));
+        Gizmos.color = new Color(1f, 0.55f, 0f, 0.12f);
+        Gizmos.DrawCube(new Vector3(0f, frontageDisplayHeight * 0.5f, 0f),
+                        new Vector3(size.x, frontageDisplayHeight, 0.001f));
+
+        // Freccia direzione affaccio
+        Gizmos.matrix = previousMatrix;
+        Gizmos.color = new Color(1f, 0.55f, 0f, 1f);
+        float arrowLen = Mathf.Max(0.5f, size.x * 0.25f);
+        Gizmos.DrawLine(frontageWorld, frontageWorld + frontageFwdWorld * arrowLen);
+        Gizmos.DrawSphere(frontageWorld + frontageFwdWorld * arrowLen, arrowLen * 0.12f);
+
+        Gizmos.matrix = previousMatrix;
         Gizmos.color = previousColor;
     }
 

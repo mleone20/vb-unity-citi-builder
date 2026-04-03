@@ -493,7 +493,6 @@ public class CityBuilderWindow : EditorWindow
             CityBlock block = cityData.blocks[i];
             var generatedLots = CityLotGenerator.GenerateLotsForBlock(
                 block,
-                cityData.averageLotSize,
                 block.zoning,
                 i,
                 cityData

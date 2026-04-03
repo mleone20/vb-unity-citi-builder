@@ -2,148 +2,148 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// Utility per suddividere blocchi in lotti.
-/// Ogni lotto è allineato al bordo stradale e la profondità viene trovata tramite binary-search
-/// controllando che non collida con nessuna area già occupata (SAT 2-D).
-/// vertices[0]=frontSinistra, [1]=frontDestra, [2]=retroDestra, [3]=retroSinistra.
+/// Genera lotti per un blocco usando l'approccio "Frontage" (affaccio su strada).
+/// Per ogni edge del blocco percorre il bordo e ritaglia lotti la cui larghezza
+/// corrisponde esattamente a footprintSize.x del prefab selezionato, mentre la
+/// profondita' corrisponde a footprintSize.y. Garantisce che ogni lotto abbia
+/// il fronte sulla strada.
+/// Convenzione vertici: [0]=frontLeft, [1]=frontRight, [2]=backRight, [3]=backLeft.
 /// </summary>
 public static class CityLotGenerator
 {
-    public static List<CityLot> GenerateLotsForBlock(CityBlock block, float avgLotSize, ZoneType zoning, int blockIndex, CityData cityData)
+    private const float LotSafetyMargin = 0.05f;
+
+    public static List<CityLot> GenerateLotsForBlock(CityBlock block, ZoneType zoning, int blockIndex, CityData cityData)
     {
-        List<CityLot> lots    = new List<CityLot>();
+        List<CityLot> lots = new List<CityLot>();
         if (block.vertices.Count < 3) return lots;
 
-        float buildingHeight = cityData.GetZoneHeight(zoning);
-        List<Vector3> verts  = block.vertices;
-        float roadSetback    = cityData.globalRoadWidth * 0.5f;
-        Vector3 blockCenter  = block.GetCenter();
-        int tempID           = 0;
+        float buildingHeight  = cityData.GetZoneHeight(zoning);
+        List<Vector3> verts   = block.vertices;
+        float roadSetback     = cityData.globalRoadWidth * 0.5f + LotSafetyMargin;
+        Vector3 blockCenter   = block.GetCenter();
+        int tempID            = 0;
 
-        // Registro 2-D (piano XZ) di tutte le aree già occupate da lotti precedenti.
+        // Raccolta candidati prefab con metadata valida.
+        List<(GameObject go, CityBuilderPrefab meta)> candidates = CollectCandidates(zoning);
+        bool hasCandidates = candidates.Count > 0;
+
+        // Registro 2D (piano XZ) delle aree gia' occupate (anti-overlap SAT).
         List<Vector2[]> occupied = new List<Vector2[]>();
 
         for (int edgeIdx = 0; edgeIdx < verts.Count; edgeIdx++)
         {
-            Vector3 edgeStart = verts[edgeIdx];
-            Vector3 edgeEnd   = verts[(edgeIdx + 1) % verts.Count];
-            float edgeLength  = Vector3.Distance(edgeStart, edgeEnd);
+            Vector3 edgeStart  = verts[edgeIdx];
+            Vector3 edgeEnd    = verts[(edgeIdx + 1) % verts.Count];
+            float   edgeLength = Vector3.Distance(edgeStart, edgeEnd);
 
-            if (edgeLength < avgLotSize * 0.4f) continue;
+            if (edgeLength < 2f) continue;
 
             Vector3 edgeDir = (edgeEnd - edgeStart).normalized;
+            // Perpendicolare verso l'interno del blocco.
             Vector3 perp    = new Vector3(-edgeDir.z, 0f, edgeDir.x);
             Vector3 edgeMid = (edgeStart + edgeEnd) * 0.5f;
             if (Vector3.Dot(perp, blockCenter - edgeMid) < 0f) perp = -perp;
-            Vector3 inward = perp;
+            Vector3 inward  = perp;
 
-            // Profondità geometrica massima: raycast verso il bordo opposto al 90%.
-            Vector3 frontMid = edgeMid + inward * roadSetback;
-            float available  = RaycastToOtherEdges(verts, edgeIdx, frontMid, inward);
-            float maxDepth   = Mathf.Min(avgLotSize * 0.9f, available * 0.90f);
-            maxDepth         = Mathf.Max(maxDepth, 3f);
+            float cursor = 0f;
+            int   lotIdx = 0;
 
-            int   count      = Mathf.Max(1, Mathf.RoundToInt(edgeLength / avgLotSize));
-            float baseWidth  = edgeLength / count;
-            
-            // Guida la larghezza del lotto dalle dimensioni medie dei prefab della zona
-            float avgPrefabWidth = GetAveragePrefabWidthFromZone(zone);
-            if (avgPrefabWidth > 0.5f)
+            while (cursor < edgeLength)
             {
-                // Clamp baseWidth in un range ragionevole attorno alla larghezza media dei prefab
-                baseWidth = Mathf.Clamp(baseWidth, avgPrefabWidth * 0.8f, avgPrefabWidth * 1.5f);
-            }
-            
-            float currentPos = 0f;  // Traccia la posizione corrente lungo l'edge
+                // ── Seleziona prefab e dimensioni lotto ──────────────────────
+                float lotWidth, lotDepth;
+                int   prefabIndex;
 
-            int lotIdx = 0;
-            while (lotIdx < count && currentPos < edgeLength)
-            {
-                // Calcola un sizeFactor proceduralmente deterministico
-                float sizeFactor = CalculateLotSizeFactor(block.id, edgeIdx, lotIdx, cityData);
-                
-                // Calcola la larghezza di questo lotto scalata dal sizeFactor
-                float lotWidth = baseWidth * sizeFactor;
-                
-                // Calcola il gap in base al sizeFactor (lotti più grandi = gap più ampio)
-                float normalizedSizeFactor = (sizeFactor - cityData.minLotSizeFactor) / (cityData.maxLotSizeFactor - cityData.minLotSizeFactor);
-                normalizedSizeFactor = Mathf.Clamp01(normalizedSizeFactor);
-                float lotGap = Mathf.Lerp(cityData.gapMinimum, cityData.gapMaximum, normalizedSizeFactor);
-                
-                // Calcola le posizioni reali del lotto lungo l'edge
-                float posFrom = currentPos + lotGap;
+                if (hasCandidates)
+                {
+                    prefabIndex = PickCandidateIndex(blockIndex, edgeIdx, lotIdx, candidates.Count);
+                    Vector2 fp  = candidates[prefabIndex].meta.GetAlignedFootprintSize();
+                    lotWidth    = fp.x;
+                    lotDepth    = fp.y;
+                }
+                else
+                {
+                    // Fallback: nessun prefab con metadata → usa averageLotSize come lotto quadrato.
+                    prefabIndex = -1;
+                    lotWidth    = cityData.averageLotSize;
+                    lotDepth    = cityData.averageLotSize;
+                }
+
+                // ── Gap procedurale deterministico ───────────────────────────
+                float gapNoise = Mathf.PerlinNoise(blockIndex * 0.13f + edgeIdx * 0.37f + lotIdx * 0.71f, 0.5f);
+                gapNoise       = Mathf.Clamp01(gapNoise);
+                float lotGap   = Mathf.Lerp(cityData.gapMinimum, cityData.gapMaximum, gapNoise);
+
+                // ── Posizione lungo l'edge ───────────────────────────────────
+                float posFrom = cursor + lotGap;
                 float posTo   = posFrom + lotWidth;
-                
-                // Controlla se il lotto rientra nell'edge
+
+                // Spazio insufficiente: interrompi questo edge.
+                if (posFrom >= edgeLength) break;
+
+                // Lotto a cavallo della fine: riduci se almeno meta' della larghezza entra.
                 if (posTo > edgeLength)
                 {
-                    // Riduci la larghezza per adattarsi alla fine dell'edge
-                    lotWidth = edgeLength - posFrom;
-                    if (lotWidth < baseWidth * 0.3f) break;  // Troppo piccolo, interrompi
-                    posTo = edgeLength - lotGap;
+                    float residuo = edgeLength - posFrom;
+                    if (residuo < lotWidth * 0.5f) break;
+                    posTo = edgeLength;
                 }
-                
-                // Normalizza le posizioni a parametri t [0, 1]
-                float tFrom = Mathf.Clamp01(posFrom / edgeLength);
-                float tTo   = Mathf.Clamp01(posTo / edgeLength);
+
+                // ── Calcolo corners del lotto ────────────────────────────────
+                float   tFrom  = posFrom / edgeLength;
+                float   tTo    = posTo   / edgeLength;
 
                 Vector3 roadFL = Vector3.Lerp(edgeStart, edgeEnd, tFrom);
                 Vector3 roadFR = Vector3.Lerp(edgeStart, edgeEnd, tTo);
                 Vector3 frontL = roadFL + inward * roadSetback;
                 Vector3 frontR = roadFR + inward * roadSetback;
+                Vector3 backL  = ClampInsidePolygon(frontL, frontL + inward * lotDepth, verts);
+                Vector3 backR  = ClampInsidePolygon(frontR, frontR + inward * lotDepth, verts);
 
-                // Binary-search: trova la profondità massima NON sovrapposta.
-                float depth = FindMaxDepthNoOverlap(frontL, frontR, inward, maxDepth, occupied, verts);
-                if (depth < 2f)
+                // Tutti i fronti sullo stesso edge restano allineati sulla stessa frontage line.
+                frontL = ProjectPointOnFrontageLine(frontL, roadFL + inward * roadSetback, edgeDir);
+                frontR = ProjectPointOnFrontageLine(frontR, roadFR + inward * roadSetback, edgeDir);
+
+                // ── Validazione ──────────────────────────────────────────────
+                List<Vector3> lotVerts = new List<Vector3> { frontL, frontR, backR, backL };
+
+                if (CalculatePolygonAreaXZ(lotVerts) < cityData.minLotArea)
                 {
-                    // Se questo lotto non può avere profondità sufficiente, passa al prossimo
-                    currentPos = posTo + lotGap;
+                    cursor += lotGap > 0f ? lotGap : cityData.gapMinimum;
                     lotIdx++;
                     continue;
                 }
 
-                Vector3 backL = ClampInsidePolygon(frontL, frontL + inward * depth, verts);
-                Vector3 backR = ClampInsidePolygon(frontR, frontR + inward * depth, verts);
-
-                List<Vector3> lotVertices = new List<Vector3> { frontL, frontR, backR, backL };
-                float lotArea = CalculatePolygonAreaXZ(lotVertices);
-                if (lotArea < cityData.minLotArea)
+                if (!IsInsideBuildableArea(lotVerts, verts, roadSetback))
                 {
-                    currentPos = posTo + lotGap;
+                    cursor += cityData.gapMinimum;
                     lotIdx++;
                     continue;
                 }
 
-                float frontage = Vector3.Distance(frontL, frontR);
-                float depthLeft = Vector3.Distance(frontL, backL);
-                float depthRight = Vector3.Distance(frontR, backR);
-                float depth2 = (depthLeft + depthRight) * 0.5f;
-                float shorterSide = Mathf.Max(0.01f, Mathf.Min(frontage, depth2));
-                float longerSide = Mathf.Max(frontage, depth2);
-                float aspectRatio = longerSide / shorterSide;
-
-                if (aspectRatio > cityData.maxLotAspectRatio)
+                Vector2[] poly2D = ToXZ(frontL, frontR, backR, backL);
+                if (OverlapsAny(poly2D, occupied))
                 {
-                    currentPos = posTo + lotGap;
+                    cursor += cityData.gapMinimum;
                     lotIdx++;
                     continue;
                 }
 
-                // Registra l'area come occupata PRIMA di passare al lotto successivo.
-                occupied.Add(ToXZ(frontL, frontR, backR, backL));
+                // ── Creazione lotto ──────────────────────────────────────────
+                occupied.Add(poly2D);
 
                 lots.Add(new CityLot(blockIndex * 1000 + tempID, block.id)
                 {
-                    buildingCenter = (frontL + frontR + backL + backR) * 0.25f,
-                    buildingHeight = buildingHeight,
-                    vertices       = lotVertices,
-                    sizeFactor     = sizeFactor,
-                    lotGap         = lotGap
+                    buildingCenter      = (frontL + frontR + backL + backR) * 0.25f,
+                    buildingHeight      = buildingHeight,
+                    vertices            = lotVerts,
+                    lotGap              = lotGap,
+                    assignedPrefabIndex = prefabIndex
                 });
+
                 tempID++;
-                
-                // Avanza alla posizione successiva
-                currentPos = posTo + lotGap;
+                cursor = posTo + lotGap;
                 lotIdx++;
             }
         }
@@ -151,94 +151,33 @@ public static class CityLotGenerator
         return lots;
     }
 
-    // ── Helper per Prefab-Aware Sizing ────────────────────────────────────────
+    // ── Selezione prefab ─────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Calcola la larghezza media dei prefab di una zona per guidare il sizing dei lotti.
-    /// </summary>
-    private static float GetAveragePrefabWidthFromZone(ZoneType zone)
+    private static List<(GameObject, CityBuilderPrefab)> CollectCandidates(ZoneType zone)
     {
-        if (zone == null || zone.buildingPrefabs == null || zone.buildingPrefabs.Count == 0)
-            return 0f;
-        
-        float totalWidth = 0f;
-        int count = 0;
-        
-        foreach (GameObject prefab in zone.buildingPrefabs)
+        var result = new List<(GameObject, CityBuilderPrefab)>();
+        if (zone == null || zone.buildingPrefabs == null) return result;
+
+        foreach (GameObject go in zone.buildingPrefabs)
         {
-            if (prefab == null) continue;
-            
-            CityBuilderPrefab metadata = prefab.GetComponent<CityBuilderPrefab>();
-            if (metadata != null)
-            {
-                Vector2 footprint = metadata.GetFootprintSize();
-                if (footprint.x > 0.1f)
-                {
-                    totalWidth += footprint.x;
-                    count++;
-                }
-            }
+            if (go == null) continue;
+            CityBuilderPrefab meta = go.GetComponent<CityBuilderPrefab>();
+            if (meta != null) result.Add((go, meta));
         }
-        
-        return count > 0 ? totalWidth / count : 0f;
+        return result;
     }
 
-    // ── Calcolo Size Factor Procedurale ───────────────────────────────────────
-
-    /// <summary>
-    /// Calcola un sizeFactor deterministico per un lotto specifico.
-    /// Usa Perlin noise per variabilità naturale ma ripetitiva.
-    /// </summary>
-    private static float CalculateLotSizeFactor(int blockID, int edgeIdx, int lotIdx, CityData cityData)
+    private static int PickCandidateIndex(int blockIdx, int edgeIdx, int lotIdx, int count)
     {
-        // Seed deterministico da game state (no Random per ripetibilità)
-        float seed = blockID * 100f + edgeIdx * 10f + lotIdx;
-
-        // Combina Perlin noise per un effetto ripetitivo e naturale
-        float noiseVal = Mathf.PerlinNoise(seed + edgeIdx * 0.5f, blockID * 0.1f + lotIdx * 0.1f);
-        
-        // Normalizza il Perlin noise da [0, 1] (PerlinNoise restituisce generalmente 0-1)
-        noiseVal = Mathf.Clamp01(noiseVal);
-        
-        // Aggiungi una variazione basata su lotIdx per maggior diversità
-        float lotVariation = Mathf.Sin(lotIdx * 0.7f + blockID * 0.1f) * 0.3f;
-        lotVariation = (lotVariation + 1.0f) * 0.5f; // Normalizza a [0, 1]
-        
-        // Combina noise e variazione
-        float combinedFactor = (noiseVal * 0.6f + lotVariation * 0.4f);
-        combinedFactor = Mathf.Clamp01(combinedFactor);
-        
-        // Applica densityInfluence per modulare l'effetto
-        if (cityData.densityInfluence < 0.001f)
-        {
-            combinedFactor = 0.5f; // Se densityInfluence è 0, tutti i lotti hanno la stessa dimensione
-        }
-        
-        // Mappa in range [minLotSizeFactor, maxLotSizeFactor]
-        float sizeFactor = Mathf.Lerp(cityData.minLotSizeFactor, cityData.maxLotSizeFactor, combinedFactor);
-        
-        return sizeFactor;
+        if (count <= 1) return 0;
+        int hash = 17;
+        hash = hash * 31 + blockIdx;
+        hash = hash * 31 + edgeIdx;
+        hash = hash * 31 + lotIdx;
+        return Mathf.Abs(hash) % count;
     }
 
-    private static float FindMaxDepthNoOverlap(
-        Vector3 frontL, Vector3 frontR, Vector3 inward,
-        float maxDepth, List<Vector2[]> occupied, List<Vector3> blockVerts)
-    {
-        float lo = 0f, hi = maxDepth;
-        for (int iter = 0; iter < 14; iter++)
-        {
-            float mid  = (lo + hi) * 0.5f;
-            Vector3 bL = ClampInsidePolygon(frontL, frontL + inward * mid, blockVerts);
-            Vector3 bR = ClampInsidePolygon(frontR, frontR + inward * mid, blockVerts);
-            if (OverlapsAny(ToXZ(frontL, frontR, bR, bL), occupied))
-                hi = mid;
-            else
-                lo = mid;
-        }
-        return lo;
-    }
-
-    // ── SAT 2-D ──────────────────────────────────────────────────────────────────
+    // ── SAT 2-D ──────────────────────────────────────────────────────────────
 
     private static bool OverlapsAny(Vector2[] poly, List<Vector2[]> others)
     {
@@ -265,35 +204,76 @@ public static class CityLotGenerator
             float mn2 = float.MaxValue, mx2 = float.MinValue;
             foreach (var p in poly2) { float d = Vector2.Dot(p, axis); if (d < mn2) mn2 = d; if (d > mx2) mx2 = d; }
 
-            // Richiede almeno 5 cm di gap reale: impedisce ogni overlap visibile.
             if (mx1 + 0.05f <= mn2 || mx2 + 0.05f <= mn1) return true;
         }
         return false;
     }
 
-    // ── Geometria dentro al blocco ───────────────────────────────────────────────
+    // ── Geometria dentro al blocco ───────────────────────────────────────────
 
-    private static float RaycastToOtherEdges(List<Vector3> verts, int skipEdge, Vector3 origin, Vector3 dir)
+    private static Vector3 ProjectPointOnFrontageLine(Vector3 point, Vector3 frontageOrigin, Vector3 edgeDirection)
     {
-        float minDist = float.MaxValue;
-        for (int i = 0; i < verts.Count; i++)
-        {
-            if (i == skipEdge) continue;
-            float dist = RaySegmentXZ(origin, dir, verts[i], verts[(i + 1) % verts.Count]);
-            if (dist > 0.01f && dist < minDist) minDist = dist;
-        }
-        return minDist < float.MaxValue ? minDist : 5f;
+        Vector3 delta = point - frontageOrigin;
+        float distanceAlongEdge = Vector3.Dot(delta, edgeDirection);
+        return frontageOrigin + edgeDirection * distanceAlongEdge;
     }
 
-    private static float RaySegmentXZ(Vector3 o, Vector3 d, Vector3 a, Vector3 b)
+    private static bool IsInsideBuildableArea(List<Vector3> vertices, List<Vector3> blockPolygon, float roadSetback)
     {
-        float dx = d.x, dz = d.z, ex = b.x - a.x, ez = b.z - a.z;
-        float denom = dx * ez - dz * ex;
-        if (Mathf.Abs(denom) < 1e-6f) return -1f;
-        float fx = a.x - o.x, fz = a.z - o.z;
-        float t  = (fx * ez - fz * ex) / denom;
-        float u  = (fx * dz - fz * dx) / denom;
-        return (t > 0.001f && u >= 0f && u <= 1f) ? t : -1f;
+        if (vertices == null || vertices.Count == 0) return false;
+
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            if (!PointInPolygonXZ(vertices[i], blockPolygon)) return false;
+
+            float edgeDistance = DistanceToPolygonEdgesXZ(vertices[i], blockPolygon);
+            if (edgeDistance + 0.01f < roadSetback)
+            {
+                return false;
+            }
+        }
+
+        Vector3 center = Vector3.zero;
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            center += vertices[i];
+        }
+        center /= vertices.Count;
+
+        return PointInPolygonXZ(center, blockPolygon) && DistanceToPolygonEdgesXZ(center, blockPolygon) + 0.01f >= roadSetback;
+    }
+
+    private static float DistanceToPolygonEdgesXZ(Vector3 point, List<Vector3> polygon)
+    {
+        float minDistance = float.MaxValue;
+        for (int i = 0; i < polygon.Count; i++)
+        {
+            Vector3 a = polygon[i];
+            Vector3 b = polygon[(i + 1) % polygon.Count];
+            float distance = DistancePointToSegmentXZ(point, a, b);
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+            }
+        }
+        return minDistance;
+    }
+
+    private static float DistancePointToSegmentXZ(Vector3 point, Vector3 a, Vector3 b)
+    {
+        Vector2 p = new Vector2(point.x, point.z);
+        Vector2 s0 = new Vector2(a.x, a.z);
+        Vector2 s1 = new Vector2(b.x, b.z);
+        Vector2 segment = s1 - s0;
+        float lengthSq = segment.sqrMagnitude;
+        if (lengthSq <= 0.0001f)
+        {
+            return Vector2.Distance(p, s0);
+        }
+
+        float t = Mathf.Clamp01(Vector2.Dot(p - s0, segment) / lengthSq);
+        Vector2 projection = s0 + segment * t;
+        return Vector2.Distance(p, projection);
     }
 
     private static Vector3 ClampInsidePolygon(Vector3 front, Vector3 back, List<Vector3> poly)
@@ -326,11 +306,7 @@ public static class CityLotGenerator
 
     private static float CalculatePolygonAreaXZ(List<Vector3> vertices)
     {
-        if (vertices == null || vertices.Count < 3)
-        {
-            return 0f;
-        }
-
+        if (vertices == null || vertices.Count < 3) return 0f;
         float area = 0f;
         for (int i = 0; i < vertices.Count; i++)
         {
@@ -338,7 +314,6 @@ public static class CityLotGenerator
             Vector3 b = vertices[(i + 1) % vertices.Count];
             area += a.x * b.z - b.x * a.z;
         }
-
         return Mathf.Abs(area) * 0.5f;
     }
 }

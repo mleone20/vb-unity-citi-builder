@@ -81,7 +81,8 @@ public class CityData : ScriptableObject
             {
                 vertices = new List<Vector3>(lot.vertices),
                 buildingCenter = lot.buildingCenter,
-                buildingHeight = lot.buildingHeight
+                buildingHeight = lot.buildingHeight,
+                assignedPrefabIndex = lot.assignedPrefabIndex
             };
             clone.lots.Add(clonedLot);
         }

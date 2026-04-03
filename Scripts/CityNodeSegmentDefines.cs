@@ -134,6 +134,9 @@ public class CityLot
     public float sizeFactor = 1.0f;  // Moltiplicatore dimensione (0.6 = piccolo, 1.4 = grande)
     public float lotGap = 0.05f;     // Gap specifico per questo lotto
 
+    // Indice del prefab assegnato in fase di generazione (-1 = non assegnato, usa PickPrefab fallback).
+    public int assignedPrefabIndex = -1;
+
     public CityLot(int id, int blockID)
     {
         this.id = id;
