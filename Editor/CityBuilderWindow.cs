@@ -71,7 +71,7 @@ public class CityBuilderWindow : EditorWindow
             return;
         }
 
-        EditorGUILayout.HelpBox($"Modalità attuale: {cityManager.GetCurrentMode()}", MessageType.Info);
+        EditorGUILayout.HelpBox($"Modalità attuale: {GetModeDisplayLabel(cityManager.GetCurrentMode())}", MessageType.Info);
         EditorGUILayout.Space();
 
         DrawSectionToolbar();
@@ -164,16 +164,19 @@ public class CityBuilderWindow : EditorWindow
         if (DrawSectionButton("Percorsi", EditorSection.Paths))
         {
             currentSection = EditorSection.Paths;
+            cityManager.SetMode(CityManager.BuildMode.Idle);
         }
 
         if (DrawSectionButton("Blocchi", EditorSection.Blocks))
         {
             currentSection = EditorSection.Blocks;
+            cityManager.SetMode(CityManager.BuildMode.CreateBlock);
         }
 
         if (DrawSectionButton("Zoning", EditorSection.Zoning))
         {
             currentSection = EditorSection.Zoning;
+            cityManager.SetMode(CityManager.BuildMode.AssignZoning);
         }
 
         if (DrawSectionButton("Edifici", EditorSection.Buildings))
@@ -202,6 +205,25 @@ public class CityBuilderWindow : EditorWindow
         return pressed;
     }
 
+    private string GetModeDisplayLabel(CityManager.BuildMode mode)
+    {
+        switch (mode)
+        {
+            case CityManager.BuildMode.Idle:
+                return "Seleziona/Sposta Nodi";
+            case CityManager.BuildMode.AddNodes:
+                return "Aggiungi/Modifica Nodi";
+            case CityManager.BuildMode.ConnectNodes:
+                return "Connetti Nodi";
+            case CityManager.BuildMode.CreateBlock:
+                return "Crea Blocco";
+            case CityManager.BuildMode.AssignZoning:
+                return "Assegna Zoning";
+            default:
+                return mode.ToString();
+        }
+    }
+
     private void DrawPathsSection()
     {
         EditorGUILayout.LabelField("NODI", EditorStyles.boldLabel);
@@ -212,13 +234,13 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.BeginHorizontal();
 
         GUI.color = currentMode == CityManager.BuildMode.Idle ? Color.yellow : Color.white;
-        if (GUILayout.Button("Muovi nodi"))
+        if (GUILayout.Button("Seleziona/Sposta Nodi"))
         {
             cityManager.SetMode(CityManager.BuildMode.Idle);
         }
 
         GUI.color = currentMode == CityManager.BuildMode.AddNodes ? Color.yellow : Color.white;
-        if (GUILayout.Button("Aggiungi Nodi"))
+        if (GUILayout.Button("Aggiungi/Modifica Nodi"))
         {
             cityManager.SetMode(CityManager.BuildMode.AddNodes);
         }
