@@ -90,6 +90,8 @@ public static class CityBuildingSpawner
                 continue;
             }
 
+            List<GameObject> frontagePrefabs = CollectPrefabsWithMetadata(validPrefabs);
+
             Transform blockParent = GetOrCreateBlockParent(root, block.id);
             List<CityLot> lots = GetLotsForBlock(cityData, block.id);
 
@@ -113,9 +115,9 @@ public static class CityBuildingSpawner
                 // Usa l'indice prefab assegnato in fase di generazione lotti (Frontage system).
                 // Se non disponibile (-1) ricade sul PickPrefab deterministico.
                 GameObject prefab;
-                if (lot.assignedPrefabIndex >= 0 && lot.assignedPrefabIndex < validPrefabs.Count)
+                if (lot.assignedPrefabIndex >= 0 && lot.assignedPrefabIndex < frontagePrefabs.Count)
                 {
-                    prefab = validPrefabs[lot.assignedPrefabIndex];
+                    prefab = frontagePrefabs[lot.assignedPrefabIndex];
                 }
                 else
                 {
@@ -138,7 +140,7 @@ public static class CityBuildingSpawner
                     // Il check viene eseguito solo per lotti senza assignedPrefabIndex (fallback).
                     if (lot.assignedPrefabIndex < 0)
                     {
-                        Vector2 footprint = metadata.GetFootprintSize();
+                        Vector2 footprint = metadata.GetAlignedFootprintSize();
                         if (footprint.x > lotWidth || footprint.y > lotDepth)
                         {
                             report.lotsOutOfFit++;
@@ -268,6 +270,26 @@ public static class CityBuildingSpawner
         return validPrefabs;
     }
 
+    private static List<GameObject> CollectPrefabsWithMetadata(List<GameObject> prefabs)
+    {
+        List<GameObject> result = new List<GameObject>();
+        if (prefabs == null)
+        {
+            return result;
+        }
+
+        for (int i = 0; i < prefabs.Count; i++)
+        {
+            GameObject prefab = prefabs[i];
+            if (prefab != null && prefab.GetComponent<CityBuilderPrefab>() != null)
+            {
+                result.Add(prefab);
+            }
+        }
+
+        return result;
+    }
+
     private static List<CityLot> GetLotsForBlock(CityData cityData, int blockId)
     {
         List<CityLot> lots = new List<CityLot>();
@@ -322,11 +344,7 @@ public static class CityBuildingSpawner
 
         Vector3 frontL     = lot.vertices[0];
         Vector3 frontR     = lot.vertices[1];
-        Vector3 backL      = lot.vertices[3];
-        Vector3 backR      = lot.vertices[2];
         Vector3 widthDir   = (frontR - frontL).normalized;
-        Vector3 lotForward = ((backL + backR) * 0.5f - (frontL + frontR) * 0.5f).normalized;
-        if (lotForward.sqrMagnitude < 0.0001f) lotForward = Vector3.forward;
         float groundY = lot.buildingCenter.y;
 
         var candidates = new List<(GameObject go, CityBuilderPrefab meta)>();
@@ -362,15 +380,17 @@ public static class CityBuildingSpawner
             float remaining = lotWidth - cursor;
             bool found = false;
             (GameObject go, CityBuilderPrefab meta) best = default;
+            Vector2 bestAlignedFootprint = Vector2.zero;
 
             for (int attempt = 0; attempt < candidates.Count; attempt++)
             {
                 int idx = PickFillIndex(zone, block.id, lot.id, placed, attempt, candidates.Count);
                 var c   = candidates[idx];
-                Vector2 fp = c.meta.GetFootprintSize();
+                Vector2 fp = c.meta.GetAlignedFootprintSize();
                 if (fp.x <= remaining && fp.y <= lotDepth)
                 {
                     best  = c;
+                    bestAlignedFootprint = fp;
                     found = true;
                     break;
                 }
@@ -378,15 +398,18 @@ public static class CityBuildingSpawner
 
             if (!found) break;
 
-            Vector2 footprint = best.meta.GetFootprintSize();
-            Vector3 worldPos  = frontL
-                + widthDir   * (cursor + footprint.x * 0.5f)
-                + lotForward * (lotDepth * 0.5f);
+            Vector3 desiredFrontDirection = GetLotStreetDirection(lot);
+            Vector3 localFrontDirection = best.meta.GetFrontageDirectionLocal();
+            Quaternion spawnRotation = Quaternion.FromToRotation(localFrontDirection, desiredFrontDirection);
+
+            Vector3 frontageAnchor = frontL + widthDir * (cursor + bestAlignedFootprint.x * 0.5f);
+            Vector3 frontageOffsetWorld = spawnRotation * new Vector3(best.meta.frontageOffset.x, 0f, best.meta.frontageOffset.z);
+            Vector3 worldPos = frontageAnchor - frontageOffsetWorld;
             worldPos.y = groundY - best.meta.pivotOffset.y;
 
-            InstantiateBuilding(best.go, worldPos, lotRotation, blockParent, block.id, lot.id, placed, ref report);
+            InstantiateBuilding(best.go, worldPos, spawnRotation, blockParent, block.id, lot.id, placed, ref report);
 
-            cursor += footprint.x + buildingGap;
+            cursor += bestAlignedFootprint.x + buildingGap;
             placed++;
         }
 
