@@ -277,6 +277,34 @@ public class CityBuilderWindow : EditorWindow
         }
 
         EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Terrain", EditorStyles.boldLabel);
+
+        bool alignNodesToTerrain = EditorGUILayout.Toggle("Allinea nodi al Terrain", cityData.alignNodesToTerrain);
+        if (alignNodesToTerrain != cityData.alignNodesToTerrain)
+        {
+            Undo.RecordObject(cityData, "Toggle Terrain Node Alignment");
+            cityData.alignNodesToTerrain = alignNodesToTerrain;
+            EditorUtility.SetDirty(cityData);
+        }
+
+        using (new EditorGUI.DisabledScope(!cityData.alignNodesToTerrain))
+        {
+            float nodeTerrainYOffset = EditorGUILayout.FloatField("Offset Y nodi", cityData.nodeTerrainYOffset);
+            nodeTerrainYOffset = Mathf.Clamp(nodeTerrainYOffset, -2.0f, 2.0f);
+            if (!Mathf.Approximately(nodeTerrainYOffset, cityData.nodeTerrainYOffset))
+            {
+                Undo.RecordObject(cityData, "Set Node Terrain Y Offset");
+                cityData.nodeTerrainYOffset = nodeTerrainYOffset;
+                EditorUtility.SetDirty(cityData);
+            }
+        }
+
+        if (cityData.alignNodesToTerrain)
+        {
+            EditorGUILayout.HelpBox("In AddNodes e drag del nodo, la quota Y viene campionata da Terrain.activeTerrain + Offset Y.", MessageType.Info);
+        }
+
+        EditorGUILayout.Space();
 
         EditorGUILayout.LabelField("Strade", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("Larghezza Strade Globale (fallback):");
@@ -394,6 +422,11 @@ public class CityBuilderWindow : EditorWindow
         if (GUILayout.Button("Cancella Edifici Spawnati", buttonStyle))
         {
             ClearSpawnedBuildings();
+        }
+
+        if (GUILayout.Button("Flatten Terrain Under Lots", buttonStyle))
+        {
+            FlattenTerrainUnderLots();
         }
 
         EditorGUILayout.Space();
@@ -695,5 +728,12 @@ public class CityBuilderWindow : EditorWindow
         int removedCount = CityBuildingSpawner.ClearSpawnedBuildings();
         SceneView.RepaintAll();
         EditorUtility.DisplayDialog("Cancella Edifici Spawnati", $"Oggetti rimossi: {removedCount}", "OK");
+    }
+
+    private void FlattenTerrainUnderLots()
+    {
+        CityBuildingSpawner.TerrainFlattenReport report = CityBuildingSpawner.FlattenTerrainUnderLots(cityManager);
+        SceneView.RepaintAll();
+        EditorUtility.DisplayDialog("Flatten Terrain Under Lots", report.ToMultilineString(), "OK");
     }
 }

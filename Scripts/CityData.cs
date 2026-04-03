@@ -27,6 +27,10 @@ public class CityData : ScriptableObject
     [Range(0.01f, 0.2f)] [SerializeField] public float gapMinimum = 0.05f;        // Gap minimo tra lotti (in unità)
     [Range(0.02f, 0.3f)] [SerializeField] public float gapMaximum = 0.15f;        // Gap massimo tra lotti (in unità)
     [Range(0.0f, 1.0f)] [SerializeField] public float densityInfluence = 0.5f;    // Quanto la densità influenza la dimensione (0=nessun effetto, 1=massimo)
+
+    [Header("Integrazione Terrain")]
+    [SerializeField] public bool alignNodesToTerrain = false;
+    [Range(-2.0f, 2.0f)] [SerializeField] public float nodeTerrainYOffset = 0.0f;
     // Counter per generare ID unici
     private int nextNodeID = 0;
     private int nextSegmentID = 0;
@@ -48,6 +52,8 @@ public class CityData : ScriptableObject
         clone.gapMinimum = this.gapMinimum;
         clone.gapMaximum = this.gapMaximum;
         clone.densityInfluence = this.densityInfluence;
+        clone.alignNodesToTerrain = this.alignNodesToTerrain;
+        clone.nodeTerrainYOffset = this.nodeTerrainYOffset;
         
         // Deep clone collections
         foreach (var node in nodes)

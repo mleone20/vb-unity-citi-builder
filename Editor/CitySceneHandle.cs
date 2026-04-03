@@ -146,7 +146,9 @@ public class CitySceneHandle
 
     private static void HandleCreateBlockNodeClick(Ray ray, CityManager manager)
     {
-        Vector3 hitPoint = RaycastToGround(ray);
+        CityData cityData = manager.GetCityData();
+        Vector3 hitPoint = RaycastToSceneSurface(ray, cityData);
+        hitPoint = ApplyTerrainHeightIfEnabled(cityData, hitPoint);
         CityNode nearestNode = manager.FindNearestNode(hitPoint, 2.0f);
 
         if (nearestNode == null)
@@ -163,7 +165,9 @@ public class CitySceneHandle
     /// </summary>
     private static void HandleSelectNodeClick(Ray ray, CityManager manager)
     {
-        Vector3 hitPoint = RaycastToGround(ray);
+        CityData cityData = manager.GetCityData();
+        Vector3 hitPoint = RaycastToSceneSurface(ray, cityData);
+        hitPoint = ApplyTerrainHeightIfEnabled(cityData, hitPoint);
         CityNode nearestNode = manager.FindNearestNode(hitPoint, 2.0f);
 
         if (nearestNode != null)
@@ -185,7 +189,6 @@ public class CitySceneHandle
             manager.SetSelectedNodeID(-1);
             manager.SetSelectedSegmentID(-1);
 
-            CityData cityData = manager.GetCityData();
             if (cityData != null)
             {
                 CityLot selectedLot = cityData.FindLotAtPosition(hitPoint);
@@ -294,6 +297,8 @@ public class CitySceneHandle
                 newPosition = SnapToGrid(newPosition);
             }
 
+            newPosition = ApplyTerrainHeightIfEnabled(cityData, newPosition);
+
             Undo.RecordObject(cityData, "Move City Node");
             selectedNode.position = newPosition;
             EditorUtility.SetDirty(cityData);
@@ -306,7 +311,9 @@ public class CitySceneHandle
     /// </summary>
     private static bool HandleRemoveNodeClick(Ray ray, CityManager manager)
     {
-        Vector3 hitPoint = RaycastToGround(ray);
+        CityData cityData = manager.GetCityData();
+        Vector3 hitPoint = RaycastToSceneSurface(ray, cityData);
+        hitPoint = ApplyTerrainHeightIfEnabled(cityData, hitPoint);
         CityNode nearestNode = manager.FindNearestNode(hitPoint, 2.0f);
 
         if (nearestNode == null)
@@ -336,12 +343,14 @@ public class CitySceneHandle
     /// </summary>
     private static void HandleAddNodeClick(Ray ray, CityManager manager)
     {
-        // Interseca con piano Y=0 (ground level)
-        Vector3 hitPoint = RaycastToGround(ray);
+        CityData cityData = manager.GetCityData();
+        Vector3 hitPoint = RaycastToSceneSurface(ray, cityData);
         if (SnapToGridEnabled)
         {
             hitPoint = SnapToGrid(hitPoint);
         }
+
+        hitPoint = ApplyTerrainHeightIfEnabled(cityData, hitPoint);
 
         bool shiftPressed = Event.current.shift;
         CityNode existingNode = manager.FindNearestNode(hitPoint, 2.0f);
@@ -394,7 +403,9 @@ public class CitySceneHandle
     /// </summary>
     private static void HandleConnectNodeClick(Ray ray, CityManager manager)
     {
-        Vector3 hitPoint = RaycastToGround(ray);
+        CityData cityData = manager.GetCityData();
+        Vector3 hitPoint = RaycastToSceneSurface(ray, cityData);
+        hitPoint = ApplyTerrainHeightIfEnabled(cityData, hitPoint);
         CityNode nearestNode = manager.FindNearestNode(hitPoint, 2.0f);
 
         if (nearestNode == null)
@@ -434,8 +445,9 @@ public class CitySceneHandle
     /// </summary>
     private static void HandleAssignZoningClick(Ray ray, CityManager manager)
     {
-        Vector3 hitPoint = RaycastToGround(ray);
         CityData cityData = manager.GetCityData();
+        Vector3 hitPoint = RaycastToSceneSurface(ray, cityData);
+        hitPoint = ApplyTerrainHeightIfEnabled(cityData, hitPoint);
 
         if (cityData == null) return;
 
@@ -524,9 +536,9 @@ public class CitySceneHandle
     }
 
     /// <summary>
-    /// Utility: interseca ray con piano Y=0
+    /// Utility fallback: interseca ray con piano Y=0.
     /// </summary>
-    private static Vector3 RaycastToGround(Ray ray)
+    private static Vector3 RaycastToGroundPlane(Ray ray)
     {
         float t = -ray.origin.y / ray.direction.y;
         if (t > 0)
@@ -534,6 +546,43 @@ public class CitySceneHandle
             return ray.origin + ray.direction * t;
         }
         return ray.origin + ray.direction * 10f; // Fallback se non interseca correttamente
+    }
+
+    private static Vector3 RaycastToSceneSurface(Ray ray, CityData cityData)
+    {
+        if (cityData != null && cityData.alignNodesToTerrain)
+        {
+            Terrain terrain = Terrain.activeTerrain;
+            if (terrain != null)
+            {
+                TerrainCollider terrainCollider = terrain.GetComponent<TerrainCollider>();
+                RaycastHit hit;
+                if (terrainCollider != null && terrainCollider.Raycast(ray, out hit, 10000f))
+                {
+                    return hit.point;
+                }
+            }
+        }
+
+        return RaycastToGroundPlane(ray);
+    }
+
+    private static Vector3 ApplyTerrainHeightIfEnabled(CityData cityData, Vector3 position)
+    {
+        if (cityData == null || !cityData.alignNodesToTerrain)
+        {
+            return position;
+        }
+
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain == null)
+        {
+            return position;
+        }
+
+        float sampledHeight = terrain.SampleHeight(position) + terrain.GetPosition().y;
+        position.y = sampledHeight + cityData.nodeTerrainYOffset;
+        return position;
     }
 
     private static void DrawAddNodePreview(CityManager manager)
@@ -545,11 +594,14 @@ public class CitySceneHandle
         }
 
         Ray ray = HandleUtility.GUIPointToWorldRay(currentEvent.mousePosition);
-        Vector3 previewPosition = RaycastToGround(ray);
+        CityData cityData = manager.GetCityData();
+        Vector3 previewPosition = RaycastToSceneSurface(ray, cityData);
         if (SnapToGridEnabled)
         {
             previewPosition = SnapToGrid(previewPosition);
         }
+
+        previewPosition = ApplyTerrainHeightIfEnabled(cityData, previewPosition);
 
         float radius = HandleUtility.GetHandleSize(previewPosition) * 0.14f;
 

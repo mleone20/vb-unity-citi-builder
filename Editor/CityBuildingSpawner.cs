@@ -43,6 +43,31 @@ public static class CityBuildingSpawner
         }
     }
 
+    public struct TerrainFlattenReport
+    {
+        public int processedLots;
+        public int modifiedLots;
+        public int invalidLots;
+        public int lotsOutsideTerrain;
+        public int touchedHeightSamples;
+        public bool noTerrainFound;
+
+        public string ToMultilineString()
+        {
+            if (noTerrainFound)
+            {
+                return "Terrain attivo non trovato. Operazione annullata.";
+            }
+
+            return
+                "Lotti processati: " + processedLots + "\n" +
+                "Lotti modificati: " + modifiedLots + "\n" +
+                "Lotti non validi: " + invalidLots + "\n" +
+                "Lotti fuori area Terrain: " + lotsOutsideTerrain + "\n" +
+                "Campioni heightmap modificati: " + touchedHeightSamples;
+        }
+    }
+
     public static SpawnReport SpawnBuildings(CityManager manager, ExistingBuildingsHandling handling)
     {
         SpawnReport report = new SpawnReport();
@@ -181,6 +206,101 @@ public static class CityBuildingSpawner
         }
 
         return ClearRoot(rootObject.transform);
+    }
+
+    public static TerrainFlattenReport FlattenTerrainUnderLots(CityManager manager)
+    {
+        TerrainFlattenReport report = new TerrainFlattenReport();
+        if (manager == null)
+        {
+            return report;
+        }
+
+        CityData cityData = manager.GetCityData();
+        if (cityData == null)
+        {
+            return report;
+        }
+
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain == null)
+        {
+            report.noTerrainFound = true;
+            return report;
+        }
+
+        TerrainData terrainData = terrain.terrainData;
+        if (terrainData == null)
+        {
+            report.noTerrainFound = true;
+            return report;
+        }
+
+        int resolution = terrainData.heightmapResolution;
+        if (resolution < 2)
+        {
+            return report;
+        }
+
+        if (cityData.lots == null || cityData.lots.Count == 0)
+        {
+            return report;
+        }
+
+        Undo.RecordObject(terrainData, "Flatten Terrain Under Lots");
+        float[,] heights = terrainData.GetHeights(0, 0, resolution, resolution);
+        Vector3 terrainPosition = terrain.GetPosition();
+        Vector3 terrainSize = terrainData.size;
+        if (terrainSize.x <= 0f || terrainSize.y <= 0f || terrainSize.z <= 0f)
+        {
+            return report;
+        }
+
+        for (int i = 0; i < cityData.lots.Count; i++)
+        {
+            CityLot lot = cityData.lots[i];
+            report.processedLots++;
+
+            if (!TryGetLotPolygon(lot, out List<Vector3> polygon))
+            {
+                report.invalidLots++;
+                continue;
+            }
+
+            if (!TryGetHeightmapBounds(polygon, terrainPosition, terrainSize, resolution, out int minX, out int maxX, out int minZ, out int maxZ))
+            {
+                report.lotsOutsideTerrain++;
+                continue;
+            }
+
+            float targetHeightNormalized = Mathf.Clamp01((lot.buildingCenter.y - terrainPosition.y) / terrainSize.y);
+            int touchedByLot = ApplyFlattenPolygon(
+                heights,
+                resolution,
+                terrainPosition,
+                terrainSize,
+                polygon,
+                minX,
+                maxX,
+                minZ,
+                maxZ,
+                targetHeightNormalized
+            );
+
+            if (touchedByLot > 0)
+            {
+                report.modifiedLots++;
+                report.touchedHeightSamples += touchedByLot;
+            }
+        }
+
+        if (report.touchedHeightSamples > 0)
+        {
+            terrainData.SetHeights(0, 0, heights);
+            EditorUtility.SetDirty(terrainData);
+        }
+
+        return report;
     }
 
     private static int ClearRoot(Transform root)
@@ -345,5 +465,132 @@ public static class CityBuildingSpawner
         Vector3 spawnPosition = lotCenter - worldPivotOffsetXZ;
         spawnPosition.y = lotCenter.y - metadata.pivotOffset.y;
         return spawnPosition;
+    }
+
+    private static bool TryGetLotPolygon(CityLot lot, out List<Vector3> polygon)
+    {
+        polygon = null;
+        if (lot == null || lot.vertices == null || lot.vertices.Count < 3)
+        {
+            return false;
+        }
+
+        polygon = lot.vertices;
+        return true;
+    }
+
+    private static bool TryGetHeightmapBounds(
+        List<Vector3> polygon,
+        Vector3 terrainPosition,
+        Vector3 terrainSize,
+        int resolution,
+        out int minX,
+        out int maxX,
+        out int minZ,
+        out int maxZ)
+    {
+        minX = resolution - 1;
+        minZ = resolution - 1;
+        maxX = 0;
+        maxZ = 0;
+
+        int rawMinX = int.MaxValue;
+        int rawMaxX = int.MinValue;
+        int rawMinZ = int.MaxValue;
+        int rawMaxZ = int.MinValue;
+
+        for (int i = 0; i < polygon.Count; i++)
+        {
+            Vector3 point = polygon[i];
+            float xNormalized = (point.x - terrainPosition.x) / terrainSize.x;
+            float zNormalized = (point.z - terrainPosition.z) / terrainSize.z;
+
+            int xPixelMin = Mathf.FloorToInt(xNormalized * (resolution - 1));
+            int xPixelMax = Mathf.CeilToInt(xNormalized * (resolution - 1));
+            int zPixelMin = Mathf.FloorToInt(zNormalized * (resolution - 1));
+            int zPixelMax = Mathf.CeilToInt(zNormalized * (resolution - 1));
+
+            rawMinX = Mathf.Min(rawMinX, xPixelMin);
+            rawMaxX = Mathf.Max(rawMaxX, xPixelMax);
+            rawMinZ = Mathf.Min(rawMinZ, zPixelMin);
+            rawMaxZ = Mathf.Max(rawMaxZ, zPixelMax);
+        }
+
+        if (rawMaxX < 0 || rawMinX >= resolution || rawMaxZ < 0 || rawMinZ >= resolution)
+        {
+            return false;
+        }
+
+        minX = Mathf.Clamp(rawMinX, 0, resolution - 1);
+        maxX = Mathf.Clamp(rawMaxX, 0, resolution - 1);
+        minZ = Mathf.Clamp(rawMinZ, 0, resolution - 1);
+        maxZ = Mathf.Clamp(rawMaxZ, 0, resolution - 1);
+
+        return minX <= maxX && minZ <= maxZ;
+    }
+
+    private static int ApplyFlattenPolygon(
+        float[,] heights,
+        int resolution,
+        Vector3 terrainPosition,
+        Vector3 terrainSize,
+        List<Vector3> polygon,
+        int minX,
+        int maxX,
+        int minZ,
+        int maxZ,
+        float targetHeightNormalized)
+    {
+        int touchedSamples = 0;
+        const float epsilon = 0.0001f;
+
+        for (int z = minZ; z <= maxZ; z++)
+        {
+            float zT = (float)z / (resolution - 1);
+            float worldZ = terrainPosition.z + zT * terrainSize.z;
+
+            for (int x = minX; x <= maxX; x++)
+            {
+                float xT = (float)x / (resolution - 1);
+                float worldX = terrainPosition.x + xT * terrainSize.x;
+
+                if (!PointInPolygonXZ(worldX, worldZ, polygon))
+                {
+                    continue;
+                }
+
+                float previous = heights[z, x];
+                if (Mathf.Abs(previous - targetHeightNormalized) <= epsilon)
+                {
+                    continue;
+                }
+
+                heights[z, x] = targetHeightNormalized;
+                touchedSamples++;
+            }
+        }
+
+        return touchedSamples;
+    }
+
+    private static bool PointInPolygonXZ(float x, float z, List<Vector3> polygon)
+    {
+        bool inside = false;
+        int count = polygon.Count;
+
+        for (int i = 0, j = count - 1; i < count; j = i++)
+        {
+            Vector3 a = polygon[i];
+            Vector3 b = polygon[j];
+            bool intersects = ((a.z > z) != (b.z > z)) &&
+                              (x < (b.x - a.x) * (z - a.z) / (b.z - a.z) + a.x);
+
+            if (intersects)
+            {
+                inside = !inside;
+            }
+        }
+
+        return inside;
     }
 }
