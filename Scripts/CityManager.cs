@@ -46,6 +46,16 @@ public class CityManager : MonoBehaviour
     }
 #endif
 
+#if UNITY_EDITOR
+    private void RecordCityDataUndo(string actionName)
+    {
+        if (cityData != null)
+        {
+            UnityEditor.Undo.RecordObject(cityData, actionName);
+        }
+    }
+#endif
+
     // ========== PUBLIC API - Nodi ==========
 
     public CityNode AddNode(Vector3 position)
@@ -55,6 +65,10 @@ public class CityManager : MonoBehaviour
             Debug.LogError("[CityManager] CityData è null, non posso aggiungere nodo!");
             return null;
         }
+
+#if UNITY_EDITOR
+        RecordCityDataUndo("Add City Node");
+#endif
 
         int nodeID = cityData.GetNextNodeID();
         CityNode newNode = new CityNode(nodeID, position);
@@ -70,6 +84,10 @@ public class CityManager : MonoBehaviour
 
         CityNode node = cityData.GetNode(nodeID);
         if (node == null) return;
+
+#if UNITY_EDITOR
+        RecordCityDataUndo("Remove City Node");
+#endif
 
         // Rimuovi tutti i segmenti collegati e pulisci i riferimenti sugli altri nodi.
         for (int i = cityData.segments.Count - 1; i >= 0; i--)
@@ -139,6 +157,10 @@ public class CityManager : MonoBehaviour
             return existing;
         }
 
+    #if UNITY_EDITOR
+        RecordCityDataUndo("Add City Segment");
+    #endif
+
         int segmentID = cityData.GetNextSegmentID();
         CitySegment newSegment = new CitySegment(segmentID, nodeA_ID, nodeB_ID, cityData.globalRoadWidth);
         
@@ -156,6 +178,10 @@ public class CityManager : MonoBehaviour
 
         CitySegment segment = cityData.GetSegment(segmentID);
         if (segment == null) return;
+
+#if UNITY_EDITOR
+        RecordCityDataUndo("Remove City Segment");
+#endif
 
         CityNode nodeA = cityData.GetNode(segment.nodeA_ID);
         CityNode nodeB = cityData.GetNode(segment.nodeB_ID);
