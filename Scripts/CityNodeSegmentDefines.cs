@@ -137,6 +137,10 @@ public class CityLot
     // Indice del prefab assegnato in fase di generazione (-1 = non assegnato, usa PickPrefab fallback).
     public int assignedPrefabIndex = -1;
 
+    // Rotazione world del prefab assegnato, calcolata in fase di generazione lotto.
+    public Quaternion assignedSpawnRotation = Quaternion.identity;
+    public bool hasAssignedSpawnRotation = false;
+
     public CityLot(int id, int blockID)
     {
         this.id = id;

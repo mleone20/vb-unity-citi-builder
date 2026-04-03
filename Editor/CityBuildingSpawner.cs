@@ -139,9 +139,13 @@ public static class CityBuildingSpawner
                         continue;
                     }
 
-                    Vector3 desiredFrontDirection = GetLotStreetDirection(lot);
-                    Vector3 localFrontDirection = metadata.GetFrontageDirectionLocal();
-                    spawnRotation = Quaternion.FromToRotation(localFrontDirection, desiredFrontDirection);
+                    if (!lot.hasAssignedSpawnRotation)
+                    {
+                        report.lotsOutOfFit++;
+                        continue;
+                    }
+
+                    spawnRotation = lot.assignedSpawnRotation;
                     spawnPosition = ComputeLotMatchedSpawnPosition(metadata, lotCenter, spawnRotation);
                 }
                 else
@@ -337,20 +341,6 @@ public static class CityBuildingSpawner
     {
         Vector3 frontL = lot.vertices[0];
         Vector3 frontR = lot.vertices[1];
-        Vector3 backR = lot.vertices[2];
-        Vector3 backL = lot.vertices[3];
-        Vector3 inward = ((backL + backR) * 0.5f - (frontL + frontR) * 0.5f).normalized;
-        if (inward.sqrMagnitude < 0.0001f)
-        {
-            inward = Vector3.forward;
-        }
-        return -inward;
-    }
-
-    private static Vector3 ComputeLotMatchedSpawnPosition(
-        CityBuilderPrefab metadata,
-        Vector3 lotCenter,
-        Quaternion spawnRotation)
     {
         Vector3 pivotOffsetXZ = new Vector3(metadata.pivotOffset.x, 0f, metadata.pivotOffset.z);
         Vector3 worldPivotOffsetXZ = spawnRotation * pivotOffsetXZ;

@@ -76,7 +76,9 @@ public class CityData : ScriptableObject
                 vertices = new List<Vector3>(lot.vertices),
                 buildingCenter = lot.buildingCenter,
                 buildingHeight = lot.buildingHeight,
-                assignedPrefabIndex = lot.assignedPrefabIndex
+                assignedPrefabIndex = lot.assignedPrefabIndex,
+                assignedSpawnRotation = lot.assignedSpawnRotation,
+                hasAssignedSpawnRotation = lot.hasAssignedSpawnRotation
             };
             clone.lots.Add(clonedLot);
         }

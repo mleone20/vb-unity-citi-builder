@@ -117,13 +117,19 @@ public static class CityLotGenerator
                 // ── Creazione lotto ──────────────────────────────────────────
                 occupied.Add(poly2D);
 
+                Vector3 desiredFrontDirection = -inward;
+                Vector3 localFrontDirection = candidates[prefabIndex].meta.GetFrontageDirectionLocal();
+                Quaternion assignedRotation = Quaternion.FromToRotation(localFrontDirection, desiredFrontDirection);
+
                 lots.Add(new CityLot(blockIndex * 1000 + tempID, block.id)
                 {
-                    buildingCenter      = (frontL + frontR + backL + backR) * 0.25f,
-                    buildingHeight      = buildingHeight,
-                    vertices            = lotVerts,
-                    lotGap              = lotGap,
-                    assignedPrefabIndex = prefabIndex
+                    buildingCenter          = (frontL + frontR + backL + backR) * 0.25f,
+                    buildingHeight          = buildingHeight,
+                    vertices                = lotVerts,
+                    lotGap                  = lotGap,
+                    assignedPrefabIndex     = prefabIndex,
+                    assignedSpawnRotation   = assignedRotation,
+                    hasAssignedSpawnRotation = true
                 });
 
                 tempID++;
