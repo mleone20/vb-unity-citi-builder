@@ -15,6 +15,7 @@ public class CityBuilderWindow : EditorWindow
         Zoning,
         Buildings,
         Tools,
+        Configuration,
         Statistics
     }
 
@@ -99,6 +100,9 @@ public class CityBuilderWindow : EditorWindow
                 break;
             case EditorSection.Tools:
                 DrawToolsSection();
+                break;
+            case EditorSection.Configuration:
+                DrawConfigurationSection();
                 break;
             case EditorSection.Statistics:
                 DrawStatsSection();
@@ -191,6 +195,14 @@ public class CityBuilderWindow : EditorWindow
             currentSection = EditorSection.Tools;
         }
 
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.BeginHorizontal();
+
+        if (DrawSectionButton("Configurazione", EditorSection.Configuration))
+        {
+            currentSection = EditorSection.Configuration;
+        }
+
         if (DrawSectionButton("Statistiche", EditorSection.Statistics))
         {
             currentSection = EditorSection.Statistics;
@@ -267,27 +279,6 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.Space();
 
         EditorGUILayout.LabelField("Strade", EditorStyles.boldLabel);
-        EditorGUILayout.HelpBox("La larghezza globale resta un fallback per i segmenti senza RoadProfile. I nuovi segmenti usano il profilo di default se assegnato.", MessageType.Info);
-        RoadProfile defaultRoadProfile = (RoadProfile)EditorGUILayout.ObjectField("Road Profile di default", cityData.defaultRoadProfile, typeof(RoadProfile), false);
-        if (defaultRoadProfile != cityData.defaultRoadProfile)
-        {
-            Undo.RecordObject(cityData, "Set Default Road Profile");
-            cityData.defaultRoadProfile = defaultRoadProfile;
-            EditorUtility.SetDirty(cityData);
-        }
-
-        EditorGUILayout.BeginHorizontal();
-        if (GUILayout.Button("Setup Road Profiles di Default", buttonStyle))
-        {
-            CityBuilderMenu.SetupDefaultRoadProfiles();
-        }
-
-        if (GUILayout.Button("Setup Zone Types di Default", buttonStyle))
-        {
-            CityBuilderMenu.SetupDefaultZoneTypes();
-        }
-        EditorGUILayout.EndHorizontal();
-
         EditorGUILayout.LabelField("Larghezza Strade Globale (fallback):");
         float roadWidth = EditorGUILayout.Slider(cityData.globalRoadWidth, 1f, 10f);
         if (roadWidth != cityData.globalRoadWidth)
@@ -544,6 +535,45 @@ public class CityBuilderWindow : EditorWindow
 
         Debug.Log($"[CityBuilderWindow] Generati {lotCount} lotti!");
         EditorUtility.DisplayDialog("Successo", $"Generati {lotCount} lotti!", "OK");
+    }
+
+    private void DrawConfigurationSection()
+    {
+        EditorGUILayout.LabelField("CONFIGURAZIONE WORKSPACE", EditorStyles.boldLabel);
+        EditorGUILayout.Space();
+
+        EditorGUILayout.LabelField("Profili Stradali", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("La larghezza globale resta un fallback per i segmenti senza RoadProfile. I nuovi segmenti usano il profilo di default se assegnato.", MessageType.Info);
+        
+        RoadProfile defaultRoadProfile = (RoadProfile)EditorGUILayout.ObjectField("Road Profile di default", cityData.defaultRoadProfile, typeof(RoadProfile), false);
+        if (defaultRoadProfile != cityData.defaultRoadProfile)
+        {
+            Undo.RecordObject(cityData, "Set Default Road Profile");
+            cityData.defaultRoadProfile = defaultRoadProfile;
+            EditorUtility.SetDirty(cityData);
+        }
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("Setup Road Profiles di Default", buttonStyle))
+        {
+            CityBuilderMenu.SetupDefaultRoadProfiles();
+        }
+
+        if (GUILayout.Button("Setup Zone Types di Default", buttonStyle))
+        {
+            CityBuilderMenu.SetupDefaultZoneTypes();
+        }
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Larghezza Globale (fallback)", EditorStyles.boldLabel);
+        float globalWidth = EditorGUILayout.Slider(cityData.globalRoadWidth, 1f, 10f);
+        if (globalWidth != cityData.globalRoadWidth)
+        {
+            cityManager.SetGlobalRoadWidth(globalWidth);
+        }
+
+        EditorGUILayout.HelpBox("Usa questa quando i profili strada non hanno larghezza assegnata o per nuovi segmenti senza profilo.", MessageType.Info);
     }
 
     private void DrawSelectedSegmentInspector()
