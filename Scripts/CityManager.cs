@@ -656,6 +656,141 @@ public class CityManager : MonoBehaviour
         return report;
     }
 
+    public string SimplifyPaths(float maxDeviationFromStraightDeg = 8f)
+    {
+        if (cityData == null)
+        {
+            return "[CityManager] Semplifica Percorsi: CityData nullo.";
+        }
+
+        maxDeviationFromStraightDeg = Mathf.Clamp(maxDeviationFromStraightDeg, 0.1f, 45f);
+
+#if UNITY_EDITOR
+        RecordCityDataUndo("Semplifica Percorsi");
+#endif
+
+        int removedNodes = 0;
+        int removedSegments = 0;
+        int addedSegments = 0;
+        bool changed;
+
+        do
+        {
+            changed = false;
+
+            for (int i = 0; i < cityData.nodes.Count; i++)
+            {
+                CityNode node = cityData.nodes[i];
+                if (node == null)
+                {
+                    continue;
+                }
+
+                if (node.connectedSegmentIDs == null || node.connectedSegmentIDs.Count != 2)
+                {
+                    continue;
+                }
+
+                CitySegment segA = cityData.GetSegment(node.connectedSegmentIDs[0]);
+                CitySegment segB = cityData.GetSegment(node.connectedSegmentIDs[1]);
+                if (segA == null || segB == null)
+                {
+                    continue;
+                }
+
+                int otherA = segA.nodeA_ID == node.id ? segA.nodeB_ID : segA.nodeA_ID;
+                int otherB = segB.nodeA_ID == node.id ? segB.nodeB_ID : segB.nodeA_ID;
+                if (otherA == otherB)
+                {
+                    continue;
+                }
+
+                CityNode nodeA = cityData.GetNode(otherA);
+                CityNode nodeB = cityData.GetNode(otherB);
+                if (nodeA == null || nodeB == null)
+                {
+                    continue;
+                }
+
+                Vector3 dirA = (nodeA.position - node.position);
+                Vector3 dirB = (nodeB.position - node.position);
+                dirA.y = 0f;
+                dirB.y = 0f;
+                if (dirA.sqrMagnitude < 0.0001f || dirB.sqrMagnitude < 0.0001f)
+                {
+                    continue;
+                }
+
+                float straightDeviation = Vector3.Angle(dirA.normalized, -dirB.normalized);
+                if (straightDeviation > maxDeviationFromStraightDeg)
+                {
+                    continue;
+                }
+
+                bool alreadyConnected = SegmentExistsBetween(otherA, otherB);
+
+                if (!alreadyConnected)
+                {
+                    CitySegment merged = new CitySegment(
+                        cityData.GetNextSegmentID(),
+                        otherA,
+                        otherB,
+                        (segA.width + segB.width) * 0.5f
+                    );
+                    cityData.segments.Add(merged);
+                    addedSegments++;
+                }
+
+                cityData.segments.Remove(segA);
+                cityData.segments.Remove(segB);
+                removedSegments += 2;
+                cityData.nodes.Remove(node);
+                removedNodes++;
+
+                changed = true;
+                break;
+            }
+        }
+        while (changed);
+
+        string repairReport = RepairConnections();
+        string report =
+            "[CityManager] Semplifica Percorsi completato. " +
+            "Nodi rimossi: " + removedNodes + ", " +
+            "Segmenti rimossi: " + removedSegments + ", " +
+            "Segmenti aggiunti: " + addedSegments + ". " +
+            repairReport;
+
+        Debug.Log(report);
+        return report;
+    }
+
+    private bool SegmentExistsBetween(int nodeAId, int nodeBId)
+    {
+        if (cityData == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < cityData.segments.Count; i++)
+        {
+            CitySegment seg = cityData.segments[i];
+            if (seg == null)
+            {
+                continue;
+            }
+
+            bool sameDirection = seg.nodeA_ID == nodeAId && seg.nodeB_ID == nodeBId;
+            bool oppositeDirection = seg.nodeA_ID == nodeBId && seg.nodeB_ID == nodeAId;
+            if (sameDirection || oppositeDirection)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // Test/Debug
     public void LogStats()
     {

@@ -26,6 +26,7 @@ public class CityBuilderWindow : EditorWindow
     private GUIStyle tabButtonStyle;
     private Vector2 scrollPosition = Vector2.zero;
     private float weldNodesDistance = 1.0f;
+    private float simplifyMaxDeviationDeg = 8f;
 
     [MenuItem("Window/City Builder/City Builder Tool")]
     public static void ShowWindow()
@@ -389,6 +390,19 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.Space();
 
         EditorGUILayout.HelpBox("Utility di manutenzione dati e azioni globali sul city graph.", MessageType.Info);
+
+        EditorGUILayout.LabelField("Percorsi", EditorStyles.boldLabel);
+        simplifyMaxDeviationDeg = EditorGUILayout.Slider("Semplifica: dev. max (deg)", simplifyMaxDeviationDeg, 1f, 25f);
+
+        if (GUILayout.Button("Semplifica percorsi", buttonStyle))
+        {
+            string simplifyReport = cityManager.SimplifyPaths(simplifyMaxDeviationDeg);
+            EditorUtility.SetDirty(cityData);
+            SceneView.RepaintAll();
+            EditorUtility.DisplayDialog("Semplifica percorsi", simplifyReport, "OK");
+        }
+
+        EditorGUILayout.Space();
 
         if (GUILayout.Button("Ripara Collegamenti", buttonStyle))
         {
