@@ -27,7 +27,6 @@ public class CityBuilderWindow : EditorWindow
     private GUIStyle tabButtonStyle;
     private Vector2 scrollPosition = Vector2.zero;
     private float weldNodesDistance = 1.0f;
-    private bool lotFillingEnabled = false;
 
     [MenuItem("Window/City Builder/City Builder Tool")]
     public static void ShowWindow()
@@ -349,19 +348,12 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.HelpBox("Lo spawn usa i prefab configurati in ZoneType. Ogni prefab dovrebbe avere il componente CityBuilderPrefab per il calcolo footprint.", MessageType.Info);
         EditorGUILayout.Space();
 
-        EditorGUILayout.LabelField("Opzioni Spawn", EditorStyles.boldLabel);
-        using (new EditorGUI.DisabledScope(true))
-        {
-            lotFillingEnabled = EditorGUILayout.Toggle(
-                new GUIContent("Lot Filling", "Disabilitato: policy attiva 1 lotto = 1 edificio assegnato."),
-                false);
-        }
         EditorGUILayout.HelpBox("Lo spawn usa solo il prefab assegnato a ciascun lotto in fase di generazione. Un lotto corrisponde sempre a un edificio.", MessageType.Info);
         EditorGUILayout.Space();
 
         if (GUILayout.Button("Spawn Edifici da ZoneType", buttonStyle))
         {
-            SpawnBuildingsFromZoneTypes(lotFillingEnabled);
+            SpawnBuildingsFromZoneTypes();
         }
 
         if (GUILayout.Button("Cancella Edifici Spawnati", buttonStyle))
@@ -490,7 +482,7 @@ public class CityBuilderWindow : EditorWindow
         EditorUtility.DisplayDialog("Successo", $"Generati {lotCount} lotti!", "OK");
     }
 
-    private void SpawnBuildingsFromZoneTypes(bool lotFilling = false)
+    private void SpawnBuildingsFromZoneTypes()
     {
         int choice = EditorUtility.DisplayDialogComplex(
             "Spawn Edifici",
@@ -510,7 +502,7 @@ public class CityBuilderWindow : EditorWindow
                 ? CityBuildingSpawner.ExistingBuildingsHandling.ClearExisting
                 : CityBuildingSpawner.ExistingBuildingsHandling.KeepExisting;
 
-        CityBuildingSpawner.SpawnReport report = CityBuildingSpawner.SpawnBuildings(cityManager, handling, lotFilling);
+        CityBuildingSpawner.SpawnReport report = CityBuildingSpawner.SpawnBuildings(cityManager, handling);
         SceneView.RepaintAll();
 
         EditorUtility.DisplayDialog("Spawn Edifici", report.ToMultilineString(), "OK");

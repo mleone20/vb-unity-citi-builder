@@ -26,7 +26,6 @@ public static class CityBuildingSpawner
         public int lotsInvalidGeometry;
         public int prefabMissingMetadata;
         public int lotsOutOfFit;
-        public int lotFillingSlots;
 
         public string ToMultilineString()
         {
@@ -34,7 +33,6 @@ public static class CityBuildingSpawner
                 "Blocchi processati: " + processedBlocks + "\n" +
                 "Lotti processati: " + processedLots + "\n" +
                 "Edifici spawnati: " + spawnedBuildings + "\n" +
-                (lotFillingSlots > 0 ? "  di cui da lot filling: " + lotFillingSlots + "\n" : "") +
                 "Oggetti rimossi prima dello spawn: " + clearedObjects + "\n" +
                 "Blocchi senza zoning: " + blocksWithoutZoning + "\n" +
                 "Blocchi senza prefab zona: " + blocksWithoutPrefabs + "\n" +
@@ -44,7 +42,7 @@ public static class CityBuildingSpawner
         }
     }
 
-    public static SpawnReport SpawnBuildings(CityManager manager, ExistingBuildingsHandling handling, bool lotFilling = false)
+    public static SpawnReport SpawnBuildings(CityManager manager, ExistingBuildingsHandling handling)
     {
         SpawnReport report = new SpawnReport();
         if (manager == null)
@@ -166,10 +164,6 @@ public static class CityBuildingSpawner
                 instance.transform.SetPositionAndRotation(spawnPosition, spawnRotation);
 
                 report.spawnedBuildings++;
-                if (lotFilling)
-                {
-                    report.lotFillingSlots++;
-                }
             }
         }
 
