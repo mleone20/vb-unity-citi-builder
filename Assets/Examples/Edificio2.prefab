@@ -128,3 +128,8 @@ MonoBehaviour:
   footprintSize: {x: 20, y: 10}
   autoComputeFromRenderers: 1
   pivotOffset: {x: 0, y: -5, z: 0}
+  frontageOffset: {x: 0, y: 0, z: -0.5}
+  frontageDirection: {x: 0, y: 0, z: -1}
+  frontageDisplayHeight: 4
+  frontageOffsetInitialized: 1
+  frontageDirectionInitialized: 1
