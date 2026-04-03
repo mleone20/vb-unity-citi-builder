@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEditor;
+using System.Collections.Generic;
 
 /// <summary>
 /// EditorWindow principale per City Builder Tool.
@@ -564,7 +565,33 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.LabelField($"Lunghezza stimata: {CityRoadGeometry.EstimateLength(cityData, selectedSegment):F2}");
         EditorGUILayout.LabelField($"Larghezza effettiva: {CityRoadGeometry.GetRoadWidth(cityData, selectedSegment):F2}");
 
-        RoadProfile newProfile = (RoadProfile)EditorGUILayout.ObjectField("Road Profile", selectedSegment.roadProfile, typeof(RoadProfile), false);
+        List<RoadProfile> roadProfiles = RoadProfileEditorUtility.LoadAllRoadProfiles();
+        
+        EditorGUILayout.LabelField("Profilo Strada:");
+        
+        int selectedProfileIndex = -1;
+        string[] profileLabels = new string[roadProfiles.Count + 1];
+        profileLabels[0] = "None";
+        
+        for (int i = 0; i < roadProfiles.Count; i++)
+        {
+            RoadProfile profile = roadProfiles[i];
+            profileLabels[i + 1] = RoadProfileEditorUtility.GetRoadProfileDisplayName(profile);
+            
+            if (selectedSegment.roadProfile == profile)
+            {
+                selectedProfileIndex = i + 1;
+            }
+        }
+
+        if (selectedProfileIndex < 0)
+        {
+            selectedProfileIndex = 0;
+        }
+
+        int newProfileIndex = EditorGUILayout.Popup(selectedProfileIndex, profileLabels);
+        RoadProfile newProfile = newProfileIndex > 0 ? roadProfiles[newProfileIndex - 1] : null;
+
         if (newProfile != selectedSegment.roadProfile)
         {
             Undo.RecordObject(cityData, "Set Segment Road Profile");
