@@ -98,6 +98,15 @@ public class CityBuilderPrefab : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    public void ResetFrontageToAutoDetectedDefault()
+    {
+        frontageOffsetInitialized = false;
+        frontageDirectionInitialized = false;
+        AutoConfigureFrontageInEditor(true);
+        frontageDirection = GetFrontageDirectionLocal();
+        EditorUtility.SetDirty(this);
+    }
+
     private void AutoComputeFootprintInEditor()
     {
         Vector2 autoSize = CalculateRendererFootprint();
@@ -120,6 +129,165 @@ public class CityBuilderPrefab : MonoBehaviour
     private void AutoComputePivotOffsetInEditor()
     {
         ApplyAutoGroundPivot(this);
+    }
+
+    private void AutoConfigureFrontageInEditor(bool force)
+    {
+        if (!force && frontageOffsetInitialized && frontageDirectionInitialized)
+        {
+            return;
+        }
+
+        Bounds localBounds;
+        if (!TryCalculateLocalRendererBounds(out localBounds))
+        {
+            Vector2 footprint = GetFootprintSize();
+            localBounds = new Bounds(Vector3.zero, new Vector3(footprint.x, 0.1f, footprint.y));
+        }
+
+        Vector3 boundsCenter = localBounds.center;
+        Vector3 boundsMin = localBounds.min;
+        Vector3 boundsMax = localBounds.max;
+        float sizeX = Mathf.Max(MinFootprint, localBounds.size.x);
+        float sizeZ = Mathf.Max(MinFootprint, localBounds.size.z);
+        bool longestSideIsX = sizeX >= sizeZ;
+
+        Vector3 defaultDirection = longestSideIsX ? Vector3.back : Vector3.left;
+        Vector3 defaultOffset = longestSideIsX
+            ? new Vector3(boundsCenter.x, 0f, boundsMin.z)
+            : new Vector3(boundsMin.x, 0f, boundsCenter.z);
+
+        Transform bestEntry = FindOutermostEntryTransform(longestSideIsX, boundsMin, boundsMax);
+        if (bestEntry != null)
+        {
+            Vector3 localEntry = transform.InverseTransformPoint(bestEntry.position);
+            if (longestSideIsX)
+            {
+                float distToMinZ = Mathf.Abs(localEntry.z - boundsMin.z);
+                float distToMaxZ = Mathf.Abs(boundsMax.z - localEntry.z);
+                bool useMaxSide = distToMaxZ < distToMinZ;
+                defaultDirection = useMaxSide ? Vector3.forward : Vector3.back;
+                defaultOffset = new Vector3(
+                    Mathf.Clamp(localEntry.x, boundsMin.x, boundsMax.x),
+                    0f,
+                    useMaxSide ? boundsMax.z : boundsMin.z);
+            }
+            else
+            {
+                float distToMinX = Mathf.Abs(localEntry.x - boundsMin.x);
+                float distToMaxX = Mathf.Abs(boundsMax.x - localEntry.x);
+                bool useMaxSide = distToMaxX < distToMinX;
+                defaultDirection = useMaxSide ? Vector3.right : Vector3.left;
+                defaultOffset = new Vector3(
+                    useMaxSide ? boundsMax.x : boundsMin.x,
+                    0f,
+                    Mathf.Clamp(localEntry.z, boundsMin.z, boundsMax.z));
+            }
+        }
+
+        frontageOffset = defaultOffset;
+        frontageDirection = defaultDirection;
+        frontageOffsetInitialized = true;
+        frontageDirectionInitialized = true;
+        EditorUtility.SetDirty(this);
+    }
+
+    private Transform FindOutermostEntryTransform(bool longestSideIsX, Vector3 boundsMin, Vector3 boundsMax)
+    {
+        Transform[] transforms = GetComponentsInChildren<Transform>(true);
+        Transform best = null;
+        float bestScore = float.MaxValue;
+
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            Transform candidate = transforms[i];
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            string lowerName = candidate.name.ToLowerInvariant();
+            if (!lowerName.Contains("door") && !lowerName.Contains("entry"))
+            {
+                continue;
+            }
+
+            Vector3 localPos = transform.InverseTransformPoint(candidate.position);
+            float score = longestSideIsX
+                ? Mathf.Min(Mathf.Abs(localPos.z - boundsMin.z), Mathf.Abs(boundsMax.z - localPos.z))
+                : Mathf.Min(Mathf.Abs(localPos.x - boundsMin.x), Mathf.Abs(boundsMax.x - localPos.x));
+
+            if (score < bestScore)
+            {
+                bestScore = score;
+                best = candidate;
+            }
+        }
+
+        return best;
+    }
+
+    private bool TryCalculateLocalRendererBounds(out Bounds localBounds)
+    {
+        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+        if (renderers == null || renderers.Length == 0)
+        {
+            localBounds = default;
+            return false;
+        }
+
+        bool initialized = false;
+        Vector3 min = Vector3.zero;
+        Vector3 max = Vector3.zero;
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            Bounds worldBounds = renderer.bounds;
+            Vector3 extents = worldBounds.extents;
+            Vector3 center = worldBounds.center;
+            Vector3[] corners = new Vector3[8]
+            {
+                center + new Vector3(-extents.x, -extents.y, -extents.z),
+                center + new Vector3(-extents.x, -extents.y,  extents.z),
+                center + new Vector3(-extents.x,  extents.y, -extents.z),
+                center + new Vector3(-extents.x,  extents.y,  extents.z),
+                center + new Vector3( extents.x, -extents.y, -extents.z),
+                center + new Vector3( extents.x, -extents.y,  extents.z),
+                center + new Vector3( extents.x,  extents.y, -extents.z),
+                center + new Vector3( extents.x,  extents.y,  extents.z)
+            };
+
+            for (int c = 0; c < corners.Length; c++)
+            {
+                Vector3 localCorner = transform.InverseTransformPoint(corners[c]);
+                if (!initialized)
+                {
+                    min = localCorner;
+                    max = localCorner;
+                    initialized = true;
+                }
+                else
+                {
+                    min = Vector3.Min(min, localCorner);
+                    max = Vector3.Max(max, localCorner);
+                }
+            }
+        }
+
+        if (!initialized)
+        {
+            localBounds = default;
+            return false;
+        }
+
+        localBounds = new Bounds((min + max) * 0.5f, max - min);
+        return true;
     }
 
     private static void ApplyAutoGroundPivot(CityBuilderPrefab component)

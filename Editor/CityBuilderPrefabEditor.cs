@@ -36,14 +36,9 @@ public class CityBuilderPrefabEditor : Editor
         if (GUILayout.Button("Reset Frontage", GUILayout.Height(24)))
         {
             CityBuilderPrefab comp = (CityBuilderPrefab)target;
-            SerializedProperty frontageOffsetInitialized = serializedObject.FindProperty("frontageOffsetInitialized");
-            SerializedProperty frontageDirectionInitialized = serializedObject.FindProperty("frontageDirectionInitialized");
 
             Undo.RecordObject(comp, "Reset Frontage");
-            frontageOffsetInitialized.boolValue = false;
-            frontageDirectionInitialized.boolValue = false;
-            serializedObject.ApplyModifiedProperties();
-            comp.SendMessage("OnValidate", SendMessageOptions.DontRequireReceiver);
+            comp.ResetFrontageToAutoDetectedDefault();
             EditorUtility.SetDirty(comp);
         }
 
