@@ -74,6 +74,7 @@ public static class CityBuildingSpawner
         public int modifiedSegments;
         public int invalidSegments;
         public int touchedHeightSamples;
+        public int adjustedNodes;
         public bool noTerrainFound;
 
         public string ToMultilineString()
@@ -87,7 +88,8 @@ public static class CityBuildingSpawner
                 "Segmenti processati: " + processedSegments + "\n" +
                 "Segmenti modificati: " + modifiedSegments + "\n" +
                 "Segmenti non validi: " + invalidSegments + "\n" +
-                "Campioni heightmap modificati: " + touchedHeightSamples;
+                "Campioni heightmap modificati: " + touchedHeightSamples + "\n" +
+                "Nodi assestati sul Terrain: " + adjustedNodes;
         }
     }
 
@@ -271,6 +273,7 @@ public static class CityBuildingSpawner
         }
 
         float lotFalloff = Mathf.Max(0.1f, cityData.lotTerrainFalloff);
+        float lotBlendStrength = Mathf.Clamp01(cityData.lotTerrainBlendStrength);
 
         Undo.RecordObject(terrainData, "Flatten Terrain Under Lots");
         float[,] heights = terrainData.GetHeights(0, 0, resolution, resolution);
@@ -310,7 +313,8 @@ public static class CityBuildingSpawner
                 minZ,
                 maxZ,
                 targetHeightNormalized,
-                lotFalloff
+                lotFalloff,
+                lotBlendStrength
             );
 
             if (touchedByLot > 0)
@@ -379,6 +383,7 @@ public static class CityBuildingSpawner
 
         float roadFalloff = Mathf.Max(0.1f, cityData.roadTerrainFalloff);
         float widthMultiplier = Mathf.Max(0.5f, cityData.roadTerrainWidthMultiplier);
+        float roadBlendStrength = Mathf.Clamp01(cityData.roadTerrainBlendStrength);
 
         for (int i = 0; i < cityData.segments.Count; i++)
         {
@@ -423,7 +428,8 @@ public static class CityBuildingSpawner
                         stampCenter,
                         innerRadius,
                         outerRadius,
-                        targetHeight
+                        targetHeight,
+                        roadBlendStrength
                     );
                 }
             }
@@ -439,6 +445,12 @@ public static class CityBuildingSpawner
         {
             terrainData.SetHeights(0, 0, heights);
             EditorUtility.SetDirty(terrainData);
+
+            report.adjustedNodes = AlignAllNodesToTerrain(cityData, terrain);
+            if (report.adjustedNodes > 0)
+            {
+                EditorUtility.SetDirty(cityData);
+            }
         }
 
         return report;
@@ -684,7 +696,8 @@ public static class CityBuildingSpawner
         int minZ,
         int maxZ,
         float targetHeightNormalized,
-        float falloffWorld)
+        float falloffWorld,
+        float blendStrength)
     {
         int touchedSamples = 0;
         const float epsilon = 0.0001f;
@@ -720,7 +733,8 @@ public static class CityBuildingSpawner
                 }
 
                 float previous = heights[z, x];
-                float blendedTarget = Mathf.Lerp(previous, targetHeightNormalized, blend);
+                float effectiveBlend = Mathf.Clamp01(blend * blendStrength);
+                float blendedTarget = Mathf.Lerp(previous, targetHeightNormalized, effectiveBlend);
                 if (Mathf.Abs(previous - blendedTarget) <= epsilon)
                 {
                     continue;
@@ -742,7 +756,8 @@ public static class CityBuildingSpawner
         Vector3 center,
         float innerRadius,
         float outerRadius,
-        float targetHeightNormalized)
+        float targetHeightNormalized,
+        float blendStrength)
     {
         if (outerRadius <= 0f || outerRadius < innerRadius)
         {
@@ -790,7 +805,8 @@ public static class CityBuildingSpawner
                 }
 
                 float previous = heights[z, x];
-                float blendedTarget = Mathf.Lerp(previous, targetHeightNormalized, blend);
+                float effectiveBlend = Mathf.Clamp01(blend * blendStrength);
+                float blendedTarget = Mathf.Lerp(previous, targetHeightNormalized, effectiveBlend);
                 if (Mathf.Abs(previous - blendedTarget) <= epsilon)
                 {
                     continue;
@@ -828,6 +844,41 @@ public static class CityBuildingSpawner
         }
 
         return minDistance;
+    }
+
+    private static int AlignAllNodesToTerrain(CityData cityData, Terrain terrain)
+    {
+        if (cityData == null || terrain == null || cityData.nodes == null)
+        {
+            return 0;
+        }
+
+        int adjusted = 0;
+        float yOffset = cityData.nodeTerrainYOffset;
+        Vector3 terrainPosition = terrain.GetPosition();
+        const float epsilon = 0.0001f;
+
+        for (int i = 0; i < cityData.nodes.Count; i++)
+        {
+            CityNode node = cityData.nodes[i];
+            if (node == null)
+            {
+                continue;
+            }
+
+            float sampledHeight = terrain.SampleHeight(node.position) + terrainPosition.y + yOffset;
+            if (Mathf.Abs(sampledHeight - node.position.y) <= epsilon)
+            {
+                continue;
+            }
+
+            Vector3 updatedPosition = node.position;
+            updatedPosition.y = sampledHeight;
+            node.position = updatedPosition;
+            adjusted++;
+        }
+
+        return adjusted;
     }
 
     private static bool PointInPolygonXZ(float x, float z, List<Vector3> polygon)

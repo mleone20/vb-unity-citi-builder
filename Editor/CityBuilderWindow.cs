@@ -330,6 +330,14 @@ public class CityBuilderWindow : EditorWindow
             EditorUtility.SetDirty(cityData);
         }
 
+        float roadTerrainBlendStrength = EditorGUILayout.Slider("Sculpt Blend Strength", cityData.roadTerrainBlendStrength, 0.05f, 1f);
+        if (!Mathf.Approximately(roadTerrainBlendStrength, cityData.roadTerrainBlendStrength))
+        {
+            Undo.RecordObject(cityData, "Set Road Terrain Blend Strength");
+            cityData.roadTerrainBlendStrength = roadTerrainBlendStrength;
+            EditorUtility.SetDirty(cityData);
+        }
+
         if (GUILayout.Button("Flatten Terrain Under Roads", buttonStyle))
         {
             FlattenTerrainUnderRoads();
@@ -457,6 +465,14 @@ public class CityBuilderWindow : EditorWindow
         {
             Undo.RecordObject(cityData, "Set Lot Terrain Falloff");
             cityData.lotTerrainFalloff = lotTerrainFalloff;
+            EditorUtility.SetDirty(cityData);
+        }
+
+        float lotTerrainBlendStrength = EditorGUILayout.Slider("Blend Strength Lotti", cityData.lotTerrainBlendStrength, 0.05f, 1f);
+        if (!Mathf.Approximately(lotTerrainBlendStrength, cityData.lotTerrainBlendStrength))
+        {
+            Undo.RecordObject(cityData, "Set Lot Terrain Blend Strength");
+            cityData.lotTerrainBlendStrength = lotTerrainBlendStrength;
             EditorUtility.SetDirty(cityData);
         }
 

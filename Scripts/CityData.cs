@@ -34,8 +34,10 @@ public class CityData : ScriptableObject
 
     [Header("Scolpitura Terrain")]
     [Range(0.1f, 10.0f)] [SerializeField] public float lotTerrainFalloff = 2.0f;
+    [Range(0.05f, 1.0f)] [SerializeField] public float lotTerrainBlendStrength = 1.0f;
     [Range(0.1f, 12.0f)] [SerializeField] public float roadTerrainFalloff = 3.0f;
     [Range(0.5f, 3.0f)] [SerializeField] public float roadTerrainWidthMultiplier = 1.2f;
+    [Range(0.05f, 1.0f)] [SerializeField] public float roadTerrainBlendStrength = 1.0f;
     // Counter per generare ID unici
     private int nextNodeID = 0;
     private int nextSegmentID = 0;
@@ -60,8 +62,10 @@ public class CityData : ScriptableObject
         clone.alignNodesToTerrain = this.alignNodesToTerrain;
         clone.nodeTerrainYOffset = this.nodeTerrainYOffset;
         clone.lotTerrainFalloff = this.lotTerrainFalloff;
+        clone.lotTerrainBlendStrength = this.lotTerrainBlendStrength;
         clone.roadTerrainFalloff = this.roadTerrainFalloff;
         clone.roadTerrainWidthMultiplier = this.roadTerrainWidthMultiplier;
+        clone.roadTerrainBlendStrength = this.roadTerrainBlendStrength;
         
         // Deep clone collections
         foreach (var node in nodes)
