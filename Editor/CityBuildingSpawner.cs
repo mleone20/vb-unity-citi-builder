@@ -68,6 +68,29 @@ public static class CityBuildingSpawner
         }
     }
 
+    public struct RoadFlattenReport
+    {
+        public int processedSegments;
+        public int modifiedSegments;
+        public int invalidSegments;
+        public int touchedHeightSamples;
+        public bool noTerrainFound;
+
+        public string ToMultilineString()
+        {
+            if (noTerrainFound)
+            {
+                return "Terrain attivo non trovato. Operazione annullata.";
+            }
+
+            return
+                "Segmenti processati: " + processedSegments + "\n" +
+                "Segmenti modificati: " + modifiedSegments + "\n" +
+                "Segmenti non validi: " + invalidSegments + "\n" +
+                "Campioni heightmap modificati: " + touchedHeightSamples;
+        }
+    }
+
     public static SpawnReport SpawnBuildings(CityManager manager, ExistingBuildingsHandling handling)
     {
         SpawnReport report = new SpawnReport();
@@ -247,6 +270,8 @@ public static class CityBuildingSpawner
             return report;
         }
 
+        float lotFalloff = Mathf.Max(0.1f, cityData.lotTerrainFalloff);
+
         Undo.RecordObject(terrainData, "Flatten Terrain Under Lots");
         float[,] heights = terrainData.GetHeights(0, 0, resolution, resolution);
         Vector3 terrainPosition = terrain.GetPosition();
@@ -267,14 +292,14 @@ public static class CityBuildingSpawner
                 continue;
             }
 
-            if (!TryGetHeightmapBounds(polygon, terrainPosition, terrainSize, resolution, out int minX, out int maxX, out int minZ, out int maxZ))
+            if (!TryGetHeightmapBounds(polygon, terrainPosition, terrainSize, resolution, lotFalloff, out int minX, out int maxX, out int minZ, out int maxZ))
             {
                 report.lotsOutsideTerrain++;
                 continue;
             }
 
             float targetHeightNormalized = Mathf.Clamp01((lot.buildingCenter.y - terrainPosition.y) / terrainSize.y);
-            int touchedByLot = ApplyFlattenPolygon(
+            int touchedByLot = ApplySoftFlattenPolygon(
                 heights,
                 resolution,
                 terrainPosition,
@@ -284,13 +309,129 @@ public static class CityBuildingSpawner
                 maxX,
                 minZ,
                 maxZ,
-                targetHeightNormalized
+                targetHeightNormalized,
+                lotFalloff
             );
 
             if (touchedByLot > 0)
             {
                 report.modifiedLots++;
                 report.touchedHeightSamples += touchedByLot;
+            }
+        }
+
+        if (report.touchedHeightSamples > 0)
+        {
+            terrainData.SetHeights(0, 0, heights);
+            EditorUtility.SetDirty(terrainData);
+        }
+
+        return report;
+    }
+
+    public static RoadFlattenReport FlattenTerrainUnderRoads(CityManager manager)
+    {
+        RoadFlattenReport report = new RoadFlattenReport();
+        if (manager == null)
+        {
+            return report;
+        }
+
+        CityData cityData = manager.GetCityData();
+        if (cityData == null)
+        {
+            return report;
+        }
+
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain == null)
+        {
+            report.noTerrainFound = true;
+            return report;
+        }
+
+        TerrainData terrainData = terrain.terrainData;
+        if (terrainData == null)
+        {
+            report.noTerrainFound = true;
+            return report;
+        }
+
+        int resolution = terrainData.heightmapResolution;
+        if (resolution < 2)
+        {
+            return report;
+        }
+
+        if (cityData.segments == null || cityData.segments.Count == 0)
+        {
+            return report;
+        }
+
+        Undo.RecordObject(terrainData, "Flatten Terrain Under Roads");
+        float[,] heights = terrainData.GetHeights(0, 0, resolution, resolution);
+        Vector3 terrainPosition = terrain.GetPosition();
+        Vector3 terrainSize = terrainData.size;
+        if (terrainSize.x <= 0f || terrainSize.y <= 0f || terrainSize.z <= 0f)
+        {
+            return report;
+        }
+
+        float roadFalloff = Mathf.Max(0.1f, cityData.roadTerrainFalloff);
+        float widthMultiplier = Mathf.Max(0.5f, cityData.roadTerrainWidthMultiplier);
+
+        for (int i = 0; i < cityData.segments.Count; i++)
+        {
+            CitySegment segment = cityData.segments[i];
+            if (segment == null)
+            {
+                report.invalidSegments++;
+                continue;
+            }
+
+            report.processedSegments++;
+            float roadWidth = Mathf.Max(0.5f, CityRoadGeometry.GetRoadWidth(cityData, segment) * widthMultiplier);
+            float innerRadius = roadWidth * 0.5f;
+            float outerRadius = innerRadius + roadFalloff;
+            int touchedBySegment = 0;
+
+            List<Vector3> sampledPoints = CityRoadGeometry.SampleSegment(cityData, segment, Mathf.Max(12, CityRoadGeometry.DefaultCurveSamples * 2));
+            if (sampledPoints == null || sampledPoints.Count < 2)
+            {
+                report.invalidSegments++;
+                continue;
+            }
+
+            float stampStep = Mathf.Max(0.5f, innerRadius * 0.7f);
+            for (int j = 1; j < sampledPoints.Count; j++)
+            {
+                Vector3 from = sampledPoints[j - 1];
+                Vector3 to = sampledPoints[j];
+                float distance = Vector3.Distance(from, to);
+                int stamps = Mathf.Max(1, Mathf.CeilToInt(distance / stampStep));
+
+                for (int s = 0; s <= stamps; s++)
+                {
+                    float t = stamps > 0 ? s / (float)stamps : 0f;
+                    Vector3 stampCenter = Vector3.Lerp(from, to, t);
+                    float targetHeight = Mathf.Clamp01((stampCenter.y - terrainPosition.y) / terrainSize.y);
+                    touchedBySegment += ApplyRoadBrush(
+                        heights,
+                        resolution,
+                        terrainPosition,
+                        terrainSize,
+                        stampCenter,
+                        innerRadius,
+                        outerRadius,
+                        targetHeight
+                    );
+                }
+            }
+
+            if (touchedBySegment > 0)
+            {
+                report.modifiedSegments++;
+                report.touchedHeightSamples += touchedBySegment;
             }
         }
 
@@ -484,6 +625,7 @@ public static class CityBuildingSpawner
         Vector3 terrainPosition,
         Vector3 terrainSize,
         int resolution,
+        float paddingWorld,
         out int minX,
         out int maxX,
         out int minZ,
@@ -504,11 +646,13 @@ public static class CityBuildingSpawner
             Vector3 point = polygon[i];
             float xNormalized = (point.x - terrainPosition.x) / terrainSize.x;
             float zNormalized = (point.z - terrainPosition.z) / terrainSize.z;
+            float padX = paddingWorld / terrainSize.x;
+            float padZ = paddingWorld / terrainSize.z;
 
-            int xPixelMin = Mathf.FloorToInt(xNormalized * (resolution - 1));
-            int xPixelMax = Mathf.CeilToInt(xNormalized * (resolution - 1));
-            int zPixelMin = Mathf.FloorToInt(zNormalized * (resolution - 1));
-            int zPixelMax = Mathf.CeilToInt(zNormalized * (resolution - 1));
+            int xPixelMin = Mathf.FloorToInt((xNormalized - padX) * (resolution - 1));
+            int xPixelMax = Mathf.CeilToInt((xNormalized + padX) * (resolution - 1));
+            int zPixelMin = Mathf.FloorToInt((zNormalized - padZ) * (resolution - 1));
+            int zPixelMax = Mathf.CeilToInt((zNormalized + padZ) * (resolution - 1));
 
             rawMinX = Mathf.Min(rawMinX, xPixelMin);
             rawMaxX = Mathf.Max(rawMaxX, xPixelMax);
@@ -529,7 +673,7 @@ public static class CityBuildingSpawner
         return minX <= maxX && minZ <= maxZ;
     }
 
-    private static int ApplyFlattenPolygon(
+    private static int ApplySoftFlattenPolygon(
         float[,] heights,
         int resolution,
         Vector3 terrainPosition,
@@ -539,10 +683,13 @@ public static class CityBuildingSpawner
         int maxX,
         int minZ,
         int maxZ,
-        float targetHeightNormalized)
+        float targetHeightNormalized,
+        float falloffWorld)
     {
         int touchedSamples = 0;
         const float epsilon = 0.0001f;
+
+        float safeFalloff = Mathf.Max(0.0001f, falloffWorld);
 
         for (int z = minZ; z <= maxZ; z++)
         {
@@ -554,23 +701,133 @@ public static class CityBuildingSpawner
                 float xT = (float)x / (resolution - 1);
                 float worldX = terrainPosition.x + xT * terrainSize.x;
 
-                if (!PointInPolygonXZ(worldX, worldZ, polygon))
+                bool insidePolygon = PointInPolygonXZ(worldX, worldZ, polygon);
+                float distanceToEdge = DistancePointToPolygonEdgesXZ(worldX, worldZ, polygon);
+                float blend = 0f;
+
+                if (insidePolygon)
+                {
+                    blend = 1f;
+                }
+                else if (distanceToEdge <= safeFalloff)
+                {
+                    blend = 1f - Mathf.Clamp01(distanceToEdge / safeFalloff);
+                }
+
+                if (blend <= 0f)
                 {
                     continue;
                 }
 
                 float previous = heights[z, x];
-                if (Mathf.Abs(previous - targetHeightNormalized) <= epsilon)
+                float blendedTarget = Mathf.Lerp(previous, targetHeightNormalized, blend);
+                if (Mathf.Abs(previous - blendedTarget) <= epsilon)
                 {
                     continue;
                 }
 
-                heights[z, x] = targetHeightNormalized;
+                heights[z, x] = blendedTarget;
                 touchedSamples++;
             }
         }
 
         return touchedSamples;
+    }
+
+    private static int ApplyRoadBrush(
+        float[,] heights,
+        int resolution,
+        Vector3 terrainPosition,
+        Vector3 terrainSize,
+        Vector3 center,
+        float innerRadius,
+        float outerRadius,
+        float targetHeightNormalized)
+    {
+        if (outerRadius <= 0f || outerRadius < innerRadius)
+        {
+            return 0;
+        }
+
+        float xNormalized = (center.x - terrainPosition.x) / terrainSize.x;
+        float zNormalized = (center.z - terrainPosition.z) / terrainSize.z;
+        float radiusNormX = outerRadius / terrainSize.x;
+        float radiusNormZ = outerRadius / terrainSize.z;
+
+        int minX = Mathf.Clamp(Mathf.FloorToInt((xNormalized - radiusNormX) * (resolution - 1)), 0, resolution - 1);
+        int maxX = Mathf.Clamp(Mathf.CeilToInt((xNormalized + radiusNormX) * (resolution - 1)), 0, resolution - 1);
+        int minZ = Mathf.Clamp(Mathf.FloorToInt((zNormalized - radiusNormZ) * (resolution - 1)), 0, resolution - 1);
+        int maxZ = Mathf.Clamp(Mathf.CeilToInt((zNormalized + radiusNormZ) * (resolution - 1)), 0, resolution - 1);
+
+        const float epsilon = 0.0001f;
+        int touched = 0;
+        float falloff = Mathf.Max(0.0001f, outerRadius - innerRadius);
+
+        for (int z = minZ; z <= maxZ; z++)
+        {
+            float zT = (float)z / (resolution - 1);
+            float worldZ = terrainPosition.z + zT * terrainSize.z;
+
+            for (int x = minX; x <= maxX; x++)
+            {
+                float xT = (float)x / (resolution - 1);
+                float worldX = terrainPosition.x + xT * terrainSize.x;
+                float distance = Vector2.Distance(new Vector2(worldX, worldZ), new Vector2(center.x, center.z));
+
+                float blend = 0f;
+                if (distance <= innerRadius)
+                {
+                    blend = 1f;
+                }
+                else if (distance <= outerRadius)
+                {
+                    blend = 1f - Mathf.Clamp01((distance - innerRadius) / falloff);
+                }
+
+                if (blend <= 0f)
+                {
+                    continue;
+                }
+
+                float previous = heights[z, x];
+                float blendedTarget = Mathf.Lerp(previous, targetHeightNormalized, blend);
+                if (Mathf.Abs(previous - blendedTarget) <= epsilon)
+                {
+                    continue;
+                }
+
+                heights[z, x] = blendedTarget;
+                touched++;
+            }
+        }
+
+        return touched;
+    }
+
+    private static float DistancePointToPolygonEdgesXZ(float x, float z, List<Vector3> polygon)
+    {
+        float minDistance = float.MaxValue;
+        Vector2 point = new Vector2(x, z);
+
+        for (int i = 0; i < polygon.Count; i++)
+        {
+            Vector3 a = polygon[i];
+            Vector3 b = polygon[(i + 1) % polygon.Count];
+            Vector2 va = new Vector2(a.x, a.z);
+            Vector2 vb = new Vector2(b.x, b.z);
+
+            Vector2 ab = vb - va;
+            float lengthSq = ab.sqrMagnitude;
+            float t = lengthSq > 0.0001f ? Mathf.Clamp01(Vector2.Dot(point - va, ab) / lengthSq) : 0f;
+            Vector2 projection = va + ab * t;
+            float distance = Vector2.Distance(point, projection);
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+            }
+        }
+
+        return minDistance;
     }
 
     private static bool PointInPolygonXZ(float x, float z, List<Vector3> polygon)
@@ -583,7 +840,7 @@ public static class CityBuildingSpawner
             Vector3 a = polygon[i];
             Vector3 b = polygon[j];
             bool intersects = ((a.z > z) != (b.z > z)) &&
-                              (x < (b.x - a.x) * (z - a.z) / (b.z - a.z) + a.x);
+                              (x < (b.x - a.x) * (z - a.z) / (b.z - a.z + Mathf.Epsilon) + a.x);
 
             if (intersects)
             {

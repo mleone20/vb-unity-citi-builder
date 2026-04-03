@@ -314,6 +314,29 @@ public class CityBuilderWindow : EditorWindow
             cityManager.SetGlobalRoadWidth(roadWidth);
         }
 
+        float roadTerrainWidthMultiplier = EditorGUILayout.Slider("Sculpt Width Multiplier", cityData.roadTerrainWidthMultiplier, 0.5f, 3f);
+        if (!Mathf.Approximately(roadTerrainWidthMultiplier, cityData.roadTerrainWidthMultiplier))
+        {
+            Undo.RecordObject(cityData, "Set Road Terrain Width Multiplier");
+            cityData.roadTerrainWidthMultiplier = roadTerrainWidthMultiplier;
+            EditorUtility.SetDirty(cityData);
+        }
+
+        float roadTerrainFalloff = EditorGUILayout.Slider("Sculpt Falloff", cityData.roadTerrainFalloff, 0.1f, 12f);
+        if (!Mathf.Approximately(roadTerrainFalloff, cityData.roadTerrainFalloff))
+        {
+            Undo.RecordObject(cityData, "Set Road Terrain Falloff");
+            cityData.roadTerrainFalloff = roadTerrainFalloff;
+            EditorUtility.SetDirty(cityData);
+        }
+
+        if (GUILayout.Button("Flatten Terrain Under Roads", buttonStyle))
+        {
+            FlattenTerrainUnderRoads();
+        }
+
+        EditorGUILayout.HelpBox("Scolpisce il terrain lungo i segmenti stradali con bordo morbido (fall-off).", MessageType.Info);
+
         EditorGUILayout.Space();
         DrawSelectedSegmentInspector();
 
@@ -428,6 +451,16 @@ public class CityBuilderWindow : EditorWindow
         {
             FlattenTerrainUnderLots();
         }
+
+        float lotTerrainFalloff = EditorGUILayout.Slider("Falloff Lotti", cityData.lotTerrainFalloff, 0.1f, 10f);
+        if (!Mathf.Approximately(lotTerrainFalloff, cityData.lotTerrainFalloff))
+        {
+            Undo.RecordObject(cityData, "Set Lot Terrain Falloff");
+            cityData.lotTerrainFalloff = lotTerrainFalloff;
+            EditorUtility.SetDirty(cityData);
+        }
+
+        EditorGUILayout.HelpBox("Flatten lotti con transizione morbida verso il terreno circostante.", MessageType.Info);
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField($"Lotti totali: {cityData.lots.Count}");
@@ -735,5 +768,12 @@ public class CityBuilderWindow : EditorWindow
         CityBuildingSpawner.TerrainFlattenReport report = CityBuildingSpawner.FlattenTerrainUnderLots(cityManager);
         SceneView.RepaintAll();
         EditorUtility.DisplayDialog("Flatten Terrain Under Lots", report.ToMultilineString(), "OK");
+    }
+
+    private void FlattenTerrainUnderRoads()
+    {
+        CityBuildingSpawner.RoadFlattenReport report = CityBuildingSpawner.FlattenTerrainUnderRoads(cityManager);
+        SceneView.RepaintAll();
+        EditorUtility.DisplayDialog("Flatten Terrain Under Roads", report.ToMultilineString(), "OK");
     }
 }

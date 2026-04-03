@@ -31,6 +31,11 @@ public class CityData : ScriptableObject
     [Header("Integrazione Terrain")]
     [SerializeField] public bool alignNodesToTerrain = false;
     [Range(-2.0f, 2.0f)] [SerializeField] public float nodeTerrainYOffset = 0.0f;
+
+    [Header("Scolpitura Terrain")]
+    [Range(0.1f, 10.0f)] [SerializeField] public float lotTerrainFalloff = 2.0f;
+    [Range(0.1f, 12.0f)] [SerializeField] public float roadTerrainFalloff = 3.0f;
+    [Range(0.5f, 3.0f)] [SerializeField] public float roadTerrainWidthMultiplier = 1.2f;
     // Counter per generare ID unici
     private int nextNodeID = 0;
     private int nextSegmentID = 0;
@@ -54,6 +59,9 @@ public class CityData : ScriptableObject
         clone.densityInfluence = this.densityInfluence;
         clone.alignNodesToTerrain = this.alignNodesToTerrain;
         clone.nodeTerrainYOffset = this.nodeTerrainYOffset;
+        clone.lotTerrainFalloff = this.lotTerrainFalloff;
+        clone.roadTerrainFalloff = this.roadTerrainFalloff;
+        clone.roadTerrainWidthMultiplier = this.roadTerrainWidthMultiplier;
         
         // Deep clone collections
         foreach (var node in nodes)
@@ -171,10 +179,12 @@ public class CityData : ScriptableObject
     {
         CityNode nearest = null;
         float minDistance = threshold;
+        Vector2 targetXZ = new Vector2(position.x, position.z);
 
         foreach (var node in nodes)
         {
-            float dist = Vector3.Distance(node.position, position);
+            Vector2 nodeXZ = new Vector2(node.position.x, node.position.z);
+            float dist = Vector2.Distance(nodeXZ, targetXZ);
             if (dist < minDistance)
             {
                 minDistance = dist;

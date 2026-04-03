@@ -67,16 +67,21 @@ public static class CityBlockDetector
             return new List<List<Vector3>>();
         }
 
-        // Esclude la faccia esterna (area assoluta maggiore).
+        // Esclude la faccia esterna solo quando esistono piu' facce candidate.
+        // Con un ciclo semplice (es. 4 nodi, 4 segmenti) l'unica faccia rilevata
+        // rappresenta il blocco e non deve essere scartata.
         int outerFaceIndex = -1;
-        float maxArea = 0f;
-        for (int i = 0; i < detectedFaces.Count; i++)
+        if (detectedFaces.Count > 1)
         {
-            float area = Mathf.Abs(CalculateSignedArea(detectedFaces[i], cityData));
-            if (area > maxArea)
+            float maxArea = 0f;
+            for (int i = 0; i < detectedFaces.Count; i++)
             {
-                maxArea = area;
-                outerFaceIndex = i;
+                float area = Mathf.Abs(CalculateSignedArea(detectedFaces[i], cityData));
+                if (area > maxArea)
+                {
+                    maxArea = area;
+                    outerFaceIndex = i;
+                }
             }
         }
 
@@ -326,4 +331,5 @@ public static class CityBlockDetector
 
         return inside;
     }
+
 }
