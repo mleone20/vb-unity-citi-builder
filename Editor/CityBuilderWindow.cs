@@ -802,8 +802,9 @@ public class CityBuilderWindow : EditorWindow
 
     private void FlattenTerrainUnderBlocks()
     {
-        CityBuildingSpawner.BlockFlattenReport report = CityBuildingSpawner.FlattenTerrainUnderBlocks(cityManager);
+        // Usa l'algoritmo consolidato: blocchi seguono la pendenza del terreno, lotti hanno sfumatura ultra-dolce
+        CityBuildingSpawner.BlockFlattenReport report = CityBuildingSpawner.FlattenTerrainUnderBlocksConsolidated(cityManager);
         SceneView.RepaintAll();
-        EditorUtility.DisplayDialog("Flatten Terrain Under Blocks", report.ToMultilineString(), "OK");
+        EditorUtility.DisplayDialog("Flatten Terrain - Blocchi & Lotti (Consolidato)", report.ToMultilineString(), "OK");
     }
 }

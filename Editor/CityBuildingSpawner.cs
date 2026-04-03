@@ -118,6 +118,32 @@ public static class CityBuildingSpawner
         }
     }
 
+    /// <summary>
+    /// Rappresenta un piano inclinato 2D (in XZ) che segue la pendenza del terreno.
+    /// Usato per appiattire blocchi mantenendo la pendenza naturale del terreno.
+    /// </summary>
+    public struct TerrainPlane
+    {
+        public float baseHeight;        // Altezza normalizzata al centro del blocco
+        public float slopeX;            // Pendenza in direzione X (normalizzata)
+        public float slopeZ;            // Pendenza in direzione Z (normalizzata)
+        public Vector3 blockCenter;     // Centro XZ del blocco (world space)
+
+        public float GetHeightAtXZ(float worldX, float worldZ, Vector3 terrainPosition, Vector3 terrainSize)
+        {
+            float dx = worldX - blockCenter.x;
+            float dz = worldZ - blockCenter.z;
+            float heightDelta = slopeX * dx + slopeZ * dz;
+            float resultNormalized = Mathf.Clamp01(baseHeight + heightDelta);
+            return resultNormalized;
+        }
+
+        public override string ToString()
+        {
+            return $"TerrainPlane(base={baseHeight:F3}, slopeX={slopeX:F4}, slopeZ={slopeZ:F4})";
+        }
+    }
+
     public static SpawnReport SpawnBuildings(CityManager manager, ExistingBuildingsHandling handling)
     {
         SpawnReport report = new SpawnReport();
@@ -1049,5 +1075,323 @@ public static class CityBuildingSpawner
         }
 
         return inside;
+    }
+
+    /// <summary>
+    /// Calcola un piano inclinato per il blocco basato sulle altezze del terreno nei 4 corner.
+    /// </summary>
+    private static bool TryCalculateBlockTerrainPlane(
+        CityBlock block, Terrain terrain, Vector3 terrainPosition, Vector3 terrainSize,
+        out TerrainPlane plane)
+    {
+        plane = new TerrainPlane();
+        
+        if (block == null || block.vertices == null || block.vertices.Count < 3 || terrain == null)
+        {
+            return false;
+        }
+
+        Vector3 minPoint = block.vertices[0];
+        Vector3 maxPoint = block.vertices[0];
+        Vector3 blockCenter = Vector3.zero;
+
+        for (int i = 0; i < block.vertices.Count; i++)
+        {
+            Vector3 v = block.vertices[i];
+            minPoint = Vector3.Min(minPoint, v);
+            maxPoint = Vector3.Max(maxPoint, v);
+            blockCenter += v;
+        }
+        blockCenter /= block.vertices.Count;
+
+        Vector3[] corners = new Vector3[4]
+        {
+            new Vector3(minPoint.x, 0, minPoint.z),
+            new Vector3(maxPoint.x, 0, minPoint.z),
+            new Vector3(maxPoint.x, 0, maxPoint.z),
+            new Vector3(minPoint.x, 0, maxPoint.z)
+        };
+
+        float[] cornerHeights = new float[4];
+        for (int i = 0; i < 4; i++)
+        {
+            cornerHeights[i] = terrain.SampleHeight(corners[i]) + terrainPosition.y;
+        }
+
+        Vector3 corner00 = new Vector3(minPoint.x, cornerHeights[0], minPoint.z);
+        Vector3 corner10 = new Vector3(maxPoint.x, cornerHeights[1], minPoint.z);
+        Vector3 corner01 = new Vector3(minPoint.x, cornerHeights[3], maxPoint.z);
+
+        Vector3 edgeX = corner10 - corner00;
+        Vector3 edgeZ = corner01 - corner00;
+
+        float rangeX = maxPoint.x - minPoint.x;
+        float rangeZ = maxPoint.z - minPoint.z;
+        if (rangeX < 0.01f || rangeZ < 0.01f)
+        {
+            return false;
+        }
+
+        float slopeX = rangeX > 0.01f ? edgeX.y / rangeX : 0f;
+        float slopeZ = rangeZ > 0.01f ? edgeZ.y / rangeZ : 0f;
+
+        float centerHeightWorld = terrain.SampleHeight(blockCenter) + terrainPosition.y;
+        float centerHeightNormalized = Mathf.Clamp01((centerHeightWorld - terrainPosition.y) / terrainSize.y);
+
+        plane.baseHeight = centerHeightNormalized;
+        plane.slopeX = slopeX / terrainSize.y;
+        plane.slopeZ = slopeZ / terrainSize.y;
+        plane.blockCenter = new Vector3(blockCenter.x, blockCenter.y, blockCenter.z);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Applica soft-flatten usando un piano inclinato come target.
+    /// </summary>
+    private static int ApplySoftFlattenPolygonWithPlane(
+        float[,] heights,
+        int resolution,
+        Vector3 terrainPosition,
+        Vector3 terrainSize,
+        List<Vector3> polygon,
+        int minX,
+        int maxX,
+        int minZ,
+        int maxZ,
+        TerrainPlane plane,
+        float falloffWorld,
+        float blendStrength)
+    {
+        int touchedSamples = 0;
+        const float epsilon = 0.0001f;
+        float safeFalloff = Mathf.Max(0.0001f, falloffWorld);
+
+        for (int z = minZ; z <= maxZ; z++)
+        {
+            float zT = (float)z / (resolution - 1);
+            float worldZ = terrainPosition.z + zT * terrainSize.z;
+
+            for (int x = minX; x <= maxX; x++)
+            {
+                float xT = (float)x / (resolution - 1);
+                float worldX = terrainPosition.x + xT * terrainSize.x;
+
+                bool insidePolygon = PointInPolygonXZ(worldX, worldZ, polygon);
+                float distanceToEdge = DistancePointToPolygonEdgesXZ(worldX, worldZ, polygon);
+                float blend = 0f;
+
+                if (insidePolygon)
+                {
+                    blend = 1f;
+                }
+                else if (distanceToEdge <= safeFalloff)
+                {
+                    blend = 1f - Mathf.Clamp01(distanceToEdge / safeFalloff);
+                }
+
+                if (blend <= 0f)
+                {
+                    continue;
+                }
+
+                float targetHeightNormalized = plane.GetHeightAtXZ(worldX, worldZ, terrainPosition, terrainSize);
+
+                float previous = heights[z, x];
+                float effectiveBlend;
+                if (insidePolygon)
+                {
+                    effectiveBlend = Mathf.Clamp01(blendStrength * 0.8f);
+                }
+                else
+                {
+                    effectiveBlend = Mathf.Clamp01(blend * blendStrength);
+                }
+
+                float blendedTarget = Mathf.Lerp(previous, targetHeightNormalized, effectiveBlend);
+                if (Mathf.Abs(previous - blendedTarget) <= epsilon)
+                {
+                    continue;
+                }
+
+                heights[z, x] = blendedTarget;
+                touchedSamples++;
+            }
+        }
+
+        return touchedSamples;
+    }
+
+    /// <summary>
+    /// Algoritmo consolidato: appiattisce i blocchi seguendone la pendenza naturale,
+    /// poi applica sfumatura ultra-dolce ai lotti.
+    /// </summary>
+    public static BlockFlattenReport FlattenTerrainUnderBlocksConsolidated(CityManager manager)
+    {
+        BlockFlattenReport report = new BlockFlattenReport();
+        if (manager == null)
+        {
+            return report;
+        }
+
+        CityData cityData = manager.GetCityData();
+        if (cityData == null)
+        {
+            return report;
+        }
+
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain == null)
+        {
+            report.noTerrainFound = true;
+            return report;
+        }
+
+        TerrainData terrainData = terrain.terrainData;
+        if (terrainData == null)
+        {
+            report.noTerrainFound = true;
+            return report;
+        }
+
+        if (cityData.blocks == null || cityData.blocks.Count == 0)
+        {
+            return report;
+        }
+
+        int resolution = terrainData.heightmapResolution;
+        if (resolution < 2)
+        {
+            return report;
+        }
+
+        float blockFalloff = Mathf.Max(0.1f, cityData.roadTerrainFalloff);
+        float blockBlendStrength = Mathf.Clamp01(cityData.roadTerrainBlendStrength);
+        float lotBlendStrength = Mathf.Clamp01(cityData.lotTerrainBlendStrength) * 0.3f;
+
+        Undo.RecordObject(terrainData, "Flatten Terrain Under Blocks (Consolidated)");
+        float[,] heights = terrainData.GetHeights(0, 0, resolution, resolution);
+        Vector3 terrainPosition = terrain.GetPosition();
+        Vector3 terrainSize = terrainData.size;
+        if (terrainSize.x <= 0f || terrainSize.y <= 0f || terrainSize.z <= 0f)
+        {
+            return report;
+        }
+
+        // Fase 1: Applica plane-based flatten ai blocchi
+        for (int i = 0; i < cityData.blocks.Count; i++)
+        {
+            CityBlock block = cityData.blocks[i];
+            report.processedBlocks++;
+
+            if (block == null || block.vertices == null || block.vertices.Count < 3)
+            {
+                report.invalidBlocks++;
+                continue;
+            }
+
+            List<Vector3> polygon = block.vertices;
+            if (!TryGetHeightmapBounds(polygon, terrainPosition, terrainSize, resolution, blockFalloff, out int minX, out int maxX, out int minZ, out int maxZ))
+            {
+                report.blocksOutsideTerrain++;
+                continue;
+            }
+
+            if (!TryCalculateBlockTerrainPlane(block, terrain, terrainPosition, terrainSize, out TerrainPlane plane))
+            {
+                report.invalidBlocks++;
+                continue;
+            }
+
+            int touchedByBlock = ApplySoftFlattenPolygonWithPlane(
+                heights,
+                resolution,
+                terrainPosition,
+                terrainSize,
+                polygon,
+                minX,
+                maxX,
+                minZ,
+                maxZ,
+                plane,
+                blockFalloff,
+                blockBlendStrength
+            );
+
+            if (touchedByBlock > 0)
+            {
+                report.modifiedBlocks++;
+                report.touchedHeightSamples += touchedByBlock;
+            }
+        }
+
+        // Fase 2: Ultra-dolce flatten ai lotti (seguono il piano dei loro blocchi)
+        if (cityData.lots != null && cityData.lots.Count > 0)
+        {
+            float lotFalloff = Mathf.Max(0.1f, cityData.lotTerrainFalloff) * 0.5f;
+            
+            for (int i = 0; i < cityData.lots.Count; i++)
+            {
+                CityLot lot = cityData.lots[i];
+                if (lot == null || lot.vertices == null || lot.vertices.Count < 3)
+                {
+                    continue;
+                }
+
+                CityBlock blockOfLot = null;
+                for (int b = 0; b < cityData.blocks.Count; b++)
+                {
+                    if (cityData.blocks[b].id == lot.blockID)
+                    {
+                        blockOfLot = cityData.blocks[b];
+                        break;
+                    }
+                }
+
+                if (blockOfLot == null)
+                {
+                    continue;
+                }
+
+                if (!TryCalculateBlockTerrainPlane(blockOfLot, terrain, terrainPosition, terrainSize, out TerrainPlane planeLot))
+                {
+                    continue;
+                }
+
+                List<Vector3> lotPolygon = lot.vertices;
+                if (!TryGetHeightmapBounds(lotPolygon, terrainPosition, terrainSize, resolution, lotFalloff, out int lotMinX, out int lotMaxX, out int lotMinZ, out int lotMaxZ))
+                {
+                    continue;
+                }
+
+                int touchedByLot = ApplySoftFlattenPolygonWithPlane(
+                    heights,
+                    resolution,
+                    terrainPosition,
+                    terrainSize,
+                    lotPolygon,
+                    lotMinX,
+                    lotMaxX,
+                    lotMinZ,
+                    lotMaxZ,
+                    planeLot,
+                    lotFalloff,
+                    lotBlendStrength
+                );
+
+                if (touchedByLot > 0)
+                {
+                    report.touchedHeightSamples += touchedByLot;
+                }
+            }
+        }
+
+        if (report.touchedHeightSamples > 0)
+        {
+            terrainData.SetHeights(0, 0, heights);
+            EditorUtility.SetDirty(terrainData);
+        }
+
+        return report;
     }
 }
