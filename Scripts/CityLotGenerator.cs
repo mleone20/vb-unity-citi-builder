@@ -69,10 +69,18 @@ public static class CityLotGenerator
                 lotWidth          = fp.x;
                 lotDepth          = fp.y;
 
-                // ── Gap procedurale deterministico ───────────────────────────
-                float gapNoise = Mathf.PerlinNoise(blockIndex * 0.13f + edgeIdx * 0.37f + lotIdx * 0.71f, 0.5f);
-                gapNoise       = Mathf.Clamp01(gapNoise);
-                float lotGap   = Mathf.Lerp(cityData.gapMinimum, cityData.gapMaximum, gapNoise);
+                // ── Gap procedurale deterministico (o override per blocco) ──────
+                float lotGap;
+                if (block.lotGapOverride >= 0f)
+                {
+                    lotGap = block.lotGapOverride;
+                }
+                else
+                {
+                    float gapNoise = Mathf.PerlinNoise(blockIndex * 0.13f + edgeIdx * 0.37f + lotIdx * 0.71f, 0.5f);
+                    gapNoise       = Mathf.Clamp01(gapNoise);
+                    lotGap         = Mathf.Lerp(cityData.gapMinimum, cityData.gapMaximum, gapNoise);
+                }
 
                 // ── Posizione lungo l'edge ───────────────────────────────────
                 float posFrom = cursor + lotGap;
@@ -111,9 +119,12 @@ public static class CityLotGenerator
                     ? IsOutsideBuildableArea(lotVerts, verts, roadSetback)
                     : IsInsideBuildableArea(lotVerts, verts, roadSetback);
 
+                float skipStep = block.lotGapOverride >= 0f ? block.lotGapOverride : cityData.gapMinimum;
+                if (skipStep <= 0f) skipStep = 0.1f;
+
                 if (!isLotValid)
                 {
-                    cursor += cityData.gapMinimum;
+                    cursor += skipStep;
                     lotIdx++;
                     continue;
                 }
@@ -121,7 +132,7 @@ public static class CityLotGenerator
                 Vector2[] poly2D = ToXZ(frontL, frontR, backR, backL);
                 if (OverlapsAny(poly2D, occupied))
                 {
-                    cursor += cityData.gapMinimum;
+                    cursor += skipStep;
                     lotIdx++;
                     continue;
                 }
@@ -190,8 +201,9 @@ public static class CityLotGenerator
         avgW /= candidates.Count;
         avgD /= candidates.Count;
 
-        float stepX   = avgW + cityData.gapMaximum;
-        float stepZ   = avgD + cityData.gapMaximum;
+        float sparseGap = block.lotGapOverride >= 0f ? block.lotGapOverride : cityData.gapMaximum;
+        float stepX    = avgW + sparseGap;
+        float stepZ    = avgD + sparseGap;
         float centerY = block.GetCenter().y;
 
         List<Vector2[]> occupied = new List<Vector2[]>();

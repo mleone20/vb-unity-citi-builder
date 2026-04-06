@@ -114,6 +114,8 @@ public class CityBlock
     public ZoneType zoning;
     public List<int> lotIDs = new List<int>();
     public BlockOrientation orientation = BlockOrientation.Interior;
+    /// <summary>Gap fisso tra lotti per questo blocco. Se negativo usa i valori globali di CityData.</summary>
+    public float lotGapOverride = -1f;
 
     public CityBlock(int id)
     {

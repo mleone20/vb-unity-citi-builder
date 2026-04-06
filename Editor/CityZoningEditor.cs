@@ -99,6 +99,36 @@ public static class CityZoningEditor
 
                 EditorGUILayout.Space();
 
+                // Gap override per blocco
+                bool hasGapOverride = selectedBlock.lotGapOverride >= 0f;
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Gap personalizzato:", GUILayout.Width(130f));
+                bool newHasGapOverride = EditorGUILayout.Toggle(hasGapOverride, GUILayout.Width(18f));
+                if (newHasGapOverride != hasGapOverride)
+                {
+                    Undo.RecordObject(cityData, "Toggle Block Lot Gap");
+                    selectedBlock.lotGapOverride = newHasGapOverride ? Mathf.Max(cityData.gapMinimum, 0.5f) : -1f;
+                    EditorUtility.SetDirty(cityData);
+                    hasGapOverride = newHasGapOverride;
+                }
+                using (new EditorGUI.DisabledScope(!hasGapOverride))
+                {
+                    float displayGap = hasGapOverride ? selectedBlock.lotGapOverride : cityData.gapMinimum;
+                    float newGap = EditorGUILayout.FloatField(displayGap);
+                    newGap = Mathf.Max(0f, newGap);
+                    if (hasGapOverride && !Mathf.Approximately(newGap, selectedBlock.lotGapOverride))
+                    {
+                        Undo.RecordObject(cityData, "Set Block Lot Gap");
+                        selectedBlock.lotGapOverride = newGap;
+                        EditorUtility.SetDirty(cityData);
+                    }
+                }
+                EditorGUILayout.EndHorizontal();
+                if (!hasGapOverride)
+                    EditorGUILayout.LabelField($"  (usa globale: {cityData.gapMinimum:F2} – {cityData.gapMaximum:F2})", EditorStyles.miniLabel);
+
+                EditorGUILayout.Space();
+
                 // Selettore zoning
                 EditorGUILayout.LabelField("Destinazione d'uso:", EditorStyles.label);
 
