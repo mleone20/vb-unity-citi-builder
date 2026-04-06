@@ -31,12 +31,13 @@ public enum CitySegmentGeometryType
 }
 
 /// <summary>
-/// Orientamento del blocco: interno (edifici dentro il blocco) o esterno (edifici fuori dalla strada)
+/// Orientamento del blocco: interno (edifici dentro il blocco), esterno (fuori dalla strada) o sparso (random nel blocco)
 /// </summary>
 public enum BlockOrientation
 {
     Interior,
-    Exterior
+    Exterior,
+    Sparse
 }
 
 /// <summary>

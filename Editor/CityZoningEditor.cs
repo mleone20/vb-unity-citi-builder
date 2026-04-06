@@ -87,6 +87,18 @@ public static class CityZoningEditor
 
                 EditorGUILayout.Space();
 
+                // Modalità spawn lotti
+                EditorGUILayout.LabelField("Modalità Lotti:", EditorStyles.label);
+                BlockOrientation newOrientation = (BlockOrientation)EditorGUILayout.EnumPopup(selectedBlock.orientation);
+                if (newOrientation != selectedBlock.orientation)
+                {
+                    Undo.RecordObject(cityData, "Set Block Orientation");
+                    selectedBlock.orientation = newOrientation;
+                    EditorUtility.SetDirty(cityData);
+                }
+
+                EditorGUILayout.Space();
+
                 // Selettore zoning
                 EditorGUILayout.LabelField("Destinazione d'uso:", EditorStyles.label);
 

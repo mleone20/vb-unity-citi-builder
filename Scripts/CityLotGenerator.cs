@@ -13,8 +13,13 @@ public static class CityLotGenerator
 {
     private const float LotSafetyMargin = 0.05f;
 
-    public static List<CityLot> GenerateLotsForBlock(CityBlock block, ZoneType zoning, int blockIndex, CityData cityData, bool isExterior = false)
+    public static List<CityLot> GenerateLotsForBlock(CityBlock block, ZoneType zoning, int blockIndex, CityData cityData, BlockOrientation orientation = BlockOrientation.Interior)
     {
+        if (orientation == BlockOrientation.Sparse)
+            return GenerateSparseLotsForBlock(block, zoning, blockIndex, cityData);
+
+        bool isExterior = orientation == BlockOrientation.Exterior;
+
         List<CityLot> lots = new List<CityLot>();
         if (block.vertices.Count < 3) return lots;
 
@@ -142,6 +147,114 @@ public static class CityLotGenerator
                 tempID++;
                 cursor = posTo + lotGap;
                 lotIdx++;
+            }
+        }
+
+        return lots;
+    }
+
+    // ── Modalità Sparse ──────────────────────────────────────────────────────
+
+    private static List<CityLot> GenerateSparseLotsForBlock(CityBlock block, ZoneType zoning, int blockIndex, CityData cityData)
+    {
+        List<CityLot> lots = new List<CityLot>();
+        if (block.vertices.Count < 3) return lots;
+
+        float buildingHeight = cityData.GetZoneHeight(zoning);
+        List<Vector3> verts  = block.vertices;
+        float margin         = cityData.globalRoadWidth * 0.5f + LotSafetyMargin;
+        int   tempID         = 0;
+
+        List<(GameObject go, CityBuilderPrefab meta)> candidates = CollectCandidates(zoning);
+        if (candidates.Count == 0) return lots;
+
+        // AABB del blocco in XZ.
+        float minX = float.MaxValue, maxX = float.MinValue;
+        float minZ = float.MaxValue, maxZ = float.MinValue;
+        foreach (Vector3 v in verts)
+        {
+            if (v.x < minX) minX = v.x;
+            if (v.x > maxX) maxX = v.x;
+            if (v.z < minZ) minZ = v.z;
+            if (v.z > maxZ) maxZ = v.z;
+        }
+
+        // Passo griglia basato su footprint medio + gap massimo.
+        float avgW = 0f, avgD = 0f;
+        foreach (var (_, meta) in candidates)
+        {
+            Vector2 fp = meta.GetAlignedFootprintSize();
+            avgW += fp.x;
+            avgD += fp.y;
+        }
+        avgW /= candidates.Count;
+        avgD /= candidates.Count;
+
+        float stepX   = avgW + cityData.gapMaximum;
+        float stepZ   = avgD + cityData.gapMaximum;
+        float centerY = block.GetCenter().y;
+
+        List<Vector2[]> occupied = new List<Vector2[]>();
+        int cellIdx = 0;
+
+        for (float gz = minZ + margin; gz < maxZ - margin; gz += stepZ)
+        {
+            for (float gx = minX + margin; gx < maxX - margin; gx += stepX)
+            {
+                // Offset deterministico via Perlin noise.
+                float noiseX = Mathf.PerlinNoise(blockIndex * 0.17f + cellIdx * 0.43f, 0.25f) * 2f - 1f;
+                float noiseZ = Mathf.PerlinNoise(0.25f, blockIndex * 0.17f + cellIdx * 0.43f) * 2f - 1f;
+                float cx     = gx + noiseX * stepX * 0.3f;
+                float cz     = gz + noiseZ * stepZ * 0.3f;
+
+                Vector3 center = new Vector3(cx, centerY, cz);
+
+                // Prefab e rotazione (multipli di 90°, deterministici).
+                int   prefabIndex = PickCandidateIndex(blockIndex, cellIdx, 0, candidates.Count);
+                int   angleSteps  = Mathf.Abs(blockIndex * 7 + cellIdx * 13) % 4;
+                float angleDeg    = angleSteps * 90f;
+                Quaternion rot    = Quaternion.Euler(0f, angleDeg, 0f);
+
+                Vector2 footprint = candidates[prefabIndex].meta.GetAlignedFootprintSize();
+                float hw = footprint.x * 0.5f;
+                float hd = footprint.y * 0.5f;
+
+                // Corner del rettangolo ruotato centrato nel punto.
+                Vector3 frontL = center + rot * new Vector3(-hw, 0f, -hd);
+                Vector3 frontR = center + rot * new Vector3( hw, 0f, -hd);
+                Vector3 backR  = center + rot * new Vector3( hw, 0f,  hd);
+                Vector3 backL  = center + rot * new Vector3(-hw, 0f,  hd);
+
+                List<Vector3> lotVerts = new List<Vector3> { frontL, frontR, backR, backL };
+
+                if (!IsInsideBuildableArea(lotVerts, verts, margin))
+                {
+                    cellIdx++;
+                    continue;
+                }
+
+                Vector2[] poly2D = ToXZ(frontL, frontR, backR, backL);
+                if (OverlapsAny(poly2D, occupied))
+                {
+                    cellIdx++;
+                    continue;
+                }
+
+                occupied.Add(poly2D);
+
+                lots.Add(new CityLot(blockIndex * 1000 + tempID, block.id)
+                {
+                    buildingCenter           = center,
+                    buildingHeight           = buildingHeight,
+                    vertices                 = lotVerts,
+                    lotGap                   = cityData.gapMinimum,
+                    assignedPrefabIndex      = prefabIndex,
+                    assignedSpawnRotation    = rot,
+                    hasAssignedSpawnRotation = true
+                });
+
+                tempID++;
+                cellIdx++;
             }
         }
 
