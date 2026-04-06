@@ -90,6 +90,18 @@ public static class CityZoningEditor
                 // Selettore zoning
                 EditorGUILayout.LabelField("Destinazione d'uso:", EditorStyles.label);
 
+                
+                using (new EditorGUI.DisabledScope(selectedBlock.zoning == null))
+                {
+                    if (GUILayout.Button("Seleziona Asset Zona"))
+                    {
+                        Selection.activeObject = selectedBlock.zoning;
+                        EditorUtility.FocusProjectWindow();
+                    }
+                }
+
+                EditorGUILayout.Space();
+
                 int selectedZoneIndex = Mathf.Max(0, zoneTypes.IndexOf(selectedBlock.zoning));
                 string[] zoneLabels = zoneTypes.Select(z => ZoneTypeEditorUtility.GetZoneDisplayName(z)).ToArray();
                 int newZoneIndex = EditorGUILayout.Popup("Zone Type", selectedZoneIndex, zoneLabels);
@@ -115,12 +127,6 @@ public static class CityZoningEditor
 
                 EditorGUILayout.Space();
 
-                EditorGUILayout.LabelField($"Zoning attuale: {ZoneTypeEditorUtility.GetZoneDisplayName(selectedBlock.zoning)}", EditorStyles.label);
-                
-                Color zoningColor = cityData.GetZoneColor(selectedBlock.zoning);
-                EditorGUILayout.ColorField("Colore zona:", zoningColor);
-
-                EditorGUILayout.Space();
                 EditorGUILayout.LabelField($"Lotti in questo blocco: {selectedBlock.lotIDs.Count}");
             }
         }

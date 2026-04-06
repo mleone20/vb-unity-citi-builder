@@ -35,6 +35,10 @@ public class ZoneTypeEditor : Editor
         }
 
         EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Prefab Preview", EditorStyles.boldLabel);
+        DrawPrefabThumbnails(buildingPrefabs);
+
+        EditorGUILayout.Space();
         EditorGUILayout.LabelField("Preset", EditorStyles.boldLabel);
         EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("Residential"))
@@ -62,6 +66,60 @@ public class ZoneTypeEditor : Editor
         DrawPreview(zoneColor.colorValue, buildingHeight.floatValue);
 
         serializedObject.ApplyModifiedProperties();
+
+        if (AssetPreview.IsLoadingAssetPreviews())
+            Repaint();
+    }
+
+    private void DrawPrefabThumbnails(SerializedProperty buildingPrefabs)
+    {
+        int count = buildingPrefabs.arraySize;
+        if (count == 0)
+        {
+            EditorGUILayout.HelpBox("Nessun prefab assegnato.", MessageType.None);
+            return;
+        }
+
+        const float thumbnailSize = 64f;
+        const float padding = 6f;
+        float availableWidth = EditorGUIUtility.currentViewWidth - 28f;
+        int columns = Mathf.Max(1, Mathf.FloorToInt(availableWidth / (thumbnailSize + padding)));
+
+        int col = 0;
+        EditorGUILayout.BeginHorizontal();
+
+        for (int i = 0; i < count; i++)
+        {
+            SerializedProperty element = buildingPrefabs.GetArrayElementAtIndex(i);
+            GameObject prefab = element.objectReferenceValue as GameObject;
+
+            EditorGUILayout.BeginVertical(GUILayout.Width(thumbnailSize));
+
+            Texture2D preview = prefab != null ? AssetPreview.GetAssetPreview(prefab) : null;
+            if (preview == null && prefab != null)
+                preview = AssetPreview.GetMiniThumbnail(prefab);
+
+            Rect rect = GUILayoutUtility.GetRect(thumbnailSize, thumbnailSize, GUILayout.Width(thumbnailSize), GUILayout.Height(thumbnailSize));
+            if (preview != null)
+                GUI.DrawTexture(rect, preview, ScaleMode.ScaleToFit);
+            else
+                EditorGUI.DrawRect(rect, new Color(0.18f, 0.18f, 0.18f));
+
+            string label = prefab != null ? prefab.name : "(None)";
+            EditorGUILayout.LabelField(label, EditorStyles.centeredGreyMiniLabel, GUILayout.Width(thumbnailSize));
+
+            EditorGUILayout.EndVertical();
+
+            col++;
+            if (col >= columns && i < count - 1)
+            {
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal();
+                col = 0;
+            }
+        }
+
+        EditorGUILayout.EndHorizontal();
     }
 
     private static void ApplyPreset(SerializedProperty displayName, SerializedProperty zoneColor, SerializedProperty buildingHeight, SerializedProperty description, string presetName, Color color, float height, string presetDescription)
