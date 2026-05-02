@@ -1010,17 +1010,21 @@ public class CityBuilderWindow : EditorWindow
         // ── Griglia Stradale ──────────────────────────────────────
         EditorGUILayout.LabelField("Griglia Stradale", EditorStyles.boldLabel);
         EditorGUI.BeginChangeCheck();
-        float newMajor    = EditorGUILayout.FloatField("Spaziatura Griglia Principale (m)", proceduralConfig.majorGridSpacing);
-        float newLocal    = EditorGUILayout.FloatField("Spaziatura Strade Locali (m)",      proceduralConfig.localStreetSpacing);
-        float newLocalCap = EditorGUILayout.FloatField("Raggio Max Strade Locali (m)",      proceduralConfig.localStreetMaxRadius);
-        int   newHw       = EditorGUILayout.IntSlider("Numero Autostrade",                  proceduralConfig.highwayCount, 1, 4);
-        float newMerge    = EditorGUILayout.FloatField("Soglia Merge Nodi (m)",             proceduralConfig.mergeThreshold);
+        float newMajor      = EditorGUILayout.FloatField("Spaziatura Griglia Principale (m)", proceduralConfig.majorGridSpacing);
+        float newLocal      = EditorGUILayout.FloatField("Spaziatura Strade Locali (m)",      proceduralConfig.localStreetSpacing);
+        float newLocalCap   = EditorGUILayout.FloatField("Raggio Max Strade Locali (m)",      proceduralConfig.localStreetMaxRadius);
+        float newVariation  = EditorGUILayout.Slider("Variazione Dimensione Blocchi",         proceduralConfig.blockSizeVariation, 0f, 0.45f);
+        int   newSeed       = EditorGUILayout.IntField("Seme Casuale",                        proceduralConfig.randomSeed);
+        int   newHw         = EditorGUILayout.IntSlider("Numero Autostrade",                  proceduralConfig.highwayCount, 1, 4);
+        float newMerge      = EditorGUILayout.FloatField("Soglia Merge Nodi (m)",             proceduralConfig.mergeThreshold);
         if (EditorGUI.EndChangeCheck())
         {
             Undo.RecordObject(proceduralConfig, "Set American City Grid Params");
             proceduralConfig.majorGridSpacing     = Mathf.Max(50f,  newMajor);
             proceduralConfig.localStreetSpacing   = Mathf.Max(20f,  newLocal);
             proceduralConfig.localStreetMaxRadius = Mathf.Max(0f,   newLocalCap);
+            proceduralConfig.blockSizeVariation   = newVariation;
+            proceduralConfig.randomSeed           = newSeed;
             proceduralConfig.highwayCount         = newHw;
             proceduralConfig.mergeThreshold       = Mathf.Max(0.1f, newMerge);
             EditorUtility.SetDirty(proceduralConfig);

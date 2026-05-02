@@ -53,6 +53,13 @@ public class AmericanCityConfig : ScriptableObject
     [Min(0f)]
     public float localStreetMaxRadius = 5000f;
 
+    [Tooltip("Variazione casuale della posizione delle strade locali interne. 0 = griglia perfetta, 0.4 = fino al 40% di spostamento per strada.")]
+    [Range(0f, 0.45f)]
+    public float blockSizeVariation = 0.25f;
+
+    [Tooltip("Seme per la variazione casuale dei blocchi (stesso seme = stessa città).")]
+    public int randomSeed = 42;
+
     [Tooltip("Numero di autostrade radiali complete (ogni autostrada genera 2 bracci opposti dal centro).")]
     [Range(1, 4)]
     public int highwayCount = 2;

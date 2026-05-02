@@ -234,12 +234,39 @@ public class AmericanCityGenerator : CityGeneratorBase
 
     // ========== LOCAL STREETS GENERATION ==========
 
+    /// <summary>
+    /// Genera un array di (steps+1) posizioni nel range [0, total].
+    /// Le posizioni di bordo (0 e total) sono fisse; quelle interne sono
+    /// spostate casualmente fino a ±variation * nominal, garantendo che
+    /// ogni segmento resti almeno il 20% del passo nominale.
+    /// </summary>
+    private static float[] GetJitteredPositions(
+        int steps, float total, float nominal, float variation, System.Random rng)
+    {
+        float[] pos = new float[steps + 1];
+        pos[0] = 0f;
+        pos[steps] = total;
+        float minGap = nominal * 0.20f;
+        for (int i = 1; i < steps; i++)
+        {
+            float center = i * nominal;
+            float delta  = ((float)(rng.NextDouble() * 2.0 - 1.0)) * variation * nominal;
+            float lo     = pos[i - 1] + minGap;
+            float hi     = total - (steps - i) * minGap;
+            pos[i] = Mathf.Clamp(center + delta, lo, hi);
+        }
+        return pos;
+    }
+
+    // ========== LOCAL STREETS GENERATION ==========
+
     private void GenerateLocalStreets(
         CityManager manager, Vector3 p0, float localCap,
         float merge, ref GenerationReport report)
     {
         float majorSpacing = Mathf.Max(50f, config.majorGridSpacing);
         float localSpacing = Mathf.Max(20f, config.localStreetSpacing);
+        float variation    = Mathf.Clamp01(config.blockSizeVariation);
         RoadProfile profile = config.localStreetProfile;
 
         int halfMajorSteps = Mathf.CeilToInt(localCap / majorSpacing);
@@ -262,8 +289,13 @@ public class AmericanCityGenerator : CityGeneratorBase
 
                 if (stepsX < 2 && stepsZ < 2) continue;
 
-                float subX = majorSpacing / stepsX;
-                float subZ = majorSpacing / stepsZ;
+                float nomX = majorSpacing / stepsX;
+                float nomZ = majorSpacing / stepsZ;
+
+                // Seme per cella: combinazione hash del seme globale + coordinate cella
+                var rng = new System.Random(config.randomSeed ^ (cx * 73856093) ^ (cz * 19349663));
+                float[] xPos = GetJitteredPositions(stepsX, majorSpacing, nomX, variation, rng);
+                float[] zPos = GetJitteredPositions(stepsZ, majorSpacing, nomZ, variation, rng);
 
                 var localNodes = new Dictionary<(int, int), CityNode>();
 
@@ -271,7 +303,7 @@ public class AmericanCityGenerator : CityGeneratorBase
                 {
                     for (int lz = 0; lz <= stepsZ; lz++)
                     {
-                        Vector3 pos = new Vector3(xMin + lx * subX, p0.y, zMin + lz * subZ);
+                        Vector3 pos = new Vector3(xMin + xPos[lx], p0.y, zMin + zPos[lz]);
                         CityNode node = GetOrCreateNode(manager, pos, merge, ref report);
                         if (node != null)
                             localNodes[(lx, lz)] = node;
