@@ -365,13 +365,16 @@ public static class CityRenderer
         Color blockColor = cityData.GetZoneColor(block.zoning);
         Color outlineColor = new Color(0, 0, 0, 0.5f);
 
+        // Poligono inset (senza area stradale) usato per fill e outline quando selezionato
+        List<Vector3> insetVerts = isSelected ? ComputeInsetPolygon(block.vertices, cityData) : null;
+
         if (isSelected)
         {
             Color selectedFill = new Color(blockColor.r, blockColor.g, blockColor.b, 0.35f);
-            DrawSolidBlockArea(block.vertices, selectedFill);
+            DrawSolidBlockArea(insetVerts, selectedFill);
         }
 
-        // Disegna outline del blocco
+        // Disegna outline del blocco (sul bordo delle strade)
         Gizmos.color = outlineColor;
         for (int i = 0; i < block.vertices.Count; i++)
         {
@@ -380,13 +383,13 @@ public static class CityRenderer
             Gizmos.DrawLine(v1, v2);
         }
 
-        if (isSelected)
+        if (isSelected && insetVerts != null && insetVerts.Count >= 3)
         {
             Gizmos.color = Color.Lerp(blockColor, Color.white, 0.2f);
-            for (int i = 0; i < block.vertices.Count; i++)
+            for (int i = 0; i < insetVerts.Count; i++)
             {
-                Vector3 v1 = block.vertices[i];
-                Vector3 v2 = block.vertices[(i + 1) % block.vertices.Count];
+                Vector3 v1 = insetVerts[i];
+                Vector3 v2 = insetVerts[(i + 1) % insetVerts.Count];
                 Gizmos.DrawLine(v1, v2);
             }
         }
@@ -417,6 +420,72 @@ public static class CityRenderer
 #else
     private static void DrawBlockIdLabel(int blockId, Vector3 center, bool isSelected) { }
 #endif
+
+    /// <summary>
+    /// Calcola un poligono inset spostando ogni lato verso l'interno di metà larghezza della strada.
+    /// </summary>
+    private static List<Vector3> ComputeInsetPolygon(List<Vector3> vertices, CityData cityData)
+    {
+        int n = vertices.Count;
+        if (n < 3) return vertices;
+
+        Vector3 center = Vector3.zero;
+        foreach (var v in vertices) center += v;
+        center /= n;
+
+        float fallbackHalf = (cityData != null ? cityData.globalRoadWidth : 3f) * 0.5f;
+
+        // Calcola la normale inward e il half-width per ogni lato
+        Vector3[] edgeDirs    = new Vector3[n];
+        Vector3[] edgeNormals = new Vector3[n];
+        Vector3[] edgeOrigins = new Vector3[n]; // punto di partenza del lato offsettato
+
+        for (int i = 0; i < n; i++)
+        {
+            Vector3 a   = vertices[i];
+            Vector3 b   = vertices[(i + 1) % n];
+            Vector3 dir = (b - a).normalized;
+            Vector3 perp = new Vector3(-dir.z, 0f, dir.x);
+            Vector3 mid  = (a + b) * 0.5f;
+            if (Vector3.Dot(perp, center - mid) < 0f) perp = -perp;
+
+            float halfW = fallbackHalf;
+            if (cityData != null)
+            {
+                CitySegment seg = cityData.FindSegmentBetweenPositions(a, b, Mathf.Max(2f, cityData.globalRoadWidth));
+                if (seg != null) halfW = seg.GetConfiguredWidth(cityData.globalRoadWidth) * 0.5f;
+            }
+
+            edgeDirs[i]    = dir;
+            edgeNormals[i] = perp;
+            edgeOrigins[i] = a + perp * halfW;
+        }
+
+        // Nuovo vertice = intersezione XZ dei due lati adiacenti offsettati
+        List<Vector3> inset = new List<Vector3>(n);
+        for (int i = 0; i < n; i++)
+        {
+            int prev = (i + n - 1) % n;
+            Vector3 intersection;
+            if (LineIntersectXZ(edgeOrigins[prev], edgeDirs[prev], edgeOrigins[i], edgeDirs[i], out intersection))
+                inset.Add(new Vector3(intersection.x, vertices[i].y, intersection.z));
+            else
+                inset.Add(new Vector3(edgeOrigins[i].x, vertices[i].y, edgeOrigins[i].z));
+        }
+        return inset;
+    }
+
+    /// <summary>Intersezione XZ di due rette parametriche.</summary>
+    private static bool LineIntersectXZ(Vector3 p, Vector3 d1, Vector3 q, Vector3 d2, out Vector3 intersection)
+    {
+        float cross = d1.x * d2.z - d1.z * d2.x;
+        if (Mathf.Abs(cross) < 1e-6f) { intersection = p; return false; }
+        float dx = q.x - p.x;
+        float dz = q.z - p.z;
+        float t  = (dx * d2.z - dz * d2.x) / cross;
+        intersection = p + t * d1;
+        return true;
+    }
 
     private static void DrawFilledPolygon2D(List<Vector3> vertices, Color color)
     {
