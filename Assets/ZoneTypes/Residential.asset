@@ -11,11 +11,11 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f3569f30dd792144f8b31d92716026dd, type: 3}
   m_Name: Residential
-  m_EditorClassIdentifier: BSCCityBuilder::ZoneType
+  m_EditorClassIdentifier: Assembly-CSharp::ZoneType
   displayName: Residential
-  zoneColor: {r: 0.2, g: 0.75, b: 0.3, a: 1}
+  zoneColor: {r: 0.3, g: 0.68, b: 0.31, a: 1}
   buildingHeight: 8
-  description: Low to medium density housing.
+  description: "Residenziale urbano a media densit\xE0."
   buildingPrefabs:
   - {fileID: 983308971785327471, guid: 7aa11d3a10ce2d64bb5948ef14ec6059, type: 3}
   deterministicPrefabSelection: 1

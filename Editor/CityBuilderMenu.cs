@@ -49,20 +49,20 @@ public static class CityBuilderMenu
     {
         string baseFolder = "Assets/BSCCityBuilder/Assets/ZoneTypes";
         if (!AssetDatabase.IsValidFolder("Assets/BSCCityBuilder/Assets"))
-            {
             AssetDatabase.CreateFolder("Assets/BSCCityBuilder", "Assets");
-        }
 
         if (!AssetDatabase.IsValidFolder(baseFolder))
-        {
             AssetDatabase.CreateFolder("Assets/BSCCityBuilder/Assets", "ZoneTypes");
-        }
 
+        // I 5 ZoneType corrispondono 1:1 ai ring del preset americano:
+        // Center→CBD, Commercial→Inner City, Residential→Urban Residential,
+        // Suburban→Suburbs, Rural→Exurbs
         int createdCount = 0;
-        createdCount += CreateZoneTypeIfMissing(baseFolder, "Residential", new Color(0.2f, 0.75f, 0.3f), 8f, "Low to medium density housing.");
-        createdCount += CreateZoneTypeIfMissing(baseFolder, "Commercial", new Color(0.2f, 0.45f, 0.95f), 14f, "Retail and office frontage.");
-        createdCount += CreateZoneTypeIfMissing(baseFolder, "Industrial", new Color(0.9f, 0.75f, 0.2f), 10f, "Warehouses, workshops, logistics.");
-        createdCount += CreateZoneTypeIfMissing(baseFolder, "Special", new Color(0.45f, 0.45f, 0.45f), 18f, "Landmarks, civic or unique functions.");
+        createdCount += CreateZoneTypeIfMissing(baseFolder, "Center",      new Color(1.0f, 0.42f, 0.21f), 30f, "CBD/Downtown ad alta densità. Grattacieli e commercio.");
+        createdCount += CreateZoneTypeIfMissing(baseFolder, "Commercial",  new Color(0.29f, 0.56f, 0.85f), 14f, "Inner city: retail, uffici e uso misto.");
+        createdCount += CreateZoneTypeIfMissing(baseFolder, "Residential", new Color(0.3f, 0.68f, 0.31f),  8f,  "Residenziale urbano a media densità.");
+        createdCount += CreateZoneTypeIfMissing(baseFolder, "Suburban",    new Color(0.55f, 0.76f, 0.29f), 5f,  "Periferia: case unifamiliari e villette.");
+        createdCount += CreateZoneTypeIfMissing(baseFolder, "Rural",       new Color(0.80f, 0.73f, 0.56f), 3f,  "Exurbs: aree rurali e insediamenti sparsi.");
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
@@ -73,6 +73,31 @@ public static class CityBuilderMenu
 
         Debug.Log($"[CityBuilder] {message}");
         EditorUtility.DisplayDialog("Setup Zone Types", message, "OK");
+    }
+
+    /// <summary>
+    /// Collega automaticamente i 5 ZoneType di default ai ring del config americano.
+    /// Richiede che i ZoneType siano stati creati con SetupDefaultZoneTypes().
+    /// </summary>
+    public static void LinkAmericanZoneTypesToConfig(AmericanCityConfig config)
+    {
+        if (config == null || config.zoneRings == null || config.zoneRings.Count != 5) return;
+
+        string[] names = { "Center", "Commercial", "Residential", "Suburban", "Rural" };
+        for (int i = 0; i < 5; i++)
+        {
+            string[] guids = AssetDatabase.FindAssets($"t:ZoneType {names[i]}");
+            foreach (string guid in guids)
+            {
+                ZoneType zt = AssetDatabase.LoadAssetAtPath<ZoneType>(AssetDatabase.GUIDToAssetPath(guid));
+                if (zt != null && zt.GetDisplayName() == names[i])
+                {
+                    config.zoneRings[i].zoneType = zt;
+                    break;
+                }
+            }
+        }
+        EditorUtility.SetDirty(config);
     }
 
     [MenuItem("Tools/City Builder/Setup Default Road Profiles")]
@@ -162,9 +187,19 @@ public static class CityBuilderMenu
         string folder = "Assets/BSCCityBuilder/Assets";
 
         if (!AssetDatabase.IsValidFolder("Assets/BSCCityBuilder/Assets"))
-        {
             AssetDatabase.CreateFolder("Assets/BSCCityBuilder", "Assets");
-        }
+
+        // Crea prima i ZoneType di default (no-op se già presenti)
+        string baseFolder = "Assets/BSCCityBuilder/Assets/ZoneTypes";
+        if (!AssetDatabase.IsValidFolder(baseFolder))
+            AssetDatabase.CreateFolder("Assets/BSCCityBuilder/Assets", "ZoneTypes");
+        CreateZoneTypeIfMissing(baseFolder, "Center",      new Color(1.0f, 0.42f, 0.21f), 30f, "CBD/Downtown ad alta densità.");
+        CreateZoneTypeIfMissing(baseFolder, "Commercial",  new Color(0.29f, 0.56f, 0.85f), 14f, "Inner city: retail, uffici e uso misto.");
+        CreateZoneTypeIfMissing(baseFolder, "Residential", new Color(0.3f, 0.68f, 0.31f),  8f,  "Residenziale urbano a media densità.");
+        CreateZoneTypeIfMissing(baseFolder, "Suburban",    new Color(0.55f, 0.76f, 0.29f), 5f,  "Periferia: case unifamiliari e villette.");
+        CreateZoneTypeIfMissing(baseFolder, "Rural",       new Color(0.80f, 0.73f, 0.56f), 3f,  "Exurbs: aree rurali e insediamenti sparsi.");
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
 
         AmericanCityConfig config = ScriptableObject.CreateInstance<AmericanCityConfig>();
         config.ResetToAmericanDefaults();
@@ -174,9 +209,13 @@ public static class CityBuilderMenu
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
+        // Collega i ZoneType ai ring
+        LinkAmericanZoneTypesToConfig(config);
+        AssetDatabase.SaveAssets();
+
         EditorUtility.FocusProjectWindow();
         Selection.activeObject = config;
 
-        Debug.Log($"[CityBuilder] AmericanCityConfig creato: {path}");
+        Debug.Log($"[CityBuilder] AmericanCityConfig creato con ZoneType collegati: {path}");
     }
 }

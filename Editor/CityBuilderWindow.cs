@@ -783,11 +783,13 @@ public class CityBuilderWindow : EditorWindow
         }
         if (DrawActionButton("Reset Default Americani"))
         {
-            if (EditorUtility.DisplayDialog("Reset Zone Rings", "Sovrascrivere con i valori di default americani (5 fasce)?", "Si", "No"))
+            if (EditorUtility.DisplayDialog("Reset Zone Rings", "Sovrascrivere con i valori di default americani (5 fasce)?\nI ZoneType di default verranno creati e collegati automaticamente.", "Si", "No"))
             {
                 Undo.RecordObject(proceduralConfig, "Reset Zone Rings to Defaults");
                 proceduralConfig.ResetToAmericanDefaults();
                 EditorUtility.SetDirty(proceduralConfig);
+                CityBuilderMenu.SetupDefaultZoneTypes();
+                CityBuilderMenu.LinkAmericanZoneTypesToConfig(proceduralConfig);
             }
         }
         EditorGUILayout.EndHorizontal();
