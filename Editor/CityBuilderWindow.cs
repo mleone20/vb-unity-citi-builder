@@ -1060,6 +1060,47 @@ public class CityBuilderWindow : EditorWindow
         // ── Azioni ────────────────────────────────────────────────
         EditorGUILayout.LabelField("Azioni", EditorStyles.boldLabel);
 
+        if (GUILayout.Button("Aggiorna Profili Strade Esistenti", buttonStyle))
+        {
+            if (cityData != null && cityData.segments != null)
+            {
+                Undo.RecordObject(cityData, "Update Road Profiles");
+                int updated = 0;
+                foreach (CitySegment seg in cityData.segments)
+                {
+                    if (seg == null) continue;
+                    RoadProfile profile = null;
+                    if (seg.roadProfile != null)
+                    {
+                        // già assegnato: mantieni il riferimento, aggiorna solo width
+                        seg.width = seg.roadProfile.roadWidth;
+                        updated++;
+                    }
+                    else
+                    {
+                        // euristico: assegna il profilo in base alla larghezza attuale
+                        if (proceduralConfig.highwayProfile != null &&
+                            seg.width >= proceduralConfig.highwayProfile.roadWidth * 0.75f)
+                            profile = proceduralConfig.highwayProfile;
+                        else if (proceduralConfig.majorGridProfile != null)
+                            profile = proceduralConfig.majorGridProfile;
+                        else if (proceduralConfig.localStreetProfile != null)
+                            profile = proceduralConfig.localStreetProfile;
+
+                        if (profile != null)
+                        {
+                            seg.roadProfile = profile;
+                            seg.width = profile.roadWidth;
+                            updated++;
+                        }
+                    }
+                }
+                EditorUtility.SetDirty(cityData);
+                SceneView.RepaintAll();
+                EditorUtility.DisplayDialog("Profili aggiornati", $"{updated} segmenti aggiornati.", "OK");
+            }
+        }
+
         if (GUILayout.Button("Genera Rete Stradale", buttonStyle))
         {
             bool ok = EditorUtility.DisplayDialog(

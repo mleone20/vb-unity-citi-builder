@@ -25,7 +25,6 @@ public static class CityLotGenerator
 
         float buildingHeight  = cityData.GetZoneHeight(zoning);
         List<Vector3> verts   = block.vertices;
-        float roadSetback     = cityData.globalRoadWidth * 0.5f + LotSafetyMargin;
         Vector3 blockCenter   = block.GetCenter();
         int tempID            = 0;
 
@@ -46,6 +45,13 @@ public static class CityLotGenerator
             float   edgeLength = Vector3.Distance(edgeStart, edgeEnd);
 
             if (edgeLength < 2f) continue;
+
+            // Setback basato sulla larghezza reale della strada su questo edge
+            CitySegment edgeSeg = cityData.FindSegmentBetweenPositions(edgeStart, edgeEnd, Mathf.Max(2f, cityData.globalRoadWidth));
+            float edgeWidth = edgeSeg != null
+                ? edgeSeg.GetConfiguredWidth(cityData.globalRoadWidth)
+                : cityData.globalRoadWidth;
+            float roadSetback = edgeWidth * 0.5f + LotSafetyMargin;
 
             Vector3 edgeDir = (edgeEnd - edgeStart).normalized;
             // Perpendicolare verso l'interno del blocco.

@@ -200,6 +200,20 @@ public class CityData : ScriptableObject
         return nearest;
     }
 
+    /// <summary>
+    /// Cerca il segmento stradale che collega i due nodi più vicini a posA e posB.
+    /// Utile per recuperare la larghezza della strada su un edge di un blocco.
+    /// </summary>
+    public CitySegment FindSegmentBetweenPositions(Vector3 posA, Vector3 posB, float nodeThreshold = 2f)
+    {
+        CityNode nA = FindNearestNode(posA, nodeThreshold);
+        CityNode nB = FindNearestNode(posB, nodeThreshold);
+        if (nA == null || nB == null) return null;
+        return segments.Find(s => s != null &&
+            ((s.nodeA_ID == nA.id && s.nodeB_ID == nB.id) ||
+             (s.nodeA_ID == nB.id && s.nodeB_ID == nA.id)));
+    }
+
     public CitySegment FindNearestSegment(Vector3 position, float threshold = 1.5f, int curveSamples = CityRoadGeometry.DefaultCurveSamples)
     {
         CitySegment nearest = null;
