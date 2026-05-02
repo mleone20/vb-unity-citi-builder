@@ -625,6 +625,14 @@ public class CityBuilderWindow : EditorWindow
             string report = cityManager.AnalyzeIntersections();
             EditorUtility.DisplayDialog("Analisi Intersezioni", report, "OK");
         }
+        if (DrawActionButton("Planarizza Rete Stradale", ColProc * 0.7f))
+        {
+            float mergeTol = proceduralConfig != null ? proceduralConfig.mergeThreshold : 2f;
+            string report = CityBuilderMenu.PlanarizeExistingNetwork(cityManager, mergeTol);
+            EditorUtility.SetDirty(cityData);
+            SceneView.RepaintAll();
+            EditorUtility.DisplayDialog("Planarizza Rete", report, "OK");
+        }
         if (DrawActionButton("Setup Zone Types di Default"))
             CityBuilderMenu.SetupDefaultZoneTypes();
 

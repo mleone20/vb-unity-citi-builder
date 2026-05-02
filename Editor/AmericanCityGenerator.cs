@@ -70,6 +70,12 @@ public class AmericanCityGenerator : CityGeneratorBase
             GenerateLocalStreets(manager, p0, localCap, merge, ref report);
         }
 
+        // 5. Planarizzazione: risolve gli incroci geometrici tra segmenti di tipo diverso
+        //    (es. autostrade diagonali che attraversano la griglia ortogonale).
+        int splitsDone = CityRoadPlanarizer.Planarize(manager, merge);
+        if (splitsDone > 0)
+            report.warnings.Add($"{splitsDone} segmenti planarizzati (incroci risolti).");
+
         EditorUtility.SetDirty(cityData);
         SceneView.RepaintAll();
 
@@ -340,4 +346,7 @@ public class AmericanCityGenerator : CityGeneratorBase
             }
         }
     }
+
+    // (planarizzazione delegata a CityRoadPlanarizer)
 }
+

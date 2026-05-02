@@ -17,9 +17,9 @@ MonoBehaviour:
   majorGridSpacing: 160
   localStreetSpacing: 90
   localStreetMaxRadius: 1000
-  blockSizeVariation: 0.45
+  blockSizeVariation: 0
   randomSeed: 42
-  highwayCount: 2
+  highwayCount: 3
   mergeThreshold: 2
   zoneRings:
   - label: CBD (Downtown)

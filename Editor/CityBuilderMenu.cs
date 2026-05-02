@@ -218,4 +218,44 @@ public static class CityBuilderMenu
 
         Debug.Log($"[CityBuilder] AmericanCityConfig creato con ZoneType collegati: {path}");
     }
+
+    [MenuItem("Tools/City Builder/Planarize Road Network")]
+    public static void PlanarizeExistingNetworkMenu()
+    {
+        CityManager manager = Object.FindFirstObjectByType<CityManager>();
+        if (manager == null)
+        {
+            EditorUtility.DisplayDialog("Planarizza Rete", "Nessun CityManager trovato nella scena.", "OK");
+            return;
+        }
+        string result = PlanarizeExistingNetwork(manager, 2f);
+        UnityEditor.EditorUtility.SetDirty(manager.GetCityData());
+        SceneView.RepaintAll();
+        EditorUtility.DisplayDialog("Planarizza Rete", result, "OK");
+    }
+
+    /// <summary>
+    /// Planarizza la rete stradale esistente risolvendo gli incroci geometrici.
+    /// Ritorna una stringa di report.
+    /// </summary>
+    public static string PlanarizeExistingNetwork(CityManager manager, float mergeTol = 2f)
+    {
+        if (manager == null) return "CityManager non valido.";
+        CityData cityData = manager.GetCityData();
+        if (cityData == null) return "CityData non assegnato.";
+
+        Undo.RecordObject(cityData, "Planarizza Rete Stradale");
+
+        int nodesBefore = cityData.nodes.Count;
+        int segsBefore  = cityData.segments.Count;
+
+        int splitsDone = CityRoadPlanarizer.Planarize(manager, mergeTol);
+
+        int nodesAdded = cityData.nodes.Count    - nodesBefore;
+        int segsAdded  = cityData.segments.Count - segsBefore;
+
+        string msg = $"Segmenti planarizzati: {splitsDone}\nNodi aggiunti: {nodesAdded}\nSegmenti delta: {segsAdded}";
+        Debug.Log($"[CityBuilder] Planarizzazione: {msg}");
+        return msg;
+    }
 }
