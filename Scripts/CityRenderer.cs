@@ -17,6 +17,14 @@ public static class CityRenderer
     private const float ROAD_THICKNESS = 8f;
     private const float BUILDING_WIREFRAME_THICKNESS = 2f;
 
+    // ── LOD thresholds ─────────────────────────────────────────────────────
+    // Oltre queste distanze dalla camera alcuni elementi vengono nascosti.
+    private const float SEG_DETAIL_MAX_DIST  = 400f;   // outline doppio + curve sampling
+    private const float NODE_DRAW_MAX_DIST   = 600f;   // nodi visibili
+    private const float NODE_LABEL_MAX_DIST  = 80f;    // label ID visibili
+    private const float BLOCK_LABEL_MAX_DIST = 200f;   // label blocco visibili
+    private const float ERROR_CHECK_MAX_DIST = 300f;   // controllo broken link
+
     // ========== DISEGNO STRADE ==========
 
     public static void DrawRoads(CityData cityData, int selectedNodeID = -1, int selectedSegmentID = -1)
@@ -32,28 +40,84 @@ public static class CityRenderer
 
     private static void DrawSegments(CityData cityData, int selectedSegmentID)
     {
+#if UNITY_EDITOR
+        Camera cam = Camera.current;
+        Vector3 camPos = cam != null ? cam.transform.position : Vector3.zero;
+        Plane[] frustum = cam != null ? GeometryUtility.CalculateFrustumPlanes(cam) : null;
+
+        // Raccolta batch: linee centrali per tutti i segmenti lontani/normali
+        // Usiamo liste separate per colore per ridurre i cambio-stato.
+        var batchCenterLines = new System.Collections.Generic.Dictionary<Color, List<Vector3>>();
+
         foreach (var segment in cityData.segments)
         {
-            if (segment == null)
-            {
-                continue;
-            }
+            if (segment == null) continue;
 
             CityNode nodeA = cityData.GetNode(segment.nodeA_ID);
             CityNode nodeB = cityData.GetNode(segment.nodeB_ID);
 
             if (nodeA == null || nodeB == null)
             {
-                DrawBrokenSegmentError(segment, nodeA, nodeB);
+                // Errori: solo se vicini alla camera
+                float errDist = cam != null ? Vector3.Distance(camPos, nodeA != null ? nodeA.position : (nodeB != null ? nodeB.position : Vector3.zero)) : 0f;
+                if (errDist < ERROR_CHECK_MAX_DIST)
+                    DrawBrokenSegmentError(segment, nodeA, nodeB);
                 continue;
             }
 
+            // Frustum culling rapido sull'AABB del segmento
+            if (frustum != null)
+            {
+                Bounds segBounds = new Bounds((nodeA.position + nodeB.position) * 0.5f, Vector3.zero);
+                segBounds.Encapsulate(nodeA.position);
+                segBounds.Encapsulate(nodeB.position);
+                if (!GeometryUtility.TestPlanesAABB(frustum, segBounds)) continue;
+            }
+
             bool isSelected = segment.id == selectedSegmentID;
-            DrawRoadSegment(cityData, segment, isSelected);
+            float midDist = cam != null
+                ? Vector3.Distance(camPos, (nodeA.position + nodeB.position) * 0.5f)
+                : 0f;
+
+            if (isSelected || midDist < SEG_DETAIL_MAX_DIST)
+            {
+                // Modalità dettaglio: sample curva + outline doppio
+                DrawRoadSegmentDetail(cityData, segment, isSelected);
+            }
+            else
+            {
+                // Modalità LOD: semplice linea centrale, accumulata nel batch
+                Color c = CityRoadGeometry.GetRoadColor(segment);
+                if (!batchCenterLines.TryGetValue(c, out var lst))
+                {
+                    lst = new List<Vector3>();
+                    batchCenterLines[c] = lst;
+                }
+                lst.Add(nodeA.position);
+                lst.Add(nodeB.position);
+            }
         }
+
+        // Flush batch (una sola chiamata Handles.DrawLines per colore)
+        foreach (var kv in batchCenterLines)
+        {
+            Handles.color = kv.Key;
+            Handles.DrawLines(kv.Value.ToArray());
+        }
+#else
+        foreach (var segment in cityData.segments)
+        {
+            if (segment == null) continue;
+            CityNode nodeA = cityData.GetNode(segment.nodeA_ID);
+            CityNode nodeB = cityData.GetNode(segment.nodeB_ID);
+            if (nodeA == null || nodeB == null) continue;
+            bool isSelected = segment.id == selectedSegmentID;
+            DrawRoadSegmentDetail(cityData, segment, isSelected);
+        }
+#endif
     }
 
-    private static void DrawRoadSegment(CityData cityData, CitySegment segment, bool isSelected)
+    private static void DrawRoadSegmentDetail(CityData cityData, CitySegment segment, bool isSelected)
     {
         List<Vector3> sampledPoints = CityRoadGeometry.SampleSegment(cityData, segment, CityRoadGeometry.DefaultCurveSamples);
         if (sampledPoints.Count < 2)
@@ -103,26 +167,75 @@ public static class CityRenderer
 
     private static void DrawNodes(CityData cityData, int selectedNodeID)
     {
+#if UNITY_EDITOR
+        Camera cam = Camera.current;
+        Vector3 camPos = cam != null ? cam.transform.position : Vector3.zero;
+        Plane[] frustum = cam != null ? GeometryUtility.CalculateFrustumPlanes(cam) : null;
+
+        // Batch: nodi normali (bianchi) disegnati come coppie di linee incrociate
+        var normalDots = new List<Vector3>();
+        float dotHalf = NODE_MIN_SIZE * 0.6f;
+
         foreach (var node in cityData.nodes)
         {
+            float dist = cam != null ? Vector3.Distance(camPos, node.position) : 0f;
+
+            // LOD: salta nodi troppo lontani
+            if (dist > NODE_DRAW_MAX_DIST && node.id != selectedNodeID) continue;
+
+            // Frustum culling
+            if (frustum != null)
+            {
+                Bounds nb = new Bounds(node.position, Vector3.one * 2f);
+                if (!GeometryUtility.TestPlanesAABB(frustum, nb)) continue;
+            }
+
             float adaptiveSize = GetAdaptiveNodeSize(node.position);
 
             if (node.id == selectedNodeID)
             {
                 Gizmos.color = Color.yellow;
                 Gizmos.DrawWireCube(node.position, Vector3.one * (adaptiveSize * 1.6f));
-                Gizmos.color = Color.yellow;
                 Gizmos.DrawCube(node.position, Vector3.one * adaptiveSize);
+                DrawNodeIdLabel(node.id, node.position, adaptiveSize, true);
+                if (dist < ERROR_CHECK_MAX_DIST)
+                    DrawNodeBrokenLinkError(node, cityData, adaptiveSize);
+            }
+            else if (dist < NODE_LABEL_MAX_DIST)
+            {
+                // Vicino: cubo dettagliato + label
+                Gizmos.color = Color.white;
+                Gizmos.DrawCube(node.position, Vector3.one * adaptiveSize);
+                DrawNodeIdLabel(node.id, node.position, adaptiveSize, false);
+                if (dist < ERROR_CHECK_MAX_DIST)
+                    DrawNodeBrokenLinkError(node, cityData, adaptiveSize);
             }
             else
             {
-                Gizmos.color = Color.white;
-                Gizmos.DrawCube(node.position, Vector3.one * adaptiveSize);
+                // Lontano: accumulato nel batch come incrocio di due linee
+                float h = adaptiveSize * 0.5f;
+                normalDots.Add(node.position - Vector3.right * h);
+                normalDots.Add(node.position + Vector3.right * h);
+                normalDots.Add(node.position - Vector3.forward * h);
+                normalDots.Add(node.position + Vector3.forward * h);
             }
-
-            DrawNodeIdLabel(node.id, node.position, adaptiveSize, node.id == selectedNodeID);
-            DrawNodeBrokenLinkError(node, cityData, adaptiveSize);
         }
+
+        // Flush batch nodi normali
+        if (normalDots.Count > 0)
+        {
+            Handles.color = new Color(0.9f, 0.9f, 0.9f, 0.7f);
+            Handles.DrawLines(normalDots.ToArray());
+        }
+#else
+        foreach (var node in cityData.nodes)
+        {
+            float adaptiveSize = GetAdaptiveNodeSize(node.position);
+            bool sel = node.id == selectedNodeID;
+            Gizmos.color = sel ? Color.yellow : Color.white;
+            Gizmos.DrawCube(node.position, Vector3.one * adaptiveSize);
+        }
+#endif
     }
 
     private static void DrawBrokenSegmentError(CitySegment segment, CityNode nodeA, CityNode nodeB)
@@ -218,13 +331,34 @@ public static class CityRenderer
     {
         if (cityData == null) return;
 
+#if UNITY_EDITOR
+        Camera cam = Camera.current;
+        Vector3 camPos = cam != null ? cam.transform.position : Vector3.zero;
+        Plane[] frustum = cam != null ? GeometryUtility.CalculateFrustumPlanes(cam) : null;
+
         foreach (var block in cityData.blocks)
         {
-            DrawSingleBlock(block, cityData, block != null && block.id == selectedBlockID);
+            if (block == null || block.vertices.Count < 3) continue;
+
+            // Frustum culling sul centro del blocco
+            Vector3 center = block.GetCenter();
+            if (frustum != null)
+            {
+                Bounds bb = new Bounds(center, Vector3.one * 5f);
+                if (!GeometryUtility.TestPlanesAABB(frustum, bb)) continue;
+            }
+
+            float dist = cam != null ? Vector3.Distance(camPos, center) : 0f;
+            bool isSelected = block.id == selectedBlockID;
+            DrawSingleBlock(block, cityData, isSelected, dist);
         }
+#else
+        foreach (var block in cityData.blocks)
+            DrawSingleBlock(block, cityData, block != null && block.id == selectedBlockID, 0f);
+#endif
     }
 
-    private static void DrawSingleBlock(CityBlock block, CityData cityData, bool isSelected)
+    private static void DrawSingleBlock(CityBlock block, CityData cityData, bool isSelected, float distFromCamera = 0f)
     {
         if (block.vertices.Count < 3) return;
 
@@ -264,7 +398,8 @@ public static class CityRenderer
         Vector3 center = block.GetCenter();
         Gizmos.color = blockColor;
         Gizmos.DrawCube(center, Vector3.one * 0.2f);
-        DrawBlockIdLabel(block.id, center, isSelected);
+        if (isSelected || distFromCamera < BLOCK_LABEL_MAX_DIST)
+            DrawBlockIdLabel(block.id, center, isSelected);
 
         if (isSelected)
         {
