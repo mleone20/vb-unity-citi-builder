@@ -155,4 +155,28 @@ public static class CityBuilderMenu
         AssetDatabase.CreateAsset(roadProfile, pathForAsset);
         return 1;
     }
+
+    [MenuItem("Tools/City Builder/Create American City Config")]
+    public static void CreateAmericanCityConfig()
+    {
+        string folder = "Assets/BSCCityBuilder/Assets";
+
+        if (!AssetDatabase.IsValidFolder("Assets/BSCCityBuilder/Assets"))
+        {
+            AssetDatabase.CreateFolder("Assets/BSCCityBuilder", "Assets");
+        }
+
+        AmericanCityConfig config = ScriptableObject.CreateInstance<AmericanCityConfig>();
+        config.ResetToAmericanDefaults();
+        string path = AssetDatabase.GenerateUniqueAssetPath($"{folder}/AmericanCityConfig.asset");
+
+        AssetDatabase.CreateAsset(config, path);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        EditorUtility.FocusProjectWindow();
+        Selection.activeObject = config;
+
+        Debug.Log($"[CityBuilder] AmericanCityConfig creato: {path}");
+    }
 }

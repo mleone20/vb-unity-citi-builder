@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b914c0b8170e294e8e4c2332ecfe92c, type: 3}
+  m_Name: AmericanCityConfig
+  m_EditorClassIdentifier: BSCCityBuilder::AmericanCityConfig
+  centerWorldPosition: {x: 0, y: -0, z: 0}
+  maxGenerationRadius: 3000
+  cbdRadius: 2000
+  innerCityRadius: 5000
+  urbanResidentialRadius: 12000
+  suburbsRadius: 30000
+  majorGridSpacing: 800
+  localStreetSpacing: 150
+  highwayCount: 2
+  mergeThreshold: 2
+  cbdZone: {fileID: 11400000, guid: 63e96ec985644f24e83e34b9f360dc62, type: 2}
+  innerCityZone: {fileID: 11400000, guid: eeba03b48ae74a146a5b3a56679dc2f0, type: 2}
+  urbanResidentialZone: {fileID: 11400000, guid: f4c40a60b9edd4144bca630d0364f927, type: 2}
+  suburbsZone: {fileID: 11400000, guid: eeba03b48ae74a146a5b3a56679dc2f0, type: 2}
+  exurbsZone: {fileID: 11400000, guid: f4c40a60b9edd4144bca630d0364f927, type: 2}
+  highwayProfile: {fileID: 11400000, guid: f4358a56057e55e4ba1aa95e2dce82fb, type: 2}
+  majorGridProfile: {fileID: 11400000, guid: c5ee0e2a7b9cfc0418ee5607abcea65d, type: 2}
+  localStreetProfile: {fileID: 11400000, guid: c5ee0e2a7b9cfc0418ee5607abcea65d, type: 2}

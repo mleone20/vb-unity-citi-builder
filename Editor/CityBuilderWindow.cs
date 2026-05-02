@@ -16,7 +16,8 @@ public class CityBuilderWindow : EditorWindow
         Buildings,
         Tools,
         Configuration,
-        Statistics
+        Statistics,
+        ProceduralGeneration
     }
 
     private CityManager cityManager;
@@ -29,6 +30,10 @@ public class CityBuilderWindow : EditorWindow
     private Vector2 scrollPosition = Vector2.zero;
     private float weldNodesDistance = 1.0f;
     private float simplifyMaxDeviationDeg = 8f;
+
+    // Sezione Generazione Procedurale
+    private AmericanCityConfig proceduralConfig;
+    private string _lastProceduralReport = "";
 
     [MenuItem("Window/City Builder/City Builder Tool")]
     public static void ShowWindow()
@@ -106,6 +111,9 @@ public class CityBuilderWindow : EditorWindow
                 break;
             case EditorSection.Statistics:
                 DrawStatsSection();
+                break;
+            case EditorSection.ProceduralGeneration:
+                DrawProceduralGenerationSection();
                 break;
         }
 
@@ -206,6 +214,12 @@ public class CityBuilderWindow : EditorWindow
         if (DrawSectionButton("Statistiche", EditorSection.Statistics))
         {
             currentSection = EditorSection.Statistics;
+        }
+
+        if (DrawSectionButton("Procedurale", EditorSection.ProceduralGeneration))
+        {
+            currentSection = EditorSection.ProceduralGeneration;
+            cityManager.SetMode(CityManager.BuildMode.Idle);
         }
 
         EditorGUILayout.EndHorizontal();
@@ -600,9 +614,24 @@ public class CityBuilderWindow : EditorWindow
             return;
         }
 
-        cityData.lots.Clear();
-        int lotCount = 0;
+        int lotCount = RunLotGeneration();
+        Debug.Log($"[CityBuilderWindow] Generati {lotCount} lotti!");
+        EditorUtility.DisplayDialog("Successo", $"Generati {lotCount} lotti!", "OK");
+    }
 
+    /// <summary>
+    /// Esegue la generazione lotti per tutti i blocchi senza mostrare dialoghi.
+    /// Ritorna il numero di lotti generati.
+    /// </summary>
+    private int RunLotGeneration()
+    {
+        cityData.lots.Clear();
+        foreach (CityBlock b in cityData.blocks)
+        {
+            if (b != null) b.lotIDs.Clear();
+        }
+
+        int lotCount = 0;
         for (int i = 0; i < cityData.blocks.Count; i++)
         {
             CityBlock block = cityData.blocks[i];
@@ -623,8 +652,9 @@ public class CityBuilderWindow : EditorWindow
             }
         }
 
-        Debug.Log($"[CityBuilderWindow] Generati {lotCount} lotti!");
-        EditorUtility.DisplayDialog("Successo", $"Generati {lotCount} lotti!", "OK");
+        EditorUtility.SetDirty(cityData);
+        SceneView.RepaintAll();
+        return lotCount;
     }
 
     private void DrawConfigurationSection()
@@ -808,4 +838,306 @@ public class CityBuilderWindow : EditorWindow
         SceneView.RepaintAll();
         EditorUtility.DisplayDialog("Flatten Terrain - Blocchi & Lotti (Consolidato)", report.ToMultilineString(), "OK");
     }
+
+    // ========== SEZIONE GENERAZIONE PROCEDURALE ==========
+
+    private void DrawProceduralGenerationSection()
+    {
+        EditorGUILayout.LabelField("GENERAZIONE PROCEDURALE — THE AMERICAN CITY", headerStyle);
+        EditorGUILayout.Space();
+
+        // ── Config Asset ──────────────────────────────────────────
+        EditorGUILayout.LabelField("Configurazione", EditorStyles.boldLabel);
+        EditorGUI.BeginChangeCheck();
+        AmericanCityConfig newConfig = (AmericanCityConfig)EditorGUILayout.ObjectField(
+            "American City Config", proceduralConfig, typeof(AmericanCityConfig), false);
+        if (EditorGUI.EndChangeCheck())
+        {
+            proceduralConfig = newConfig;
+        }
+
+        if (proceduralConfig == null)
+        {
+            EditorGUILayout.HelpBox(
+                "Assegna un asset AmericanCityConfig oppure creane uno nuovo.",
+                MessageType.Warning);
+            if (GUILayout.Button("Crea Nuova Configurazione", buttonStyle))
+            {
+                CityBuilderMenu.CreateAmericanCityConfig();
+            }
+            return;
+        }
+
+        EditorGUILayout.Space();
+
+        // ── Centro P0 ─────────────────────────────────────────────
+        EditorGUILayout.LabelField("Centro Città (P0)", EditorStyles.boldLabel);
+        EditorGUI.BeginChangeCheck();
+        Vector3 newCenter = EditorGUILayout.Vector3Field("Posizione Mondo", proceduralConfig.centerWorldPosition);
+        if (EditorGUI.EndChangeCheck())
+        {
+            Undo.RecordObject(proceduralConfig, "Set American City Center");
+            proceduralConfig.centerWorldPosition = newCenter;
+            EditorUtility.SetDirty(proceduralConfig);
+        }
+
+        if (GUILayout.Button("Usa Oggetto Selezionato in Scena", buttonStyle))
+        {
+            if (Selection.activeTransform != null)
+            {
+                Undo.RecordObject(proceduralConfig, "Set American City Center from Selection");
+                proceduralConfig.centerWorldPosition = Selection.activeTransform.position;
+                EditorUtility.SetDirty(proceduralConfig);
+            }
+            else
+            {
+                EditorUtility.DisplayDialog("Info",
+                    "Seleziona un GameObject nella scena per usarne la posizione come P0.", "OK");
+            }
+        }
+
+        EditorGUILayout.Space();
+
+        // ── Cap Generazione ───────────────────────────────────────
+        EditorGUILayout.LabelField("Cap Generazione", EditorStyles.boldLabel);
+        EditorGUI.BeginChangeCheck();
+        float newCap = EditorGUILayout.FloatField("Raggio Massimo (m)", proceduralConfig.maxGenerationRadius);
+        newCap = Mathf.Max(1f, newCap);
+        if (EditorGUI.EndChangeCheck())
+        {
+            Undo.RecordObject(proceduralConfig, "Set Max Generation Radius");
+            proceduralConfig.maxGenerationRadius = newCap;
+            EditorUtility.SetDirty(proceduralConfig);
+        }
+        EditorGUILayout.HelpBox(
+            "Ridurre per scene di gioco (es. 2000–5000 m). I default realistici (30 km) genererebbero decine di migliaia di nodi.",
+            MessageType.Info);
+
+        EditorGUILayout.Space();
+
+        // ── Zone Rings ────────────────────────────────────────────────────────
+        EditorGUILayout.LabelField("Zone Rings (fascia distanza → zona)", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox(
+            "Ogni ring definisce una fascia di distanza da P0 e la zona/orientamento associati.\n" +
+            "Ordina per raggio crescente; l'ultimo ring copre tutto ciò che supera il suo raggio.",
+            MessageType.None);
+
+        if (proceduralConfig.zoneRings == null)
+            proceduralConfig.zoneRings = new System.Collections.Generic.List<ZoneRing>();
+
+        bool _ringListDirty = false;
+        for (int _ri = 0; _ri < proceduralConfig.zoneRings.Count; _ri++)
+        {
+            ZoneRing ring = proceduralConfig.zoneRings[_ri];
+            if (ring == null) continue;
+
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginChangeCheck();
+            string rLabel = EditorGUILayout.TextField(ring.label, GUILayout.MinWidth(80));
+            float  rMax   = EditorGUILayout.FloatField(ring.maxRadius, GUILayout.Width(80));
+            EditorGUILayout.LabelField("m", GUILayout.Width(14));
+            if (ring.zoneType != null)
+            {
+                Rect cr = GUILayoutUtility.GetRect(16f, 16f, GUILayout.Width(18f));
+                EditorGUI.DrawRect(cr, ring.zoneType.zoneColor);
+            }
+            if (EditorGUI.EndChangeCheck())
+            {
+                Undo.RecordObject(proceduralConfig, "Edit Zone Ring");
+                ring.label     = rLabel;
+                ring.maxRadius = Mathf.Max(0f, rMax);
+                _ringListDirty = true;
+            }
+            if (GUILayout.Button("✕", GUILayout.Width(22)))
+            {
+                Undo.RecordObject(proceduralConfig, "Remove Zone Ring");
+                proceduralConfig.zoneRings.RemoveAt(_ri);
+                EditorUtility.SetDirty(proceduralConfig);
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.EndVertical();
+                break;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUI.BeginChangeCheck();
+            ZoneType         rZone   = (ZoneType)EditorGUILayout.ObjectField("ZoneType",    ring.zoneType,   typeof(ZoneType),    false);
+            BlockOrientation rOrient = (BlockOrientation)EditorGUILayout.EnumPopup("Orientamento", ring.orientation);
+            if (EditorGUI.EndChangeCheck())
+            {
+                Undo.RecordObject(proceduralConfig, "Edit Zone Ring");
+                ring.zoneType    = rZone;
+                ring.orientation = rOrient;
+                _ringListDirty   = true;
+            }
+
+            EditorGUILayout.EndVertical();
+        }
+
+        if (_ringListDirty) EditorUtility.SetDirty(proceduralConfig);
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("+ Aggiungi Ring", buttonStyle))
+        {
+            Undo.RecordObject(proceduralConfig, "Add Zone Ring");
+            float defMax = proceduralConfig.zoneRings.Count > 0
+                ? proceduralConfig.zoneRings[proceduralConfig.zoneRings.Count - 1].maxRadius * 2f
+                : 1000f;
+            proceduralConfig.zoneRings.Add(new ZoneRing { label = "New Ring", maxRadius = defMax });
+            EditorUtility.SetDirty(proceduralConfig);
+        }
+        if (GUILayout.Button("Ordina per Raggio", buttonStyle))
+        {
+            Undo.RecordObject(proceduralConfig, "Sort Zone Rings");
+            proceduralConfig.zoneRings.Sort((a, b) => a.maxRadius.CompareTo(b.maxRadius));
+            EditorUtility.SetDirty(proceduralConfig);
+        }
+        if (GUILayout.Button("Reset Default Americani", buttonStyle))
+        {
+            if (EditorUtility.DisplayDialog("Reset Zone Rings",
+                "Sovrascrivere i ring con i valori di default americani (5 fasce)?", "Sì", "No"))
+            {
+                Undo.RecordObject(proceduralConfig, "Reset Zone Rings to Defaults");
+                proceduralConfig.ResetToAmericanDefaults();
+                EditorUtility.SetDirty(proceduralConfig);
+            }
+        }
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.Space();
+
+        // ── Griglia Stradale ──────────────────────────────────────
+        EditorGUILayout.LabelField("Griglia Stradale", EditorStyles.boldLabel);
+        EditorGUI.BeginChangeCheck();
+        float newMajor    = EditorGUILayout.FloatField("Spaziatura Griglia Principale (m)", proceduralConfig.majorGridSpacing);
+        float newLocal    = EditorGUILayout.FloatField("Spaziatura Strade Locali (m)",      proceduralConfig.localStreetSpacing);
+        float newLocalCap = EditorGUILayout.FloatField("Raggio Max Strade Locali (m)",      proceduralConfig.localStreetMaxRadius);
+        int   newHw       = EditorGUILayout.IntSlider("Numero Autostrade",                  proceduralConfig.highwayCount, 1, 4);
+        float newMerge    = EditorGUILayout.FloatField("Soglia Merge Nodi (m)",             proceduralConfig.mergeThreshold);
+        if (EditorGUI.EndChangeCheck())
+        {
+            Undo.RecordObject(proceduralConfig, "Set American City Grid Params");
+            proceduralConfig.majorGridSpacing     = Mathf.Max(50f,  newMajor);
+            proceduralConfig.localStreetSpacing   = Mathf.Max(20f,  newLocal);
+            proceduralConfig.localStreetMaxRadius = Mathf.Max(0f,   newLocalCap);
+            proceduralConfig.highwayCount         = newHw;
+            proceduralConfig.mergeThreshold       = Mathf.Max(0.1f, newMerge);
+            EditorUtility.SetDirty(proceduralConfig);
+        }
+
+        float capEst   = proceduralConfig.maxGenerationRadius;
+        int   halfEst  = Mathf.CeilToInt(capEst / Mathf.Max(1f, proceduralConfig.majorGridSpacing));
+        int   estNodes = Mathf.RoundToInt((2 * halfEst + 1) * (2 * halfEst + 1) * 0.78f);
+        EditorGUILayout.HelpBox(
+            $"Stima nodi griglia principale: ~{estNodes}. " +
+            $"Strade locali generate entro {proceduralConfig.localStreetMaxRadius:F0} m.",
+            MessageType.None);
+
+        EditorGUILayout.Space();
+
+        // ── Mapping Road Profiles ─────────────────────────────────
+        EditorGUILayout.LabelField("Mapping Road Profiles", EditorStyles.boldLabel);
+        EditorGUI.BeginChangeCheck();
+        RoadProfile newHwP  = (RoadProfile)EditorGUILayout.ObjectField("Autostrada",        proceduralConfig.highwayProfile,     typeof(RoadProfile), false);
+        RoadProfile newMajP = (RoadProfile)EditorGUILayout.ObjectField("Griglia Principale", proceduralConfig.majorGridProfile,   typeof(RoadProfile), false);
+        RoadProfile newLocP = (RoadProfile)EditorGUILayout.ObjectField("Strade Locali",      proceduralConfig.localStreetProfile, typeof(RoadProfile), false);
+        if (EditorGUI.EndChangeCheck())
+        {
+            Undo.RecordObject(proceduralConfig, "Set American City Profile Mapping");
+            proceduralConfig.highwayProfile     = newHwP;
+            proceduralConfig.majorGridProfile   = newMajP;
+            proceduralConfig.localStreetProfile = newLocP;
+            EditorUtility.SetDirty(proceduralConfig);
+        }
+
+        EditorGUILayout.Space();
+
+        // ── Azioni ────────────────────────────────────────────────
+        EditorGUILayout.LabelField("Azioni", EditorStyles.boldLabel);
+
+        if (GUILayout.Button("Genera Rete Stradale", buttonStyle))
+        {
+            bool ok = EditorUtility.DisplayDialog(
+                "Genera Rete Stradale",
+                "Verranno aggiunti nodi e segmenti alla rete stradale esistente. Continuare?",
+                "Genera", "Annulla");
+            if (ok)
+            {
+                CityGeneratorBase.GenerationReport r = new AmericanCityGenerator(proceduralConfig).GenerateRoadNetwork(cityManager);
+                _lastProceduralReport = r.ToMultilineString();
+                EditorUtility.DisplayDialog("Rete Stradale Generata", _lastProceduralReport, "OK");
+            }
+        }
+
+        if (GUILayout.Button("Assegna Zoning Automatico (per distanza)", buttonStyle))
+        {
+            CityGeneratorBase.GenerationReport r = new AmericanCityGenerator(proceduralConfig).AssignZoningByDistance(cityManager);
+            _lastProceduralReport = r.ToMultilineString();
+            EditorUtility.DisplayDialog("Zoning Assegnato", _lastProceduralReport, "OK");
+        }
+
+        EditorGUILayout.Space();
+
+        GUI.color = new Color(0.35f, 1f, 0.55f);
+        if (GUILayout.Button("▶  GENERA TUTTO  (Rete + Blocchi + Zoning + Lotti)", GUILayout.Height(36)))
+        {
+            GUI.color = Color.white;
+            string existingMsg = cityData.nodes.Count > 0
+                ? $"Attenzione: sono presenti {cityData.nodes.Count} nodi e {cityData.blocks.Count} blocchi.\n" +
+                  "La rete stradale verrà AGGIUNTA a quella esistente; i blocchi verranno SOSTITUITI.\n\n"
+                : "";
+
+            bool ok = EditorUtility.DisplayDialog(
+                "Genera Tutto",
+                existingMsg + "Verranno eseguiti in sequenza:\n" +
+                "1. Genera Rete Stradale\n2. Auto-Detect Blocchi\n3. Assegna Zoning\n4. Genera Lotti\n\nContinuare?",
+                "Genera", "Annulla");
+
+            if (ok)
+            {
+                // 1. Rete stradale
+                AmericanCityGenerator generator = new AmericanCityGenerator(proceduralConfig);
+                CityGeneratorBase.GenerationReport roadR = generator.GenerateRoadNetwork(cityManager);
+
+                // 2. Auto-detect blocchi (sostituisce quelli esistenti)
+                Undo.RecordObject(cityData, "Generate All: Clear Blocks");
+                foreach (CityBlock b in cityData.blocks) { if (b != null) b.lotIDs.Clear(); }
+                cityData.blocks.Clear();
+                cityData.lots.Clear();
+                EditorUtility.SetDirty(cityData);
+
+                List<List<Vector3>> detected = CityBlockDetector.DetectBlocks(cityData);
+                foreach (List<Vector3> verts in detected)
+                    cityManager.AddBlock(verts);
+
+                // 3. Zoning per distanza
+                CityGeneratorBase.GenerationReport zoneR = generator.AssignZoningByDistance(cityManager);
+
+                // 4. Genera lotti
+                int lotCount = RunLotGeneration();
+
+                _lastProceduralReport =
+                    $"Rete: {roadR.nodesCreated} nodi, {roadR.segmentsCreated} segmenti\n" +
+                    $"Blocchi rilevati: {detected.Count}\n" +
+                    $"Blocchi zonati: {zoneR.blocksZoned}\n" +
+                    $"Lotti generati: {lotCount}";
+
+                if (zoneR.warnings != null && zoneR.warnings.Count > 0)
+                    _lastProceduralReport += $"\nWarning zoning: {zoneR.warnings.Count}";
+
+                EditorUtility.DisplayDialog("Generazione Completata", _lastProceduralReport, "OK");
+            }
+        }
+        GUI.color = Color.white;
+
+        // ── Ultimo Report ─────────────────────────────────────────
+        if (!string.IsNullOrEmpty(_lastProceduralReport))
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Ultimo Report", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(_lastProceduralReport, MessageType.Info);
+        }
+    }
+
 }

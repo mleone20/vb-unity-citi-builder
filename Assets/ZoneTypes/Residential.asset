@@ -9,63 +9,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 32e262ba972926b41b48091149f0f496, type: 3}
+  m_Script: {fileID: 11500000, guid: f3569f30dd792144f8b31d92716026dd, type: 3}
   m_Name: Residential
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneType
+  m_EditorClassIdentifier: BSCCityBuilder::ZoneType
   displayName: Residential
   zoneColor: {r: 0.2, g: 0.75, b: 0.3, a: 1}
   buildingHeight: 8
   description: Low to medium density housing.
   buildingPrefabs:
-  - {fileID: 8285361193562716947, guid: 7eed86fe1076e7b4bb7aeda7d1cecc9e, type: 3}
-  - {fileID: 2804827413872334409, guid: dd290927e61522240926097671c24d9c, type: 3}
-  - {fileID: 8156219068574215539, guid: b7817173c7b43f84788913971e29a7f2, type: 3}
-  - {fileID: 6847436725331924174, guid: 6356df97e4b230e45b719a9328d0c1f0, type: 3}
-  - {fileID: 5824523763231012750, guid: 9483706bfb0aae24db5416ad8cd4ac6c, type: 3}
-  - {fileID: 8973425183895212550, guid: 6de39bb90faeacf4a8b2440bfd9310d6, type: 3}
-  - {fileID: 4516616014401380073, guid: 756e327d9fa47ca4685a3841bd66b585, type: 3}
-  - {fileID: 7490327612024775528, guid: 93036c8aa3ced6a458784873cf3b481d, type: 3}
-  - {fileID: 5274786991993665156, guid: ef48f34364d33af4793af434cd64af32, type: 3}
-  - {fileID: 4282501170665901216, guid: f4160e94f7de4bd4cafe4a8c13604274, type: 3}
-  - {fileID: 5691423326228089547, guid: a0ba50c8ec6726449bd8e172725579d4, type: 3}
-  - {fileID: 6938290788003527701, guid: 55c3547fd3bb61e4aa8dd609f4d391c2, type: 3}
-  - {fileID: 4589199313181260631, guid: e60ba22418cf01e4a937f00071d723c3, type: 3}
-  - {fileID: 6929597799462886803, guid: de1bd7c48c6d3c044a00114523041479, type: 3}
-  - {fileID: 24629733450903356, guid: a55276e6de90f374083469b844dd70df, type: 3}
-  - {fileID: 488690567234360460, guid: 8ef7a21b2cd6ddc4fb709ad25a9aef58, type: 3}
-  - {fileID: 5328404334338827166, guid: 11fabbad5437d094793daef22813f9c1, type: 3}
-  - {fileID: 378119398781719742, guid: cc5594af690b53449a7141c806b2b512, type: 3}
-  - {fileID: 5992047990947181195, guid: 327523f30b43ad74398f5b1b25ccc44f, type: 3}
-  - {fileID: 3062490886834757857, guid: 6b951abf3ef79454a89279d0b97e5779, type: 3}
-  - {fileID: 4706458245139266963, guid: 18b2979ed4e28eb41a045e7ce898d3da, type: 3}
-  - {fileID: 914091074011648133, guid: df6ac2665e61bb64c9dfea6acf9525a2, type: 3}
-  - {fileID: 5360731415577325240, guid: d9b9f4e907defb04f844a22907ea6a77, type: 3}
-  - {fileID: 2641075861567338834, guid: 14b31b4c347a12249b3e577a903f57e8, type: 3}
-  - {fileID: 7848561703243844099, guid: a710417cd08e77d4392e4fe784bca462, type: 3}
-  - {fileID: 7534419355674097990, guid: 41fc25f0ab41a38408cbccf035aed432, type: 3}
-  - {fileID: 2151630853057148552, guid: 365b4ba747fe66f47b8c08ae162a7580, type: 3}
-  - {fileID: 4698810510023848121, guid: dabec622cb45609419fe0ef6b3e8830c, type: 3}
-  - {fileID: 6912909251038975785, guid: 5d26e3cb5d8a0d5449a091b7808ae8a5, type: 3}
-  - {fileID: 8433564936514148082, guid: 6839dab630b32d6438d31224e8ec2c4c, type: 3}
-  - {fileID: 1666635480173540146, guid: 27ba7d05ae93e1a41858115fa5371bc5, type: 3}
-  - {fileID: 8912626760250559656, guid: 997c69234e031344c8804be3e668b184, type: 3}
-  - {fileID: 2231596579275537748, guid: 2579f484caf0c6844b2084455b375310, type: 3}
-  - {fileID: 2348338597943790772, guid: 80f2155701f7e244983f78811e3376d6, type: 3}
-  - {fileID: 555427419383429800, guid: 614b1826f8269b54b815419d49d6ab0d, type: 3}
-  - {fileID: 4594041038876158450, guid: 563f77cbaf97a6e4e9e10ff1266cbc06, type: 3}
-  - {fileID: 457406834187892243, guid: f10bffaa54d61514cac9da5d873c114d, type: 3}
-  - {fileID: 3865732274718508848, guid: 577e3c78eb6f7a14b8a516936d050136, type: 3}
-  - {fileID: 2905082391260385457, guid: 0dde9d9949fa4df43938fb37041d3af5, type: 3}
-  - {fileID: 3874781020507256692, guid: 8eab8795058dac44f9219292ff1991d8, type: 3}
-  - {fileID: 4246592943611484605, guid: aca1f71f14419ef46bbba925c4e2bf76, type: 3}
-  - {fileID: 1255429469330614224, guid: d7144ec91775f6243b7887cc0d253102, type: 3}
-  - {fileID: 2010134388247716082, guid: 83b631d5258ffa543a319945c3ada3fa, type: 3}
-  - {fileID: 6136566942466135755, guid: c051f73ba812a914ba124b642b8988c7, type: 3}
-  - {fileID: 3914782996572626100, guid: 202dc6f733978404b88c6b98b283547d, type: 3}
-  - {fileID: 6271865233989988866, guid: c40141b2337517648a216391f050e52b, type: 3}
-  - {fileID: 4228481457105693875, guid: 220a778b95bf0d94d9b676efd18a677d, type: 3}
-  - {fileID: 8372226947028340099, guid: 90c239080533d6f40a7e6025bfdd7eb6, type: 3}
-  - {fileID: 6775962968990780638, guid: d4423456c3ad08b4dbfb91b82d54f0c8, type: 3}
-  - {fileID: 5815838039266699333, guid: 0e6353a8d88e1ab4db2663c0c230b7e3, type: 3}
+  - {fileID: 983308971785327471, guid: 7aa11d3a10ce2d64bb5948ef14ec6059, type: 3}
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0

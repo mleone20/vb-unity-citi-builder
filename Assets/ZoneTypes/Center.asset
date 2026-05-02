@@ -9,10 +9,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 32e262ba972926b41b48091149f0f496, type: 3}
-  m_Name: Special
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneType
+  m_Script: {fileID: 11500000, guid: f3569f30dd792144f8b31d92716026dd, type: 3}
+  m_Name: Center
+  m_EditorClassIdentifier: BSCCityBuilder::ZoneType
   displayName: Special
   zoneColor: {r: 0.45, g: 0.45, b: 0.45, a: 1}
   buildingHeight: 18
   description: Landmarks, civic or unique functions.
+  buildingPrefabs:
+  - {fileID: 983308971785327471, guid: 7aa11d3a10ce2d64bb5948ef14ec6059, type: 3}
+  deterministicPrefabSelection: 1
+  prefabSelectionSeed: 0
