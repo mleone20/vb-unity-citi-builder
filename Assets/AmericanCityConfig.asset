@@ -11,22 +11,35 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7b914c0b8170e294e8e4c2332ecfe92c, type: 3}
   m_Name: AmericanCityConfig
-  m_EditorClassIdentifier: BSCCityBuilder::AmericanCityConfig
-  centerWorldPosition: {x: 0, y: -0, z: 0}
+  m_EditorClassIdentifier: Assembly-CSharp::AmericanCityConfig
+  centerWorldPosition: {x: 0, y: 0, z: 0}
   maxGenerationRadius: 3000
-  cbdRadius: 2000
-  innerCityRadius: 5000
-  urbanResidentialRadius: 12000
-  suburbsRadius: 30000
-  majorGridSpacing: 800
-  localStreetSpacing: 150
+  majorGridSpacing: 1600
+  localStreetSpacing: 300
+  localStreetMaxRadius: 5000
   highwayCount: 2
   mergeThreshold: 2
-  cbdZone: {fileID: 11400000, guid: 63e96ec985644f24e83e34b9f360dc62, type: 2}
-  innerCityZone: {fileID: 11400000, guid: eeba03b48ae74a146a5b3a56679dc2f0, type: 2}
-  urbanResidentialZone: {fileID: 11400000, guid: f4c40a60b9edd4144bca630d0364f927, type: 2}
-  suburbsZone: {fileID: 11400000, guid: eeba03b48ae74a146a5b3a56679dc2f0, type: 2}
-  exurbsZone: {fileID: 11400000, guid: f4c40a60b9edd4144bca630d0364f927, type: 2}
+  zoneRings:
+  - label: CBD (Downtown)
+    maxRadius: 2000
+    zoneType: {fileID: 11400000, guid: 63e96ec985644f24e83e34b9f360dc62, type: 2}
+    orientation: 0
+  - label: Inner City
+    maxRadius: 5000
+    zoneType: {fileID: 11400000, guid: f4c40a60b9edd4144bca630d0364f927, type: 2}
+    orientation: 0
+  - label: Urban Residential
+    maxRadius: 12000
+    zoneType: {fileID: 11400000, guid: 2533536f3ff0ce2448ee7269915b485a, type: 2}
+    orientation: 1
+  - label: Suburbs
+    maxRadius: 30000
+    zoneType: {fileID: 0}
+    orientation: 2
+  - label: Exurbs
+    maxRadius: 60000
+    zoneType: {fileID: 11400000, guid: eeba03b48ae74a146a5b3a56679dc2f0, type: 2}
+    orientation: 2
   highwayProfile: {fileID: 11400000, guid: f4358a56057e55e4ba1aa95e2dce82fb, type: 2}
   majorGridProfile: {fileID: 11400000, guid: c5ee0e2a7b9cfc0418ee5607abcea65d, type: 2}
-  localStreetProfile: {fileID: 11400000, guid: c5ee0e2a7b9cfc0418ee5607abcea65d, type: 2}
+  localStreetProfile: {fileID: 11400000, guid: 9870cab19feef2e4e9cc7d80bd337b7b, type: 2}
