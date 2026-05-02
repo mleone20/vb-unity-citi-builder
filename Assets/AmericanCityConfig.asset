@@ -13,33 +13,35 @@ MonoBehaviour:
   m_Name: AmericanCityConfig
   m_EditorClassIdentifier: Assembly-CSharp::AmericanCityConfig
   centerWorldPosition: {x: 0, y: 0, z: 0}
-  maxGenerationRadius: 3000
-  majorGridSpacing: 1600
-  localStreetSpacing: 300
-  localStreetMaxRadius: 5000
+  maxGenerationRadius: 1000
+  majorGridSpacing: 160
+  localStreetSpacing: 90
+  localStreetMaxRadius: 1000
+  blockSizeVariation: 0
+  randomSeed: 42
   highwayCount: 2
   mergeThreshold: 2
   zoneRings:
   - label: CBD (Downtown)
-    maxRadius: 2000
+    maxRadius: 200
     zoneType: {fileID: 11400000, guid: 63e96ec985644f24e83e34b9f360dc62, type: 2}
     orientation: 0
   - label: Inner City
-    maxRadius: 5000
+    maxRadius: 500
     zoneType: {fileID: 11400000, guid: f4c40a60b9edd4144bca630d0364f927, type: 2}
     orientation: 0
   - label: Urban Residential
-    maxRadius: 12000
+    maxRadius: 1200
     zoneType: {fileID: 11400000, guid: 2533536f3ff0ce2448ee7269915b485a, type: 2}
-    orientation: 1
+    orientation: 0
   - label: Suburbs
-    maxRadius: 30000
-    zoneType: {fileID: 0}
-    orientation: 2
-  - label: Exurbs
-    maxRadius: 60000
+    maxRadius: 3000
     zoneType: {fileID: 11400000, guid: eeba03b48ae74a146a5b3a56679dc2f0, type: 2}
-    orientation: 2
+    orientation: 0
+  - label: Exurbs
+    maxRadius: 6000
+    zoneType: {fileID: 11400000, guid: eeba03b48ae74a146a5b3a56679dc2f0, type: 2}
+    orientation: 0
   highwayProfile: {fileID: 11400000, guid: f4358a56057e55e4ba1aa95e2dce82fb, type: 2}
   majorGridProfile: {fileID: 11400000, guid: c5ee0e2a7b9cfc0418ee5607abcea65d, type: 2}
   localStreetProfile: {fileID: 11400000, guid: 9870cab19feef2e4e9cc7d80bd337b7b, type: 2}

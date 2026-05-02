@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: BSCCityBuilder::RoadProfile
   displayName: Autostrada
   hierarchyLevel: 3
-  roadWidth: 9.5
+  roadWidth: 76
   debugColor: {r: 0.75, g: 0.25, b: 0.2, a: 1}
-  intersectionClearanceRadius: 6
+  intersectionClearanceRadius: 12
   blockInset: 0
   description: "Asse veloce ad alta capacit\xE0."
