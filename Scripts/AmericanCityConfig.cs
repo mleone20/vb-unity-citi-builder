@@ -6,16 +6,7 @@ using System.Collections.Generic;
 /// </summary>
 public enum RoadGenerationMode
 {
-    Grid,       // Legacy: griglia calcolata a matrice (veloce, uniforme)
-    Branching   // Queue-based branching iterativo (realistico, organico)
-}
-
-public enum BranchingPatternPreset
-{
-    AmericanGrid,
-    Hexagonal,
-    YSuburban,
-    RadialPlaza
+    Grid       // Modalità supportata
 }
 
 /// <summary>
@@ -58,8 +49,8 @@ public class AmericanCityConfig : ScriptableObject
     public float maxGenerationRadius = 3000f;
 
     [Header("Algoritmo di Generazione")]
-    [Tooltip("Modalità di generazione stradale.\nGrid: griglia classica calcolata a matrice (legacy).\nBranching: crescita iterativa a coda, realistica (consigliata).")]
-    public RoadGenerationMode generationMode = RoadGenerationMode.Branching;
+    [Tooltip("Modalità di generazione stradale. Branching rimosso: il sistema usa solo Grid.")]
+    public RoadGenerationMode generationMode = RoadGenerationMode.Grid;
 
     [Header("Griglia Stradale")]
     [Tooltip("Spaziatura griglia principale (Major Grid) in metri. Default americano: 1600 m = 1 miglio.")]
@@ -290,7 +281,7 @@ public class AmericanCityConfig : ScriptableObject
     /// </summary>
     public void ResetToGameDefaults()
     {
-        generationMode            = RoadGenerationMode.Branching;
+        generationMode            = RoadGenerationMode.Grid;
         maxGenerationRadius       = 2400f;
         mergeThreshold            = 3f;
         majorGridSpacing          = 1600f;
@@ -330,87 +321,4 @@ public class AmericanCityConfig : ScriptableObject
         };
     }
 
-    /// <summary>
-    /// Applica preset rapidi di topologia branching (seed 360 + ventagli).
-    /// I preset toccano solo i parametri del branching, lasciando invariati cap/rings/profili.
-    /// </summary>
-    public void ApplyBranchingPatternPreset(BranchingPatternPreset preset)
-    {
-        generationMode = RoadGenerationMode.Branching;
-
-        switch (preset)
-        {
-            case BranchingPatternPreset.AmericanGrid:
-                initialNumDirections      = 4;
-                cbdBranchCount            = 3;
-                cbdBranchSweepAngle       = 180f;
-                cbdBranchJitter           = 0f;
-                cbdStraightProbability    = 0.98f;
-                cbdBranchProbability      = 0.90f;
-                suburbBranchCount         = 3;
-                suburbBranchSweepAngle    = 120f;
-                suburbBranchJitter        = 12f;
-                suburbBranchSymmetric     = true;
-                suburbStraightProbability = 0.72f;
-                suburbBranchProbability   = 0.28f;
-                localBranchCount          = 2;
-                localBranchSweepAngle     = 90f;
-                localBranchJitter         = 10f;
-                break;
-
-            case BranchingPatternPreset.Hexagonal:
-                initialNumDirections      = 6;
-                cbdBranchCount            = 3;
-                cbdBranchSweepAngle       = 120f;
-                cbdBranchJitter           = 0f;
-                cbdStraightProbability    = 0.96f;
-                cbdBranchProbability      = 0.85f;
-                suburbBranchCount         = 3;
-                suburbBranchSweepAngle    = 120f;
-                suburbBranchJitter        = 8f;
-                suburbBranchSymmetric     = true;
-                suburbStraightProbability = 0.75f;
-                suburbBranchProbability   = 0.26f;
-                localBranchCount          = 2;
-                localBranchSweepAngle     = 90f;
-                localBranchJitter         = 8f;
-                break;
-
-            case BranchingPatternPreset.YSuburban:
-                initialNumDirections      = 4;
-                cbdBranchCount            = 2;
-                cbdBranchSweepAngle       = 90f;
-                cbdBranchJitter           = 0f;
-                cbdStraightProbability    = 0.90f;
-                cbdBranchProbability      = 0.70f;
-                suburbBranchCount         = 2;
-                suburbBranchSweepAngle    = 90f;
-                suburbBranchJitter        = 12f;
-                suburbBranchSymmetric     = true;
-                suburbStraightProbability = 0.74f;
-                suburbBranchProbability   = 0.40f;
-                localBranchCount          = 2;
-                localBranchSweepAngle     = 75f;
-                localBranchJitter         = 12f;
-                break;
-
-            case BranchingPatternPreset.RadialPlaza:
-                initialNumDirections      = 8;
-                cbdBranchCount            = 5;
-                cbdBranchSweepAngle       = 180f;
-                cbdBranchJitter           = 0f;
-                cbdStraightProbability    = 0.98f;
-                cbdBranchProbability      = 0.95f;
-                suburbBranchCount         = 3;
-                suburbBranchSweepAngle    = 170f;
-                suburbBranchJitter        = 20f;
-                suburbBranchSymmetric     = false;
-                suburbStraightProbability = 0.68f;
-                suburbBranchProbability   = 0.35f;
-                localBranchCount          = 2;
-                localBranchSweepAngle     = 90f;
-                localBranchJitter         = 15f;
-                break;
-        }
-    }
 }

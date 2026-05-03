@@ -51,10 +51,7 @@ public class AmericanCityGenerator : CityGeneratorBase
             return report;
         }
 
-        if (config.generationMode == RoadGenerationMode.Branching)
-            GenerateRoadNetworkBranching(manager, ref report);
-        else
-            GenerateRoadNetworkGrid(manager, ref report);
+        GenerateRoadNetworkGrid(manager, ref report);
 
         // Planarizzazione: risolve gli incroci geometrici tra segmenti
         float merge = Mathf.Max(0.1f, config.mergeThreshold);
@@ -93,141 +90,9 @@ public class AmericanCityGenerator : CityGeneratorBase
 
         onProgress?.Invoke(0.02f, "Preparazione generazione...");
 
-        if (config.generationMode == RoadGenerationMode.Branching)
-        {
-            Vector3 p0      = config.centerWorldPosition;
-            float capRadius = config.maxGenerationRadius;
-            float merge     = Mathf.Max(0.1f, config.mergeThreshold);
-            int   maxSegs   = config.maxBranchSegments;
-            int   maxGen    = config.maxBranchGenerations;
-            float majorLen  = Mathf.Max(50f, config.majorGridSpacing);
-
-            float arteryStep = Mathf.Max(50f, Mathf.Min(majorLen, capRadius * 0.2f));
-            float snap = Mathf.Max(merge, config.snapRadius);
-
-            var rng = new System.Random(config.randomSeed);
-
-            var confirmedEndpoints = new List<Vector3>();
-            var pending = new List<PendingSegment>();
-
-            void Enqueue(PendingSegment s)
-            {
-                const float sameStartEps = 1.0f;
-                const float sameDirDot = 0.985f;
-
-                for (int i = 0; i < pending.Count; i++)
-                {
-                    PendingSegment p = pending[i];
-                    if ((p.start - s.start).sqrMagnitude > sameStartEps * sameStartEps) continue;
-                    if (Vector3.Dot(p.direction, s.direction) < sameDirDot) continue;
-                    if (Mathf.Abs(p.length - s.length) > merge) continue;
-                    return;
-                }
-
-                s.priority = Mathf.Sqrt(
-                    (s.start.x - p0.x) * (s.start.x - p0.x) +
-                    (s.start.z - p0.z) * (s.start.z - p0.z));
-                pending.Add(s);
-            }
-
-            GetOrCreateNode(manager, p0, merge, ref report);
-            confirmedEndpoints.Add(p0);
-
-            EnqueueInitialSeeds(Enqueue, p0, arteryStep);
-
-            int confirmedCount = 0;
-            int loopCount = 0;
-            const int yieldEvery = 8;
-
-            while (pending.Count > 0 && confirmedCount < maxSegs)
-            {
-                PendingSegment seg = DequeueNearest(pending);
-                if (seg.generation > maxGen) continue;
-
-                Vector3 proposedEnd = seg.start + seg.direction * seg.length;
-
-                float distEnd = Mathf.Sqrt(
-                    (proposedEnd.x - p0.x) * (proposedEnd.x - p0.x) +
-                    (proposedEnd.z - p0.z) * (proposedEnd.z - p0.z));
-
-                if (distEnd > capRadius)
-                {
-                    float distStart = Mathf.Sqrt(
-                        (seg.start.x - p0.x) * (seg.start.x - p0.x) +
-                        (seg.start.z - p0.z) * (seg.start.z - p0.z));
-                    if (distStart >= capRadius) continue;
-
-                    float clampedLen = Mathf.Max(merge * 2f,
-                        seg.length * (capRadius - distStart) / Mathf.Max(0.001f, distEnd - distStart));
-                    proposedEnd = seg.start + seg.direction * clampedLen;
-                    seg.length  = clampedLen;
-                }
-
-                float bestSnapDist = snap;
-                Vector3 snappedEnd = proposedEnd;
-                for (int ei = 0; ei < confirmedEndpoints.Count; ei++)
-                {
-                    float dx = proposedEnd.x - confirmedEndpoints[ei].x;
-                    float dz = proposedEnd.z - confirmedEndpoints[ei].z;
-                    float d  = Mathf.Sqrt(dx * dx + dz * dz);
-                    if (d < bestSnapDist && d > merge * 0.5f)
-                    {
-                        bestSnapDist = d;
-                        snappedEnd = confirmedEndpoints[ei];
-                    }
-                }
-                if (bestSnapDist < snap)
-                {
-                    proposedEnd = snappedEnd;
-                    seg.length  = Vector3.Distance(seg.start, proposedEnd);
-                    if (seg.length < merge) continue;
-                }
-
-                CityNode nodeA = GetOrCreateNode(manager, seg.start,   merge, ref report);
-                CityNode nodeB = GetOrCreateNode(manager, proposedEnd, merge, ref report);
-                if (nodeA == null || nodeB == null || nodeA.id == nodeB.id) continue;
-
-                CitySegment roadSeg = manager.AddSegment(nodeA.id, nodeB.id);
-                if (roadSeg == null) continue;
-
-                RoadProfile profile = seg.isHighway ? config.highwayProfile
-                                    : (seg.isLocal  ? config.localStreetProfile
-                                                    : config.majorGridProfile);
-                ApplyProfile(roadSeg, profile);
-
-                report.segmentsCreated++;
-                confirmedCount++;
-                confirmedEndpoints.Add(proposedEnd);
-
-                float distFromCenter = Mathf.Sqrt(
-                    (proposedEnd.x - p0.x) * (proposedEnd.x - p0.x) +
-                    (proposedEnd.z - p0.z) * (proposedEnd.z - p0.z));
-                bool isCBD     = distFromCenter < capRadius * 0.25f;
-                bool isSuburbs = distFromCenter > capRadius * 0.55f;
-
-                if (seg.isHighway)
-                    BranchHighway(Enqueue, seg, proposedEnd, arteryStep, rng);
-                else
-                    BranchMajor(Enqueue, seg, proposedEnd, arteryStep, isCBD, isSuburbs, rng);
-
-                loopCount++;
-                if (loopCount % yieldEvery == 0)
-                {
-                    float p = Mathf.Lerp(0.05f, 0.88f, maxSegs <= 0 ? 1f : (float)confirmedCount / maxSegs);
-                    onProgress?.Invoke(p, $"Generazione rete: {confirmedCount}/{maxSegs} segmenti");
-                    yield return null;
-                }
-            }
-
-            if (confirmedCount >= maxSegs)
-                report.warnings.Add($"Limite maxBranchSegments ({maxSegs}) raggiunto. Aumenta il valore o riduci il raggio/generazioni.");
-        }
-        else
-        {
-            onProgress?.Invoke(0.15f, "Generazione rete griglia...");
-            GenerateRoadNetworkGrid(manager, ref report);
-            yield return null;
-        }
+        onProgress?.Invoke(0.15f, "Generazione rete griglia...");
+        GenerateRoadNetworkGrid(manager, ref report);
+        yield return null;
 
         onProgress?.Invoke(0.92f, "Planarizzazione incroci...");
         float mergePlanarize = Mathf.Max(0.1f, config.mergeThreshold);
