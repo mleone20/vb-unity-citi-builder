@@ -10,6 +10,14 @@ public enum RoadGenerationMode
     Branching   // Queue-based branching iterativo (realistico, organico)
 }
 
+public enum BranchingPatternPreset
+{
+    AmericanGrid,
+    Hexagonal,
+    YSuburban,
+    RadialPlaza
+}
+
 /// <summary>
 /// Rappresenta una fascia di distanza da P0 con la zona e l'orientamento lotti associati.
 /// Gli anelli devono essere ordinati per maxRadius crescente; l'ultimo ring cattura
@@ -110,6 +118,51 @@ public class AmericanCityConfig : ScriptableObject
     [Min(0.5f)]
     public float snapRadius = 8f;
 
+    [Header("Branching - Seed 360")]
+    [Tooltip("Numero di direzioni iniziali dal centro P0 per la modalità Branching. Le direzioni sono distribuite uniformemente su 360°.")]
+    [Range(2, 16)]
+    public int initialNumDirections = 4;
+
+    [Header("Branching - Ventaglio Parametrico")]
+    [Tooltip("Numero totale di rami per segmento in CBD (include il ramo dritto).")]
+    [Range(1, 6)]
+    public int cbdBranchCount = 3;
+
+    [Tooltip("Sweep totale in gradi del ventaglio CBD.")]
+    [Range(0f, 360f)]
+    public float cbdBranchSweepAngle = 180f;
+
+    [Tooltip("Jitter angolare casuale in gradi applicato ai rami laterali CBD.")]
+    [Range(0f, 30f)]
+    public float cbdBranchJitter = 0f;
+
+    [Tooltip("Numero totale di rami per segmento in Suburbs (include il ramo dritto).")]
+    [Range(1, 6)]
+    public int suburbBranchCount = 3;
+
+    [Tooltip("Sweep totale in gradi del ventaglio Suburbs.")]
+    [Range(0f, 360f)]
+    public float suburbBranchSweepAngle = 120f;
+
+    [Tooltip("Jitter angolare casuale in gradi applicato ai rami laterali Suburbs.")]
+    [Range(0f, 45f)]
+    public float suburbBranchJitter = 15f;
+
+    [Tooltip("Se attivo, i rami laterali vengono distribuiti in modo simmetrico rispetto alla direzione corrente.")]
+    public bool suburbBranchSymmetric = true;
+
+    [Tooltip("Numero totale di rami per segmento in Local (include il ramo dritto).")]
+    [Range(1, 4)]
+    public int localBranchCount = 2;
+
+    [Tooltip("Sweep totale in gradi del ventaglio Local.")]
+    [Range(0f, 180f)]
+    public float localBranchSweepAngle = 90f;
+
+    [Tooltip("Jitter angolare casuale in gradi applicato ai rami laterali Local.")]
+    [Range(0f, 30f)]
+    public float localBranchJitter = 10f;
+
     [Header("Blocchi - Proporzioni")]
     [Tooltip("Rapporto profondità/larghezza dei blocchi locali. 2.0 = blocchi 1:2 (es. 100×200 m con localStreetSpacing=100).")]
     [Range(1f, 4f)]
@@ -207,6 +260,18 @@ public class AmericanCityConfig : ScriptableObject
     /// </summary>
     public void ResetToAmericanDefaults()
     {
+        initialNumDirections     = 4;
+        cbdBranchCount           = 3;
+        cbdBranchSweepAngle      = 180f;
+        cbdBranchJitter          = 0f;
+        suburbBranchCount        = 3;
+        suburbBranchSweepAngle   = 120f;
+        suburbBranchJitter       = 15f;
+        suburbBranchSymmetric    = true;
+        localBranchCount         = 2;
+        localBranchSweepAngle    = 90f;
+        localBranchJitter        = 10f;
+
         zoneRings = new List<ZoneRing>
         {
             new ZoneRing { label = "CBD (Downtown)",      maxRadius =  2000f, orientation = BlockOrientation.Interior },
@@ -241,10 +306,21 @@ public class AmericanCityConfig : ScriptableObject
         maxBranchSegments         = 5000;
         maxBranchGenerations      = 12;
         snapRadius                = 20f;
+        initialNumDirections      = 4;
+        cbdBranchCount            = 3;
+        cbdBranchSweepAngle       = 180f;
+        cbdBranchJitter           = 0f;
         cbdStraightProbability    = 0.98f;
         cbdBranchProbability      = 0.90f;
+        suburbBranchCount         = 3;
+        suburbBranchSweepAngle    = 120f;
+        suburbBranchJitter        = 15f;
+        suburbBranchSymmetric     = true;
         suburbStraightProbability = 0.72f;
         suburbBranchProbability   = 0.28f;
+        localBranchCount          = 2;
+        localBranchSweepAngle     = 90f;
+        localBranchJitter         = 10f;
         zoneRings = new List<ZoneRing>
         {
             new ZoneRing { label = "CBD",         maxRadius =  400f, orientation = BlockOrientation.Interior },
@@ -252,5 +328,89 @@ public class AmericanCityConfig : ScriptableObject
             new ZoneRing { label = "Residential", maxRadius = 1600f, orientation = BlockOrientation.Exterior },
             new ZoneRing { label = "Suburban",    maxRadius = 2400f, orientation = BlockOrientation.Sparse   },
         };
+    }
+
+    /// <summary>
+    /// Applica preset rapidi di topologia branching (seed 360 + ventagli).
+    /// I preset toccano solo i parametri del branching, lasciando invariati cap/rings/profili.
+    /// </summary>
+    public void ApplyBranchingPatternPreset(BranchingPatternPreset preset)
+    {
+        generationMode = RoadGenerationMode.Branching;
+
+        switch (preset)
+        {
+            case BranchingPatternPreset.AmericanGrid:
+                initialNumDirections      = 4;
+                cbdBranchCount            = 3;
+                cbdBranchSweepAngle       = 180f;
+                cbdBranchJitter           = 0f;
+                cbdStraightProbability    = 0.98f;
+                cbdBranchProbability      = 0.90f;
+                suburbBranchCount         = 3;
+                suburbBranchSweepAngle    = 120f;
+                suburbBranchJitter        = 12f;
+                suburbBranchSymmetric     = true;
+                suburbStraightProbability = 0.72f;
+                suburbBranchProbability   = 0.28f;
+                localBranchCount          = 2;
+                localBranchSweepAngle     = 90f;
+                localBranchJitter         = 10f;
+                break;
+
+            case BranchingPatternPreset.Hexagonal:
+                initialNumDirections      = 6;
+                cbdBranchCount            = 3;
+                cbdBranchSweepAngle       = 120f;
+                cbdBranchJitter           = 0f;
+                cbdStraightProbability    = 0.96f;
+                cbdBranchProbability      = 0.85f;
+                suburbBranchCount         = 3;
+                suburbBranchSweepAngle    = 120f;
+                suburbBranchJitter        = 8f;
+                suburbBranchSymmetric     = true;
+                suburbStraightProbability = 0.75f;
+                suburbBranchProbability   = 0.26f;
+                localBranchCount          = 2;
+                localBranchSweepAngle     = 90f;
+                localBranchJitter         = 8f;
+                break;
+
+            case BranchingPatternPreset.YSuburban:
+                initialNumDirections      = 4;
+                cbdBranchCount            = 2;
+                cbdBranchSweepAngle       = 90f;
+                cbdBranchJitter           = 0f;
+                cbdStraightProbability    = 0.90f;
+                cbdBranchProbability      = 0.70f;
+                suburbBranchCount         = 2;
+                suburbBranchSweepAngle    = 90f;
+                suburbBranchJitter        = 12f;
+                suburbBranchSymmetric     = true;
+                suburbStraightProbability = 0.74f;
+                suburbBranchProbability   = 0.40f;
+                localBranchCount          = 2;
+                localBranchSweepAngle     = 75f;
+                localBranchJitter         = 12f;
+                break;
+
+            case BranchingPatternPreset.RadialPlaza:
+                initialNumDirections      = 8;
+                cbdBranchCount            = 5;
+                cbdBranchSweepAngle       = 180f;
+                cbdBranchJitter           = 0f;
+                cbdStraightProbability    = 0.98f;
+                cbdBranchProbability      = 0.95f;
+                suburbBranchCount         = 3;
+                suburbBranchSweepAngle    = 170f;
+                suburbBranchJitter        = 20f;
+                suburbBranchSymmetric     = false;
+                suburbStraightProbability = 0.68f;
+                suburbBranchProbability   = 0.35f;
+                localBranchCount          = 2;
+                localBranchSweepAngle     = 90f;
+                localBranchJitter         = 15f;
+                break;
+        }
     }
 }

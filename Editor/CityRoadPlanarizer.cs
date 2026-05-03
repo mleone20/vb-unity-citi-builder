@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEditor;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
@@ -16,8 +18,36 @@ public static class CityRoadPlanarizer
     /// </summary>
     public static int Planarize(CityManager manager, float mergeTol)
     {
+        int result = 0;
+        IEnumerator routine = PlanarizeAsync(manager, mergeTol, null, splits => result = splits);
+        while (routine.MoveNext()) { }
+        return result;
+    }
+
+    /// <summary>
+    /// Planarizza la rete stradale in modo incrementale su più frame.
+    /// Usa callback di progress per aggiornare la UI senza bloccare il thread editor.
+    /// </summary>
+    public static IEnumerator PlanarizeAsync(
+        CityManager manager,
+        float mergeTol,
+        Action<float, string> onProgress,
+        Action<int> onCompleted = null)
+    {
+        if (manager == null)
+        {
+            onCompleted?.Invoke(0);
+            yield break;
+        }
+
         CityData cityData = manager.GetCityData();
-        if (cityData == null) return 0;
+        if (cityData == null)
+        {
+            onCompleted?.Invoke(0);
+            yield break;
+        }
+
+        onProgress?.Invoke(0.01f, "Planarizzazione: analisi intersezioni...");
 
         // Mappa segID -> lista di punti di split (incroci interni al segmento)
         var splitMap = new Dictionary<int, List<Vector3>>();
@@ -26,6 +56,9 @@ public static class CityRoadPlanarizer
         int[] segIDs = new int[cityData.segments.Count];
         for (int i = 0; i < cityData.segments.Count; i++)
             segIDs[i] = cityData.segments[i].id;
+
+        long totalPairs = segIDs.Length > 1 ? (long)segIDs.Length * (segIDs.Length - 1) / 2 : 1;
+        long processedPairs = 0;
 
         // Scansione O(N²): tutte le coppie di segmenti non adiacenti
         for (int i = 0; i < segIDs.Length; i++)
@@ -38,6 +71,7 @@ public static class CityRoadPlanarizer
 
             for (int j = i + 1; j < segIDs.Length; j++)
             {
+                processedPairs++;
                 CitySegment segB = cityData.GetSegment(segIDs[j]);
                 if (segB == null) continue;
 
@@ -59,11 +93,19 @@ public static class CityRoadPlanarizer
                     AddIfNotNearby(splitMap[segA.id], cross, mergeTol);
                     AddIfNotNearby(splitMap[segB.id], cross, mergeTol);
                 }
+
+                if ((processedPairs & 1023) == 0)
+                {
+                    float p = Mathf.Lerp(0.01f, 0.78f, totalPairs <= 0 ? 1f : (float)processedPairs / totalPairs);
+                    onProgress?.Invoke(p, $"Planarizzazione: controllo coppie {processedPairs}/{totalPairs}");
+                    yield return null;
+                }
             }
 
             // Rileva nodi esistenti che cadono internamente sul segmento (già creati in passi precedenti)
             foreach (CityNode node in cityData.nodes)
             {
+                if (node == null) continue;
                 if (node.id == segA.nodeA_ID || node.id == segA.nodeB_ID) continue;
                 if (IsPointOnSegmentXZ(node.position, nA0.position, nA1.position, mergeTol))
                 {
@@ -71,11 +113,27 @@ public static class CityRoadPlanarizer
                     AddIfNotNearby(splitMap[segA.id], node.position, mergeTol);
                 }
             }
+
+            if ((i & 7) == 0)
+            {
+                float p = Mathf.Lerp(0.01f, 0.78f, segIDs.Length <= 0 ? 1f : (float)i / segIDs.Length);
+                onProgress?.Invoke(p, $"Planarizzazione: analisi segmento {i + 1}/{segIDs.Length}");
+                yield return null;
+            }
         }
 
-        if (splitMap.Count == 0) return 0;
+        if (splitMap.Count == 0)
+        {
+            onProgress?.Invoke(1f, "Planarizzazione: nessun incrocio da risolvere");
+            onCompleted?.Invoke(0);
+            yield break;
+        }
 
         int splitsDone = 0;
+        int splitTargets = splitMap.Count;
+        int splitProcessed = 0;
+
+        onProgress?.Invoke(0.82f, $"Planarizzazione: applicazione split su {splitTargets} segmenti...");
 
         foreach (var kv in splitMap)
         {
@@ -131,9 +189,18 @@ public static class CityRoadPlanarizer
             if (lastSeg != null) { lastSeg.roadProfile = profile; if (profile != null) lastSeg.width = profile.roadWidth; }
 
             splitsDone++;
+            splitProcessed++;
+
+            if ((splitProcessed & 15) == 0)
+            {
+                float p = Mathf.Lerp(0.82f, 0.99f, splitTargets <= 0 ? 1f : (float)splitProcessed / splitTargets);
+                onProgress?.Invoke(p, $"Planarizzazione: split {splitProcessed}/{splitTargets}");
+                yield return null;
+            }
         }
 
-        return splitsDone;
+        onProgress?.Invoke(1f, "Planarizzazione completata");
+        onCompleted?.Invoke(splitsDone);
     }
 
     // ========== HELPERS GEOMETRICI (interni) ==========

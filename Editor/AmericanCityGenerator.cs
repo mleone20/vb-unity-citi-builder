@@ -133,20 +133,7 @@ public class AmericanCityGenerator : CityGeneratorBase
             GetOrCreateNode(manager, p0, merge, ref report);
             confirmedEndpoints.Add(p0);
 
-            int hwCount = Mathf.Clamp(config.highwayCount, 1, 4);
-            for (int i = 0; i < hwCount; i++)
-            {
-                float angleDeg = i * (180f / hwCount);
-                float rad = angleDeg * Mathf.Deg2Rad;
-                Vector3 dirA = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)).normalized;
-                Enqueue(new PendingSegment { start = p0, direction = dirA,  length = arteryStep, generation = 0, isHighway = true });
-                Enqueue(new PendingSegment { start = p0, direction = -dirA, length = arteryStep, generation = 0, isHighway = true });
-
-                Vector3 orthoA = Quaternion.Euler(0f,  90f, 0f) * dirA;
-                Vector3 orthoB = Quaternion.Euler(0f, -90f, 0f) * dirA;
-                Enqueue(new PendingSegment { start = p0, direction = orthoA, length = arteryStep, generation = 0 });
-                Enqueue(new PendingSegment { start = p0, direction = orthoB, length = arteryStep, generation = 0 });
-            }
+            EnqueueInitialSeeds(Enqueue, p0, arteryStep);
 
             int confirmedCount = 0;
             int loopCount = 0;
@@ -244,7 +231,12 @@ public class AmericanCityGenerator : CityGeneratorBase
 
         onProgress?.Invoke(0.92f, "Planarizzazione incroci...");
         float mergePlanarize = Mathf.Max(0.1f, config.mergeThreshold);
-        int splitsDone = CityRoadPlanarizer.Planarize(manager, mergePlanarize);
+        int splitsDone = 0;
+        yield return CityRoadPlanarizer.PlanarizeAsync(
+            manager,
+            mergePlanarize,
+            (p, msg) => onProgress?.Invoke(Mathf.Lerp(0.92f, 0.99f, p), msg),
+            done => splitsDone = done);
         if (splitsDone > 0)
             report.warnings.Add($"{splitsDone} segmenti planarizzati (incroci risolti).");
 
@@ -333,6 +325,139 @@ public class AmericanCityGenerator : CityGeneratorBase
         return result;
     }
 
+    private void EnqueueInitialSeeds(System.Action<PendingSegment> enqueue, Vector3 center, float step)
+    {
+        int directions = Mathf.Clamp(config.initialNumDirections, 2, 16);
+        float angleStep = 360f / directions;
+        for (int i = 0; i < directions; i++)
+        {
+            float angle = angleStep * i;
+            Vector3 dir = (Quaternion.Euler(0f, angle, 0f) * Vector3.forward).normalized;
+            enqueue(new PendingSegment
+            {
+                start = center,
+                direction = dir,
+                length = step,
+                generation = 0,
+                isHighway = true
+            });
+        }
+    }
+
+    private static float ApplyJitter(float angle, float jitterDegrees, System.Random rng)
+    {
+        if (jitterDegrees <= 0f) return angle;
+        float jitter = (float)(rng.NextDouble() * 2.0 - 1.0) * jitterDegrees;
+        return angle + jitter;
+    }
+
+    private static List<float> BuildFanAngles(
+        int numBranches,
+        float sweepAngle,
+        bool includeStraight,
+        bool symmetric,
+        System.Random rng)
+    {
+        var angles = new List<float>(Mathf.Max(1, numBranches));
+        int clampedBranches = Mathf.Max(1, numBranches);
+        float half = Mathf.Abs(sweepAngle) * 0.5f;
+
+        if (includeStraight)
+            angles.Add(0f);
+
+        int lateralCount = clampedBranches - (includeStraight ? 1 : 0);
+        if (lateralCount <= 0)
+            return angles;
+
+        if (symmetric)
+        {
+            if (lateralCount == 1)
+            {
+                float side = rng.NextDouble() < 0.5 ? -1f : 1f;
+                angles.Add(side * half);
+            }
+            else
+            {
+                int pairCount = lateralCount / 2;
+                bool hasExtra = (lateralCount % 2) == 1;
+                int denominator = pairCount + (hasExtra ? 1 : 0);
+                if (denominator <= 0) denominator = 1;
+
+                for (int p = 1; p <= pairCount; p++)
+                {
+                    float a = half * (p / (float)denominator);
+                    angles.Add(-a);
+                    angles.Add(a);
+                }
+
+                if (hasExtra)
+                {
+                    float side = rng.NextDouble() < 0.5 ? -1f : 1f;
+                    angles.Add(side * half);
+                }
+            }
+        }
+        else
+        {
+            for (int i = 0; i < lateralCount; i++)
+            {
+                float a = ((float)rng.NextDouble() * 2f - 1f) * half;
+                if (includeStraight && Mathf.Abs(a) < 0.001f && half > 0f)
+                    a = (rng.NextDouble() < 0.5 ? -1f : 1f) * half * 0.5f;
+                angles.Add(a);
+            }
+        }
+
+        while (angles.Count < clampedBranches)
+        {
+            float a = ((float)rng.NextDouble() * 2f - 1f) * half;
+            if (includeStraight && Mathf.Abs(a) < 0.001f && half > 0f)
+                a = half;
+            angles.Add(a);
+        }
+
+        if (angles.Count > clampedBranches)
+            angles.RemoveRange(clampedBranches, angles.Count - clampedBranches);
+
+        return angles;
+    }
+
+    private static void EnqueueFanBranches(
+        System.Action<PendingSegment> enqueue,
+        Vector3 start,
+        Vector3 baseDirection,
+        float step,
+        int generation,
+        bool isHighway,
+        bool isLocal,
+        int numBranches,
+        float sweepAngle,
+        float lateralProbability,
+        float jitterDegrees,
+        bool symmetric,
+        bool includeStraight,
+        System.Random rng)
+    {
+        List<float> angles = BuildFanAngles(numBranches, sweepAngle, includeStraight, symmetric, rng);
+        for (int i = 0; i < angles.Count; i++)
+        {
+            float a = angles[i];
+            bool isStraight = Mathf.Abs(a) < 0.001f;
+            if (!isStraight && rng.NextDouble() > lateralProbability) continue;
+            float finalAngle = isStraight ? 0f : ApplyJitter(a, jitterDegrees, rng);
+            Vector3 dir = (Quaternion.Euler(0f, finalAngle, 0f) * baseDirection).normalized;
+            enqueue(new PendingSegment
+            {
+                start = start,
+                direction = dir,
+                length = step,
+                generation = generation,
+                isHighway = isHighway,
+                isLocal = isLocal
+            });
+        }
+    }
+
     private void GenerateRoadNetworkBranching(CityManager manager, ref GenerationReport report)
     {
         Vector3 p0      = config.centerWorldPosition;
@@ -380,22 +505,8 @@ public class AmericanCityGenerator : CityGeneratorBase
         GetOrCreateNode(manager, p0, merge, ref report);
         confirmedEndpoints.Add(p0);
 
-        // ── Seed: autostrade radiali + assi principali ────────────────────────
-        int hwCount = Mathf.Clamp(config.highwayCount, 1, 4);
-        for (int i = 0; i < hwCount; i++)
-        {
-            float angleDeg = i * (180f / hwCount);
-            float rad = angleDeg * Mathf.Deg2Rad;
-            Vector3 dirA = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)).normalized;
-            Enqueue(new PendingSegment { start = p0, direction = dirA,  length = arteryStep, generation = 0, isHighway = true });
-            Enqueue(new PendingSegment { start = p0, direction = -dirA, length = arteryStep, generation = 0, isHighway = true });
-
-            // Assi ortogonali per griglia principale (evitano buchi se hwCount < 2)
-            Vector3 orthoA = Quaternion.Euler(0f,  90f, 0f) * dirA;
-            Vector3 orthoB = Quaternion.Euler(0f, -90f, 0f) * dirA;
-            Enqueue(new PendingSegment { start = p0, direction = orthoA, length = arteryStep, generation = 0 });
-            Enqueue(new PendingSegment { start = p0, direction = orthoB, length = arteryStep, generation = 0 });
-        }
+        // ── Seed: direzioni uniformi a 360° dal centro ───────────────────────
+        EnqueueInitialSeeds(Enqueue, p0, arteryStep);
 
         int confirmedCount = 0;
 
@@ -487,23 +598,36 @@ public class AmericanCityGenerator : CityGeneratorBase
     private void BranchHighway(System.Action<PendingSegment> enqueue, PendingSegment seg,
         Vector3 end, float step, System.Random rng)
     {
-        // Continua sempre dritto
+        int count = Mathf.Clamp(config.cbdBranchCount, 1, 6);
+
+        // Il ramo dritto dell'autostrada è sempre presente.
         enqueue(new PendingSegment
         {
-            start = end, direction = seg.direction,
-            length = step, generation = seg.generation + 1, isHighway = true
+            start = end,
+            direction = seg.direction,
+            length = step,
+            generation = seg.generation + 1,
+            isHighway = true
         });
 
-        // Svincolo opzionale singolo (sinistra o destra): evita fan-out esplosivo.
-        if (rng.NextDouble() < (double)config.cbdBranchProbability)
-        {
-            float side = rng.NextDouble() < 0.5 ? -90f : 90f;
-            enqueue(new PendingSegment
-            {
-                start = end, direction = Quaternion.Euler(0f, side, 0f) * seg.direction,
-                length = step, generation = seg.generation + 1, isHighway = false
-            });
-        }
+        int lateralCount = Mathf.Max(0, count - 1);
+        if (lateralCount <= 0) return;
+
+        EnqueueFanBranches(
+            enqueue,
+            end,
+            seg.direction,
+            step,
+            seg.generation + 1,
+            false,
+            false,
+            lateralCount,
+            config.cbdBranchSweepAngle,
+            config.cbdBranchProbability,
+            config.cbdBranchJitter,
+            true,
+            false,
+            rng);
     }
 
     // ── Branching: strade principali ──────────────────────────────────────────
@@ -516,37 +640,73 @@ public class AmericanCityGenerator : CityGeneratorBase
         float straightProb = Mathf.Lerp((float)config.suburbStraightProbability, (float)config.cbdStraightProbability, t);
         float branchProb   = Mathf.Lerp((float)config.suburbBranchProbability,   (float)config.cbdBranchProbability,   t);
 
-        // Continua dritto (con deviazione organica fuori CBD)
-        if (rng.NextDouble() < straightProb)
+        int zoneBranchCount;
+        float zoneSweep;
+        float zoneJitter;
+        bool zoneSymmetric;
+
+        if (isCBD)
+        {
+            zoneBranchCount = Mathf.Clamp(config.cbdBranchCount, 1, 6);
+            zoneSweep = config.cbdBranchSweepAngle;
+            zoneJitter = config.cbdBranchJitter;
+            zoneSymmetric = true;
+        }
+        else if (isSuburbs)
+        {
+            zoneBranchCount = Mathf.Clamp(config.suburbBranchCount, 1, 6);
+            zoneSweep = config.suburbBranchSweepAngle;
+            zoneJitter = config.suburbBranchJitter;
+            zoneSymmetric = config.suburbBranchSymmetric;
+        }
+        else
+        {
+            zoneBranchCount = Mathf.Clamp(
+                Mathf.RoundToInt(Mathf.Lerp(config.suburbBranchCount, config.cbdBranchCount, t)),
+                1,
+                6);
+            zoneSweep = Mathf.Lerp(config.suburbBranchSweepAngle, config.cbdBranchSweepAngle, t);
+            zoneJitter = Mathf.Lerp(config.suburbBranchJitter, config.cbdBranchJitter, t);
+            zoneSymmetric = true;
+        }
+
+        bool includeStraight = rng.NextDouble() < straightProb;
+        if (includeStraight)
         {
             Vector3 dir = seg.direction;
             if (!isCBD)
             {
-                float jitter = isSuburbs ? 25f : 12f;
-                dir = Quaternion.Euler(0f, (float)(rng.NextDouble() * 2.0 - 1.0) * jitter, 0f) * dir;
+                float straightJitter = isSuburbs ? 25f : 12f;
+                dir = Quaternion.Euler(0f, (float)(rng.NextDouble() * 2.0 - 1.0) * straightJitter, 0f) * dir;
             }
-            enqueue(new PendingSegment { start = end, direction = dir, length = step, generation = seg.generation + 1 });
+
+            enqueue(new PendingSegment
+            {
+                start = end,
+                direction = dir.normalized,
+                length = step,
+                generation = seg.generation + 1
+            });
         }
 
-        if (isCBD)
-        {
-            if (rng.NextDouble() < branchProb)
-            {
-                float angle = -90f;
-                enqueue(new PendingSegment { start = end, direction = Quaternion.Euler(0f, angle, 0f) * seg.direction, length = step, generation = seg.generation + 1 });
-            }
-            if (rng.NextDouble() < branchProb)
-            {
-                float angle = 90f;
-                enqueue(new PendingSegment { start = end, direction = Quaternion.Euler(0f, angle, 0f) * seg.direction, length = step, generation = seg.generation + 1 });
-            }
-        }
-        else if (rng.NextDouble() < branchProb)
-        {
-            float sign = rng.NextDouble() < 0.5 ? -1f : 1f;
-            float angle = sign * (30f + (float)(rng.NextDouble() * 40f));
-            enqueue(new PendingSegment { start = end, direction = Quaternion.Euler(0f, angle, 0f) * seg.direction, length = step, generation = seg.generation + 1 });
-        }
+        int lateralCount = Mathf.Max(0, zoneBranchCount - (includeStraight ? 1 : 0));
+        if (lateralCount <= 0) return;
+
+        EnqueueFanBranches(
+            enqueue,
+            end,
+            seg.direction,
+            step,
+            seg.generation + 1,
+            false,
+            false,
+            lateralCount,
+            zoneSweep,
+            branchProb,
+            zoneJitter,
+            zoneSymmetric,
+            false,
+            rng);
     }
 
     // ── Branching: strade locali (spawned da BranchMajor nei suburbs) ─────────

@@ -601,6 +601,14 @@ public class CityBuilderWindow : EditorWindow
     {
         EditorGUILayout.HelpBox("Utilita di manutenzione dati e azioni correttive sul city graph.", MessageType.Info);
 
+        if (_isGenerating)
+        {
+            EditorGUI.ProgressBar(EditorGUILayout.GetControlRect(GUILayout.Height(20)), _generationProgress, _generationStatus);
+            if (GUILayout.Button("Annulla Operazione", GUILayout.Height(24)))
+                StopAsyncGeneration();
+            EditorGUILayout.Space(6);
+        }
+
         DrawSubHeader("PROFILI STRADE");
         if (proceduralConfig != null)
         {
@@ -683,13 +691,33 @@ public class CityBuilderWindow : EditorWindow
             string report = cityManager.AnalyzeIntersections();
             EditorUtility.DisplayDialog("Analisi Intersezioni", report, "OK");
         }
-        if (DrawActionButton("Planarizza Rete Stradale", ColProc * 0.7f))
+        if (!_isGenerating && DrawActionButton("Planarizza Rete Stradale", ColProc * 0.7f))
         {
             float mergeTol = proceduralConfig != null ? proceduralConfig.mergeThreshold : 2f;
-            string report = CityBuilderMenu.PlanarizeExistingNetwork(cityManager, mergeTol);
-            EditorUtility.SetDirty(cityData);
-            SceneView.RepaintAll();
-            EditorUtility.DisplayDialog("Planarizza Rete", report, "OK");
+            Undo.RecordObject(cityData, "Planarizza Rete Stradale");
+
+            int nodesBefore = cityData.nodes.Count;
+            int segsBefore  = cityData.segments.Count;
+
+            StartAsyncGeneration(
+                CityRoadPlanarizer.PlanarizeAsync(
+                    cityManager,
+                    mergeTol,
+                    (p, s) => { _generationProgress = p; _generationStatus = s; },
+                    splitsDone =>
+                    {
+                        int nodesAdded = cityData.nodes.Count - nodesBefore;
+                        int segsAdded  = cityData.segments.Count - segsBefore;
+
+                        string report = $"Segmenti planarizzati: {splitsDone}\nNodi aggiunti: {nodesAdded}\nSegmenti delta: {segsAdded}";
+                        _lastProceduralReport = report;
+
+                        EditorUtility.SetDirty(cityData);
+                        SceneView.RepaintAll();
+                        Debug.Log($"[CityBuilder] Planarizzazione: {report}");
+                        EditorUtility.DisplayDialog("Planarizza Rete", report, "OK");
+                    }),
+                null);
         }
         if (DrawActionButton("Setup Zone Types di Default"))
             CityBuilderMenu.SetupDefaultZoneTypes();
@@ -929,27 +957,96 @@ public class CityBuilderWindow : EditorWindow
             int   newMaxSegs = EditorGUILayout.IntField("Max Segmenti",         proceduralConfig.maxBranchSegments);
             int   newMaxGen  = EditorGUILayout.IntField("Max Generazioni",       proceduralConfig.maxBranchGenerations);
             float newSnap    = EditorGUILayout.FloatField("Snap Radius (m)",     proceduralConfig.snapRadius);
+
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("Seed Iniziale 360°", EditorStyles.boldLabel);
+            int newInitDirs = EditorGUILayout.IntSlider("Direzioni da P0", proceduralConfig.initialNumDirections, 2, 16);
+
+            EditorGUILayout.Space(4);
             EditorGUILayout.LabelField("CBD (centro)", EditorStyles.boldLabel);
             float newCbdStr  = EditorGUILayout.Slider("Probabilità Dritto",     proceduralConfig.cbdStraightProbability, 0f, 1f);
             float newCbdBr   = EditorGUILayout.Slider("Probabilità Diramazione",proceduralConfig.cbdBranchProbability,   0f, 1f);
+            int newCbdCount  = EditorGUILayout.IntSlider("Rami Totali",          proceduralConfig.cbdBranchCount, 1, 6);
+            float newCbdSweep= EditorGUILayout.Slider("Sweep Ventaglio (°)",     proceduralConfig.cbdBranchSweepAngle, 0f, 360f);
+            float newCbdJit  = EditorGUILayout.Slider("Jitter Laterali (°)",     proceduralConfig.cbdBranchJitter, 0f, 30f);
+
+            EditorGUILayout.Space(4);
             EditorGUILayout.LabelField("Suburbs (periferia)", EditorStyles.boldLabel);
             float newSubStr  = EditorGUILayout.Slider("Probabilità Dritto",     proceduralConfig.suburbStraightProbability, 0f, 1f);
             float newSubBr   = EditorGUILayout.Slider("Probabilità Diramazione",proceduralConfig.suburbBranchProbability,   0f, 1f);
+            int newSubCount  = EditorGUILayout.IntSlider("Rami Totali",          proceduralConfig.suburbBranchCount, 1, 6);
+            float newSubSweep= EditorGUILayout.Slider("Sweep Ventaglio (°)",     proceduralConfig.suburbBranchSweepAngle, 0f, 360f);
+            float newSubJit  = EditorGUILayout.Slider("Jitter Laterali (°)",     proceduralConfig.suburbBranchJitter, 0f, 45f);
+            bool newSubSym   = EditorGUILayout.Toggle("Simmetria Laterali",      proceduralConfig.suburbBranchSymmetric);
+
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("Local (future use)", EditorStyles.boldLabel);
+            int newLocCount  = EditorGUILayout.IntSlider("Rami Totali",          proceduralConfig.localBranchCount, 1, 4);
+            float newLocSweep= EditorGUILayout.Slider("Sweep Ventaglio (°)",     proceduralConfig.localBranchSweepAngle, 0f, 180f);
+            float newLocJit  = EditorGUILayout.Slider("Jitter Laterali (°)",     proceduralConfig.localBranchJitter, 0f, 30f);
             if (EditorGUI.EndChangeCheck())
             {
                 Undo.RecordObject(proceduralConfig, "Set Branching Params");
                 proceduralConfig.maxBranchSegments        = Mathf.Max(10, newMaxSegs);
                 proceduralConfig.maxBranchGenerations     = Mathf.Max(1,  newMaxGen);
                 proceduralConfig.snapRadius               = Mathf.Max(0.5f, newSnap);
+                proceduralConfig.initialNumDirections     = Mathf.Clamp(newInitDirs, 2, 16);
                 proceduralConfig.cbdStraightProbability   = newCbdStr;
                 proceduralConfig.cbdBranchProbability     = newCbdBr;
+                proceduralConfig.cbdBranchCount           = Mathf.Clamp(newCbdCount, 1, 6);
+                proceduralConfig.cbdBranchSweepAngle      = Mathf.Clamp(newCbdSweep, 0f, 360f);
+                proceduralConfig.cbdBranchJitter          = Mathf.Clamp(newCbdJit, 0f, 30f);
                 proceduralConfig.suburbStraightProbability = newSubStr;
                 proceduralConfig.suburbBranchProbability  = newSubBr;
+                proceduralConfig.suburbBranchCount        = Mathf.Clamp(newSubCount, 1, 6);
+                proceduralConfig.suburbBranchSweepAngle   = Mathf.Clamp(newSubSweep, 0f, 360f);
+                proceduralConfig.suburbBranchJitter       = Mathf.Clamp(newSubJit, 0f, 45f);
+                proceduralConfig.suburbBranchSymmetric    = newSubSym;
+                proceduralConfig.localBranchCount         = Mathf.Clamp(newLocCount, 1, 4);
+                proceduralConfig.localBranchSweepAngle    = Mathf.Clamp(newLocSweep, 0f, 180f);
+                proceduralConfig.localBranchJitter        = Mathf.Clamp(newLocJit, 0f, 30f);
                 EditorUtility.SetDirty(proceduralConfig);
             }
+            float avgBranchPerStep = Mathf.Max(1f, (proceduralConfig.cbdBranchCount + proceduralConfig.suburbBranchCount) * 0.5f);
             int estBranch = Mathf.Min(proceduralConfig.maxBranchSegments,
-                Mathf.RoundToInt(Mathf.Pow(2f, Mathf.Min(proceduralConfig.maxBranchGenerations, 16)) * 4f));
+                Mathf.RoundToInt(Mathf.Pow(avgBranchPerStep, Mathf.Min(proceduralConfig.maxBranchGenerations, 10)) * proceduralConfig.initialNumDirections));
             EditorGUILayout.HelpBox($"Stima segmenti branching: fino a ~{Mathf.Min(estBranch, proceduralConfig.maxBranchSegments)} (cap: {proceduralConfig.maxBranchSegments}).", MessageType.None);
+            EditorGUILayout.HelpBox(
+                "Ventaglio parametrico: numRami include il ramo dritto.\n" +
+                "Esempi: 3 rami + sweep 180° = sinistra / dritto / destra.\n" +
+                "2 rami + sweep 90° = dritto + una diramazione laterale.",
+                MessageType.Info);
+
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("Preset Ventaglio Rapidi", EditorStyles.boldLabel);
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Griglia USA", GUILayout.Height(22)))
+            {
+                Undo.RecordObject(proceduralConfig, "Apply Branching Preset AmericanGrid");
+                proceduralConfig.ApplyBranchingPatternPreset(BranchingPatternPreset.AmericanGrid);
+                EditorUtility.SetDirty(proceduralConfig);
+            }
+            if (GUILayout.Button("Esagono", GUILayout.Height(22)))
+            {
+                Undo.RecordObject(proceduralConfig, "Apply Branching Preset Hexagonal");
+                proceduralConfig.ApplyBranchingPatternPreset(BranchingPatternPreset.Hexagonal);
+                EditorUtility.SetDirty(proceduralConfig);
+            }
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Y Suburbs", GUILayout.Height(22)))
+            {
+                Undo.RecordObject(proceduralConfig, "Apply Branching Preset YSuburban");
+                proceduralConfig.ApplyBranchingPatternPreset(BranchingPatternPreset.YSuburban);
+                EditorUtility.SetDirty(proceduralConfig);
+            }
+            if (GUILayout.Button("Raggiera", GUILayout.Height(22)))
+            {
+                Undo.RecordObject(proceduralConfig, "Apply Branching Preset RadialPlaza");
+                proceduralConfig.ApplyBranchingPatternPreset(BranchingPatternPreset.RadialPlaza);
+                EditorUtility.SetDirty(proceduralConfig);
+            }
+            EditorGUILayout.EndHorizontal();
         }
 
         DrawSubHeader("VICOLI (ALLEY)");

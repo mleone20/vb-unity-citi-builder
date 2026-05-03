@@ -11,11 +11,11 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7c3466ed179c20540b85eb441537590a, type: 3}
   m_Name: Vicolo
-  m_EditorClassIdentifier: BSCCityBuilder::RoadProfile
+  m_EditorClassIdentifier: Assembly-CSharp::RoadProfile
   displayName: Vicolo
   hierarchyLevel: 0
-  roadWidth: 8.8
+  roadWidth: 2.2
   debugColor: {r: 0.5, g: 0.8, b: 0.55, a: 1}
-  intersectionClearanceRadius: 8
+  intersectionClearanceRadius: 2
   blockInset: 0
   description: Connessione minuta o di servizio.
