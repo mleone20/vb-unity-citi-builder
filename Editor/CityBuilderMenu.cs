@@ -100,6 +100,79 @@ public static class CityBuilderMenu
         EditorUtility.SetDirty(config);
     }
 
+    /// <summary>
+    /// Collega i 4 ZoneType del preset di gioco ai ring per etichetta keyword.
+    /// CBD → Center, Inner City → Commercial, Residential → Residential, Suburban → Suburban.
+    /// Funziona sia con ResetToGameDefaults (4 ring) che con configurazioni custom.
+    /// </summary>
+    public static void LinkGameZoneTypesToConfig(AmericanCityConfig config)
+    {
+        if (config == null || config.zoneRings == null || config.zoneRings.Count == 0) return;
+
+        // (keyword nel label ring → nome ZoneType asset)
+        var keywordToAsset = new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)
+        {
+            { "CBD",         "Center"      },
+            { "Downtown",    "Center"      },
+            { "Inner",       "Commercial"  },
+            { "Residential", "Residential" },
+            { "Urban",       "Residential" },
+            { "Suburb",      "Suburban"    },
+            { "Rural",       "Rural"       },
+            { "Exurb",       "Rural"       },
+        };
+
+        foreach (ZoneRing ring in config.zoneRings)
+        {
+            if (ring == null) continue;
+            foreach (var kv in keywordToAsset)
+            {
+                if (!ring.label.Contains(kv.Key, System.StringComparison.OrdinalIgnoreCase)) continue;
+                string[] guids = AssetDatabase.FindAssets($"t:ZoneType {kv.Value}");
+                foreach (string guid in guids)
+                {
+                    ZoneType zt = AssetDatabase.LoadAssetAtPath<ZoneType>(AssetDatabase.GUIDToAssetPath(guid));
+                    if (zt != null && zt.GetDisplayName() == kv.Value)
+                    {
+                        ring.zoneType = zt;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        EditorUtility.SetDirty(config);
+    }
+
+    /// <summary>
+    /// Collega i profili stradali di default (Autostrada, Strada Principale, Via Locale, Vicolo)
+    /// ai campi corrispondenti di AmericanCityConfig.
+    /// </summary>
+    public static void LinkDefaultRoadProfilesToConfig(AmericanCityConfig config)
+    {
+        if (config == null) return;
+
+        void TryLink(string assetName, System.Action<RoadProfile> setter)
+        {
+            string[] guids = AssetDatabase.FindAssets($"t:RoadProfile {assetName}");
+            foreach (string guid in guids)
+            {
+                RoadProfile rp = AssetDatabase.LoadAssetAtPath<RoadProfile>(AssetDatabase.GUIDToAssetPath(guid));
+                if (rp != null && rp.GetDisplayName() == assetName)
+                {
+                    setter(rp);
+                    return;
+                }
+            }
+        }
+
+        TryLink("Autostrada",       rp => config.highwayProfile     = rp);
+        TryLink("Strada Principale", rp => config.majorGridProfile   = rp);
+        TryLink("Via Locale",       rp => config.localStreetProfile  = rp);
+        TryLink("Vicolo",           rp => config.alleyProfile        = rp);
+        EditorUtility.SetDirty(config);
+    }
+
     [MenuItem("Tools/City Builder/Setup Default Road Profiles")]
     public static void SetupDefaultRoadProfiles()
     {

@@ -28,7 +28,7 @@ public class CityBuilderPrefabEditor : Editor
         EditorGUILayout.PropertyField(frontageOffset, new GUIContent("Frontage Offset", "Posizione del piano di affaccio in spazio locale. Indica la direzione frontale verso la strada."));
         EditorGUILayout.PropertyField(frontageDirection, new GUIContent("Frontage Direction", "Normale locale del piano di affaccio. Permette di ruotare l'affaccio."));
         EditorGUILayout.PropertyField(frontageDisplayHeight, new GUIContent("Altezza Gizmo", "Altezza visiva del piano arancio (solo estetica)."));
-
+    
         serializedObject.ApplyModifiedProperties();
 
         EditorGUILayout.Space();

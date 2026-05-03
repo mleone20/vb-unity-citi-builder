@@ -110,6 +110,26 @@ public class AmericanCityConfig : ScriptableObject
     [Min(0.5f)]
     public float snapRadius = 8f;
 
+    [Header("Blocchi - Proporzioni")]
+    [Tooltip("Rapporto profondità/larghezza dei blocchi locali. 2.0 = blocchi 1:2 (es. 100×200 m con localStreetSpacing=100).")]
+    [Range(1f, 4f)]
+    public float blockDepthMultiplier = 2.0f;
+
+    [Header("Vicoli (Alley)")]
+    [Tooltip("Abilita la generazione di vicoli al centro di ogni blocco (modalità Grid e alley-pass finale in Branching).")]
+    public bool alleyEnabled = true;
+
+    [Tooltip("Profilo stradale per i vicoli. Usa tipicamente 'Vicolo' (larghezza 5 m).")]
+    public RoadProfile alleyProfile;
+
+    [Tooltip("Posizione del vicolo come frazione della profondità del blocco. 0.5 = centro esatto.")]
+    [Range(0.3f, 0.7f)]
+    public float alleyPositionFraction = 0.5f;
+
+    [Tooltip("Raggio massimo entro cui vengono generati i vicoli (m). 0 = disabilita.")]
+    [Min(0f)]
+    public float alleyMaxRadius = 2400f;
+
     [Header("Zone Rings (fascia distanza → zona)")]
     [Tooltip("Fasce zonali ordinate per maxRadius crescente. L'ultimo ring cattura tutto ciò che supera il suo raggio.")]
     public List<ZoneRing> zoneRings = new List<ZoneRing>();
@@ -194,6 +214,43 @@ public class AmericanCityConfig : ScriptableObject
             new ZoneRing { label = "Urban Residential",   maxRadius = 12000f, orientation = BlockOrientation.Exterior },
             new ZoneRing { label = "Suburbs",             maxRadius = 30000f, orientation = BlockOrientation.Sparse   },
             new ZoneRing { label = "Exurbs",              maxRadius = 60000f, orientation = BlockOrientation.Sparse   },
+        };
+    }
+
+    /// <summary>
+    /// Preset valori consigliati per una città di gioco con blocchi americani realistici.
+    /// Raggio 2400 m, superblocchi da 1 miglio (1600 m), blocchi locali 100×200 m, vicoli centrali.
+    /// Modalità Branching con probabilità calibrate per CBD compatto e suburbs organici.
+    /// I ZoneType devono essere collegati manualmente o via Setup Default Zone Types.
+    /// </summary>
+    public void ResetToGameDefaults()
+    {
+        generationMode            = RoadGenerationMode.Branching;
+        maxGenerationRadius       = 2400f;
+        mergeThreshold            = 3f;
+        majorGridSpacing          = 1600f;
+        localStreetSpacing        = 100f;
+        localStreetMaxRadius      = 2400f;
+        blockSizeVariation        = 0.05f;
+        blockDepthMultiplier      = 2.0f;
+        randomSeed                = 42;
+        highwayCount              = 2;
+        alleyEnabled              = true;
+        alleyPositionFraction     = 0.5f;
+        alleyMaxRadius            = 2400f;
+        maxBranchSegments         = 5000;
+        maxBranchGenerations      = 12;
+        snapRadius                = 20f;
+        cbdStraightProbability    = 0.98f;
+        cbdBranchProbability      = 0.90f;
+        suburbStraightProbability = 0.72f;
+        suburbBranchProbability   = 0.28f;
+        zoneRings = new List<ZoneRing>
+        {
+            new ZoneRing { label = "CBD",         maxRadius =  400f, orientation = BlockOrientation.Interior },
+            new ZoneRing { label = "Inner City",  maxRadius =  800f, orientation = BlockOrientation.Interior },
+            new ZoneRing { label = "Residential", maxRadius = 1600f, orientation = BlockOrientation.Exterior },
+            new ZoneRing { label = "Suburban",    maxRadius = 2400f, orientation = BlockOrientation.Sparse   },
         };
     }
 }

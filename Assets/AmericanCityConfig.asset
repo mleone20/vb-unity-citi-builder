@@ -13,33 +13,42 @@ MonoBehaviour:
   m_Name: AmericanCityConfig
   m_EditorClassIdentifier: Assembly-CSharp::AmericanCityConfig
   centerWorldPosition: {x: 0, y: 0, z: 0}
-  maxGenerationRadius: 4000
+  maxGenerationRadius: 2400
+  generationMode: 1
   majorGridSpacing: 1600
-  localStreetSpacing: 300
-  localStreetMaxRadius: 5000
-  blockSizeVariation: 0.25
+  localStreetSpacing: 100
+  localStreetMaxRadius: 2400
+  blockSizeVariation: 0.05
   randomSeed: 42
   highwayCount: 2
-  mergeThreshold: 2
+  mergeThreshold: 3
+  maxBranchSegments: 5000
+  maxBranchGenerations: 12
+  cbdStraightProbability: 0.98
+  cbdBranchProbability: 0.9
+  suburbStraightProbability: 0.72
+  suburbBranchProbability: 0.28
+  snapRadius: 20
+  blockDepthMultiplier: 2
+  alleyEnabled: 1
+  alleyProfile: {fileID: 11400000, guid: 9870cab19feef2e4e9cc7d80bd337b7b, type: 2}
+  alleyPositionFraction: 0.5
+  alleyMaxRadius: 2400
   zoneRings:
-  - label: CBD (Downtown)
-    maxRadius: 2000
+  - label: CBD
+    maxRadius: 400
     zoneType: {fileID: 0}
     orientation: 0
   - label: Inner City
-    maxRadius: 5000
+    maxRadius: 800
     zoneType: {fileID: 0}
     orientation: 0
-  - label: Urban Residential
-    maxRadius: 12000
+  - label: Residential
+    maxRadius: 1600
     zoneType: {fileID: 0}
     orientation: 1
-  - label: Suburbs
-    maxRadius: 30000
-    zoneType: {fileID: 0}
-    orientation: 2
-  - label: Exurbs
-    maxRadius: 60000
+  - label: Suburban
+    maxRadius: 2400
     zoneType: {fileID: 0}
     orientation: 2
   highwayProfile: {fileID: 11400000, guid: f4358a56057e55e4ba1aa95e2dce82fb, type: 2}

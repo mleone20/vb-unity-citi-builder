@@ -800,6 +800,24 @@ public class CityBuilderWindow : EditorWindow
                 CityBuilderMenu.LinkAmericanZoneTypesToConfig(proceduralConfig);
             }
         }
+        if (DrawActionButton("Preset Gioco (2.4 km)", new Color(0.4f, 0.7f, 1f)))
+        {
+            if (EditorUtility.DisplayDialog("Preset Scala Citt\u00e0 di Gioco",
+                "Verranno applicati i valori ottimali per una citt\u00e0 di gioco (~2.4 km, blocchi 100\u00d7200 m, vicoli).\n" +
+                "Modalit\u00e0: Branching. Zone rings: CBD 400 m, Inner City 800 m, Residential 1600 m, Suburban 2400 m.\n\n" +
+                "I ZoneType di default verranno creati e collegati automaticamente.", "Applica", "Annulla"))
+            {
+                Undo.RecordObject(proceduralConfig, "Apply Game City Defaults");
+                proceduralConfig.ResetToGameDefaults();
+                EditorUtility.SetDirty(proceduralConfig);
+                CityBuilderMenu.SetupDefaultZoneTypes();
+                CityBuilderMenu.SetupDefaultRoadProfiles();
+                CityBuilderMenu.LinkGameZoneTypesToConfig(proceduralConfig);
+                CityBuilderMenu.LinkDefaultRoadProfilesToConfig(proceduralConfig);
+                EditorUtility.DisplayDialog("Preset Applicato",
+                    "Valori di gioco applicati.\nRicorda di assegnare il profilo 'Vicolo' al campo Vicolo (Alley) nella sezione Mapping se non \u00e8 stato collegato automaticamente.", "OK");
+            }
+        }
         EditorGUILayout.EndHorizontal();
 
         DrawSubHeader("MODALITÀ DI GENERAZIONE");
@@ -821,6 +839,7 @@ public class CityBuilderWindow : EditorWindow
         EditorGUI.BeginChangeCheck();
         float newMajor    = EditorGUILayout.FloatField("Spaziatura Griglia Principale (m)", proceduralConfig.majorGridSpacing);
         float newLocal    = EditorGUILayout.FloatField("Spaziatura Strade Locali (m)",      proceduralConfig.localStreetSpacing);
+        float newDepthM   = EditorGUILayout.Slider("Rapporto Profondit\u00e0 Blocco (x larghezza)", proceduralConfig.blockDepthMultiplier, 1f, 4f);
         float newLocalCap = EditorGUILayout.FloatField("Raggio Max Strade Locali (m)",      proceduralConfig.localStreetMaxRadius);
         float newVariation= EditorGUILayout.Slider("Variazione Dimensione Blocchi",         proceduralConfig.blockSizeVariation, 0f, 0.45f);
         int   newSeed     = EditorGUILayout.IntField("Seme Casuale",                        proceduralConfig.randomSeed);
@@ -831,6 +850,7 @@ public class CityBuilderWindow : EditorWindow
             Undo.RecordObject(proceduralConfig, "Set American City Grid Params");
             proceduralConfig.majorGridSpacing     = Mathf.Max(50f,  newMajor);
             proceduralConfig.localStreetSpacing   = Mathf.Max(20f,  newLocal);
+            proceduralConfig.blockDepthMultiplier = Mathf.Clamp(newDepthM, 1f, 4f);
             proceduralConfig.localStreetMaxRadius = Mathf.Max(0f,   newLocalCap);
             proceduralConfig.blockSizeVariation   = newVariation;
             proceduralConfig.randomSeed           = newSeed;
@@ -838,6 +858,8 @@ public class CityBuilderWindow : EditorWindow
             proceduralConfig.mergeThreshold       = Mathf.Max(0.1f, newMerge);
             EditorUtility.SetDirty(proceduralConfig);
         }
+        float localDepthEst = proceduralConfig.localStreetSpacing * Mathf.Max(1f, proceduralConfig.blockDepthMultiplier);
+        EditorGUILayout.HelpBox($"Dimensione blocco locale: {proceduralConfig.localStreetSpacing:F0} m \u00d7 {localDepthEst:F0} m (larghezza \u00d7 profondit\u00e0).", MessageType.None);
         int halfEst  = Mathf.CeilToInt(proceduralConfig.maxGenerationRadius / Mathf.Max(1f, proceduralConfig.majorGridSpacing));
         int estNodes = Mathf.RoundToInt((2 * halfEst + 1) * (2 * halfEst + 1) * 0.78f);
         EditorGUILayout.HelpBox("Stima nodi griglia principale: ~" + estNodes + ". Strade locali entro " + proceduralConfig.localStreetMaxRadius.ToString("F0") + " m.", MessageType.None);
@@ -871,6 +893,24 @@ public class CityBuilderWindow : EditorWindow
                 Mathf.RoundToInt(Mathf.Pow(2f, Mathf.Min(proceduralConfig.maxBranchGenerations, 16)) * 4f));
             EditorGUILayout.HelpBox($"Stima segmenti branching: fino a ~{Mathf.Min(estBranch, proceduralConfig.maxBranchSegments)} (cap: {proceduralConfig.maxBranchSegments}).", MessageType.None);
         }
+
+        DrawSubHeader("VICOLI (ALLEY)");
+        EditorGUI.BeginChangeCheck();
+        bool  newAlleyOn   = EditorGUILayout.Toggle("Abilita Vicoli",       proceduralConfig.alleyEnabled);
+        RoadProfile newAlP = (RoadProfile)EditorGUILayout.ObjectField("Profilo Vicolo",       proceduralConfig.alleyProfile, typeof(RoadProfile), false);
+        float newAlleyFrac = EditorGUILayout.Slider("Posizione Vicolo (frac.)", proceduralConfig.alleyPositionFraction, 0.3f, 0.7f);
+        float newAlleyCap  = EditorGUILayout.FloatField("Raggio Max Vicoli (m)", proceduralConfig.alleyMaxRadius);
+        if (EditorGUI.EndChangeCheck())
+        {
+            Undo.RecordObject(proceduralConfig, "Set Alley Params");
+            proceduralConfig.alleyEnabled         = newAlleyOn;
+            proceduralConfig.alleyProfile         = newAlP;
+            proceduralConfig.alleyPositionFraction = Mathf.Clamp(newAlleyFrac, 0.3f, 0.7f);
+            proceduralConfig.alleyMaxRadius       = Mathf.Max(0f, newAlleyCap);
+            EditorUtility.SetDirty(proceduralConfig);
+        }
+        if (proceduralConfig.alleyEnabled && proceduralConfig.alleyProfile == null)
+            EditorGUILayout.HelpBox("Vicoli abilitati ma nessun profilo assegnato. Assegna il profilo 'Vicolo' o premi Preset Gioco.", MessageType.Warning);
 
         DrawSubHeader("MAPPING ROAD PROFILES");
         EditorGUI.BeginChangeCheck();
