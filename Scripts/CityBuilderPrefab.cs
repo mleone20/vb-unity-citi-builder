@@ -1,5 +1,6 @@
 
 using UnityEngine;
+using System.Collections.Generic;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -14,6 +15,14 @@ using UnityEditor;
 public class CityBuilderPrefab : MonoBehaviour
 {
     private const float MinFootprint = 0.1f;
+
+    [Header("AI Tagging")]
+    [TextArea(2, 5)]
+    [Tooltip("Descrizione generata dal modello LLM locale per questo prefab.")]
+    public string aiDescription;
+
+    [Tooltip("Lista display name degli ZoneType suggeriti dal modello LLM locale.")]
+    public List<string> aiSuggestedZoneDisplayNames = new List<string>();
 
     [Tooltip("Ingombro sul piano XZ (X=larghezza, Y=profondità).")]
     public Vector2 footprintSize = new Vector2(8f, 8f);

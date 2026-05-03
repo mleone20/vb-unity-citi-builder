@@ -1,9 +1,13 @@
 using UnityEditor;
 using UnityEngine;
+using System;
+using System.Collections.Generic;
 
 [CustomEditor(typeof(CityBuilderPrefab))]
 public class CityBuilderPrefabEditor : Editor
 {
+    private const string AutoTagUndoName = "Auto Tag Building Prefab";
+
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
@@ -14,6 +18,8 @@ public class CityBuilderPrefabEditor : Editor
         SerializedProperty frontageOffset = serializedObject.FindProperty("frontageOffset");
         SerializedProperty frontageDirection = serializedObject.FindProperty("frontageDirection");
         SerializedProperty frontageDisplayHeight = serializedObject.FindProperty("frontageDisplayHeight");
+        SerializedProperty aiDescription = serializedObject.FindProperty("aiDescription");
+        SerializedProperty aiSuggestedZoneDisplayNames = serializedObject.FindProperty("aiSuggestedZoneDisplayNames");
 
         using (new EditorGUI.DisabledScope(autoCompute.boolValue))
         {
@@ -28,6 +34,11 @@ public class CityBuilderPrefabEditor : Editor
         EditorGUILayout.PropertyField(frontageOffset, new GUIContent("Frontage Offset", "Posizione del piano di affaccio in spazio locale. Indica la direzione frontale verso la strada."));
         EditorGUILayout.PropertyField(frontageDirection, new GUIContent("Frontage Direction", "Normale locale del piano di affaccio. Permette di ruotare l'affaccio."));
         EditorGUILayout.PropertyField(frontageDisplayHeight, new GUIContent("Altezza Gizmo", "Altezza visiva del piano arancio (solo estetica)."));
+
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("AI Tagging", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(aiDescription, new GUIContent("AI Description"));
+        EditorGUILayout.PropertyField(aiSuggestedZoneDisplayNames, new GUIContent("AI Suggested Zone Types"), true);
     
         serializedObject.ApplyModifiedProperties();
 
@@ -48,6 +59,281 @@ public class CityBuilderPrefabEditor : Editor
         if (GUILayout.Button("Auto ground pivot", GUILayout.Height(28)))
         {
             ApplyAutoGroundPivot((CityBuilderPrefab)target);
+        }
+
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Auto Tagging LLM", EditorStyles.boldLabel);
+        if (GUILayout.Button("Auto Tag with LLM", GUILayout.Height(28)))
+        {
+            TryAutoTagWithLlm((CityBuilderPrefab)target);
+            serializedObject.Update();
+        }
+    }
+
+    private static void TryAutoTagWithLlm(CityBuilderPrefab selectedComponent)
+    {
+        if (selectedComponent == null)
+        {
+            EditorUtility.DisplayDialog("AI Tagging", "CityBuilderPrefab non valido.", "OK");
+            return;
+        }
+
+        GameObject prefabAsset = ResolvePrefabAsset(selectedComponent.gameObject);
+        if (prefabAsset == null)
+        {
+            EditorUtility.DisplayDialog("AI Tagging", "Seleziona un prefab asset del progetto (o una sua istanza) che contiene CityBuilderPrefab.", "OK");
+            return;
+        }
+
+        CityBuilderPrefab prefabMetadata = prefabAsset.GetComponent<CityBuilderPrefab>();
+        if (prefabMetadata == null)
+        {
+            EditorUtility.DisplayDialog("AI Tagging", "Il prefab selezionato non contiene CityBuilderPrefab.", "OK");
+            return;
+        }
+
+        Texture2D previewTexture = AssetPreview.GetMiniThumbnail(prefabAsset);
+        if (previewTexture == null)
+        {
+            EditorUtility.DisplayDialog("AI Tagging", "Impossibile ottenere la preview del prefab.", "OK");
+            return;
+        }
+
+        byte[] previewPng = EncodeTextureToPng(previewTexture);
+        if (previewPng == null || previewPng.Length == 0)
+        {
+            EditorUtility.DisplayDialog("AI Tagging", "Impossibile convertire la preview in PNG.", "OK");
+            return;
+        }
+
+        List<ZoneType> allZoneTypes = LoadAllZoneTypes();
+        if (allZoneTypes.Count == 0)
+        {
+            EditorUtility.DisplayDialog("AI Tagging", "Nessun ZoneType trovato nel progetto.", "OK");
+            return;
+        }
+
+        List<LLMClient.ZoneTypeCandidate> candidates = BuildZoneTypeCandidates(allZoneTypes);
+        LLMClient llmClient = new LLMClient();
+        if (!llmClient.TryAutoTagPrefab(previewPng, candidates, out LLMClient.AutoTagResponse response, out string error))
+        {
+            EditorUtility.DisplayDialog("AI Tagging", string.IsNullOrWhiteSpace(error) ? "LLMClient non disponibile." : error, "OK");
+            return;
+        }
+
+        if (response == null)
+        {
+            EditorUtility.DisplayDialog("AI Tagging", "Risposta LLM nulla.", "OK");
+            return;
+        }
+
+        List<string> normalizedSuggestions = NormalizeSuggestedZoneNames(response.zoneTypeDisplayNames);
+
+        Undo.RecordObject(prefabMetadata, AutoTagUndoName);
+        prefabMetadata.aiDescription = response.description ?? string.Empty;
+        prefabMetadata.aiSuggestedZoneDisplayNames = normalizedSuggestions;
+        EditorUtility.SetDirty(prefabMetadata);
+
+        int zonesUpdated = 0;
+        int duplicateEntries = 0;
+        int unknownSuggestions = 0;
+
+        for (int i = 0; i < normalizedSuggestions.Count; i++)
+        {
+            string suggestedName = normalizedSuggestions[i];
+            ZoneType matchedZone = FindZoneTypeByDisplayName(allZoneTypes, suggestedName);
+            if (matchedZone == null)
+            {
+                unknownSuggestions++;
+                continue;
+            }
+
+            if (matchedZone.buildingPrefabs == null)
+            {
+                Undo.RecordObject(matchedZone, AutoTagUndoName);
+                matchedZone.buildingPrefabs = new List<GameObject>();
+            }
+            else if (!ContainsPrefabReference(matchedZone.buildingPrefabs, prefabAsset))
+            {
+                Undo.RecordObject(matchedZone, AutoTagUndoName);
+            }
+            else
+            {
+                duplicateEntries++;
+                continue;
+            }
+
+            matchedZone.buildingPrefabs.Add(prefabAsset);
+            EditorUtility.SetDirty(matchedZone);
+            zonesUpdated++;
+        }
+
+        AssetDatabase.SaveAssets();
+
+        string report =
+            "Prefab analizzato: " + prefabAsset.name + "\n" +
+            "Zone suggerite: " + normalizedSuggestions.Count + "\n" +
+            "Zone aggiornate: " + zonesUpdated + "\n" +
+            "Duplicati evitati: " + duplicateEntries + "\n" +
+            "Suggerimenti senza match: " + unknownSuggestions;
+
+        EditorUtility.DisplayDialog("AI Tagging", report, "OK");
+    }
+
+    private static GameObject ResolvePrefabAsset(GameObject source)
+    {
+        if (source == null)
+        {
+            return null;
+        }
+
+        if (PrefabUtility.IsPartOfPrefabAsset(source))
+        {
+            return source;
+        }
+
+        GameObject nearestPrefabRoot = PrefabUtility.GetNearestPrefabInstanceRoot(source);
+        if (nearestPrefabRoot == null)
+        {
+            return null;
+        }
+
+        return PrefabUtility.GetCorrespondingObjectFromSource(nearestPrefabRoot);
+    }
+
+    private static List<ZoneType> LoadAllZoneTypes()
+    {
+        string[] guids = AssetDatabase.FindAssets("t:ZoneType");
+        List<ZoneType> result = new List<ZoneType>(guids.Length);
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+            ZoneType zone = AssetDatabase.LoadAssetAtPath<ZoneType>(path);
+            if (zone != null)
+            {
+                result.Add(zone);
+            }
+        }
+
+        return result;
+    }
+
+    private static List<LLMClient.ZoneTypeCandidate> BuildZoneTypeCandidates(List<ZoneType> zones)
+    {
+        List<LLMClient.ZoneTypeCandidate> candidates = new List<LLMClient.ZoneTypeCandidate>(zones.Count);
+        for (int i = 0; i < zones.Count; i++)
+        {
+            ZoneType zone = zones[i];
+            candidates.Add(new LLMClient.ZoneTypeCandidate
+            {
+                displayName = zone.GetDisplayName(),
+                description = zone.description ?? string.Empty
+            });
+        }
+
+        return candidates;
+    }
+
+    private static List<string> NormalizeSuggestedZoneNames(List<string> names)
+    {
+        List<string> normalized = new List<string>();
+        HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (names == null)
+        {
+            return normalized;
+        }
+
+        for (int i = 0; i < names.Count; i++)
+        {
+            string candidate = names[i];
+            if (string.IsNullOrWhiteSpace(candidate))
+            {
+                continue;
+            }
+
+            string trimmed = candidate.Trim();
+            if (seen.Add(trimmed))
+            {
+                normalized.Add(trimmed);
+            }
+        }
+
+        return normalized;
+    }
+
+    private static ZoneType FindZoneTypeByDisplayName(List<ZoneType> zones, string displayName)
+    {
+        if (zones == null || string.IsNullOrWhiteSpace(displayName))
+        {
+            return null;
+        }
+
+        for (int i = 0; i < zones.Count; i++)
+        {
+            ZoneType zone = zones[i];
+            if (zone == null)
+            {
+                continue;
+            }
+
+            if (string.Equals(zone.GetDisplayName(), displayName, StringComparison.OrdinalIgnoreCase))
+            {
+                return zone;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool ContainsPrefabReference(List<GameObject> prefabs, GameObject prefabAsset)
+    {
+        if (prefabs == null || prefabAsset == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < prefabs.Count; i++)
+        {
+            if (prefabs[i] == prefabAsset)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static byte[] EncodeTextureToPng(Texture2D source)
+    {
+        if (source == null)
+        {
+            return null;
+        }
+
+        RenderTexture temporary = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGB32);
+        RenderTexture previous = RenderTexture.active;
+        Texture2D readableTexture = null;
+
+        try
+        {
+            Graphics.Blit(source, temporary);
+            RenderTexture.active = temporary;
+
+            readableTexture = new Texture2D(source.width, source.height, TextureFormat.RGBA32, false);
+            readableTexture.ReadPixels(new Rect(0, 0, source.width, source.height), 0, 0);
+            readableTexture.Apply(false, false);
+            return readableTexture.EncodeToPNG();
+        }
+        finally
+        {
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(temporary);
+
+            if (readableTexture != null)
+            {
+                DestroyImmediate(readableTexture);
+            }
         }
     }
 
