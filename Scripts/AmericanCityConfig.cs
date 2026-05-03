@@ -2,6 +2,15 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
+/// Modalità di generazione della rete stradale.
+/// </summary>
+public enum RoadGenerationMode
+{
+    Grid,       // Legacy: griglia calcolata a matrice (veloce, uniforme)
+    Branching   // Queue-based branching iterativo (realistico, organico)
+}
+
+/// <summary>
 /// Rappresenta una fascia di distanza da P0 con la zona e l'orientamento lotti associati.
 /// Gli anelli devono essere ordinati per maxRadius crescente; l'ultimo ring cattura
 /// tutto ciò che supera il suo maxRadius.
@@ -40,6 +49,10 @@ public class AmericanCityConfig : ScriptableObject
     [Min(1f)]
     public float maxGenerationRadius = 3000f;
 
+    [Header("Algoritmo di Generazione")]
+    [Tooltip("Modalità di generazione stradale.\nGrid: griglia classica calcolata a matrice (legacy).\nBranching: crescita iterativa a coda, realistica (consigliata).")]
+    public RoadGenerationMode generationMode = RoadGenerationMode.Branching;
+
     [Header("Griglia Stradale")]
     [Tooltip("Spaziatura griglia principale (Major Grid) in metri. Default americano: 1600 m = 1 miglio.")]
     [Min(50f)]
@@ -67,6 +80,35 @@ public class AmericanCityConfig : ScriptableObject
     [Tooltip("Distanza soglia (m) entro cui due nodi vengono uniti per evitare duplicati.")]
     [Min(0.1f)]
     public float mergeThreshold = 2f;
+
+    [Header("Branching - Parametri Avanzati")]
+    [Tooltip("Numero massimo di segmenti generabili dal branching (limite di sicurezza).")]
+    [Min(10)]
+    public int maxBranchSegments = 8000;
+
+    [Tooltip("Profondità massima di ramificazione (generazioni). Più alto = città più grande.")]
+    [Min(1)]
+    public int maxBranchGenerations = 12;
+
+    [Tooltip("Probabilità (0-1) che una strada continui dritto ad ogni iterazione (zona CBD).")]
+    [Range(0f, 1f)]
+    public float cbdStraightProbability = 0.95f;
+
+    [Tooltip("Probabilità (0-1) che una strada generi una diramazione laterale a 90° (zona CBD).")]
+    [Range(0f, 1f)]
+    public float cbdBranchProbability = 0.80f;
+
+    [Tooltip("Probabilità che una strada locale continui dritto nei suburbs.")]
+    [Range(0f, 1f)]
+    public float suburbStraightProbability = 0.75f;
+
+    [Tooltip("Probabilità di diramazione organica nei suburbs (angolo casuale 30-70°).")]
+    [Range(0f, 1f)]
+    public float suburbBranchProbability = 0.40f;
+
+    [Tooltip("Raggio di snapping: due endpoint entro questa distanza vengono uniti in un nodo condiviso.")]
+    [Min(0.5f)]
+    public float snapRadius = 8f;
 
     [Header("Zone Rings (fascia distanza → zona)")]
     [Tooltip("Fasce zonali ordinate per maxRadius crescente. L'ultimo ring cattura tutto ciò che supera il suo raggio.")]

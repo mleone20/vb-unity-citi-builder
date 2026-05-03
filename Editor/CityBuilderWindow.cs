@@ -802,6 +802,21 @@ public class CityBuilderWindow : EditorWindow
         }
         EditorGUILayout.EndHorizontal();
 
+        DrawSubHeader("MODALITÀ DI GENERAZIONE");
+        EditorGUI.BeginChangeCheck();
+        RoadGenerationMode newMode = (RoadGenerationMode)EditorGUILayout.EnumPopup(
+            "Modalità", proceduralConfig.generationMode);
+        if (EditorGUI.EndChangeCheck())
+        {
+            Undo.RecordObject(proceduralConfig, "Set Generation Mode");
+            proceduralConfig.generationMode = newMode;
+            EditorUtility.SetDirty(proceduralConfig);
+        }
+        if (proceduralConfig.generationMode == RoadGenerationMode.Branching)
+            EditorGUILayout.HelpBox("Branching: crescita iterativa da P0. Produce reti organiche e realistiche.", MessageType.Info);
+        else
+            EditorGUILayout.HelpBox("Grid (Legacy): griglia a matrice uniforme. Veloce e prevedibile.", MessageType.Info);
+
         DrawSubHeader("GRIGLIA STRADALE");
         EditorGUI.BeginChangeCheck();
         float newMajor    = EditorGUILayout.FloatField("Spaziatura Griglia Principale (m)", proceduralConfig.majorGridSpacing);
@@ -826,6 +841,36 @@ public class CityBuilderWindow : EditorWindow
         int halfEst  = Mathf.CeilToInt(proceduralConfig.maxGenerationRadius / Mathf.Max(1f, proceduralConfig.majorGridSpacing));
         int estNodes = Mathf.RoundToInt((2 * halfEst + 1) * (2 * halfEst + 1) * 0.78f);
         EditorGUILayout.HelpBox("Stima nodi griglia principale: ~" + estNodes + ". Strade locali entro " + proceduralConfig.localStreetMaxRadius.ToString("F0") + " m.", MessageType.None);
+
+        if (proceduralConfig.generationMode == RoadGenerationMode.Branching)
+        {
+            DrawSubHeader("BRANCHING - PARAMETRI");
+            EditorGUI.BeginChangeCheck();
+            int   newMaxSegs = EditorGUILayout.IntField("Max Segmenti",         proceduralConfig.maxBranchSegments);
+            int   newMaxGen  = EditorGUILayout.IntField("Max Generazioni",       proceduralConfig.maxBranchGenerations);
+            float newSnap    = EditorGUILayout.FloatField("Snap Radius (m)",     proceduralConfig.snapRadius);
+            EditorGUILayout.LabelField("CBD (centro)", EditorStyles.boldLabel);
+            float newCbdStr  = EditorGUILayout.Slider("Probabilità Dritto",     proceduralConfig.cbdStraightProbability, 0f, 1f);
+            float newCbdBr   = EditorGUILayout.Slider("Probabilità Diramazione",proceduralConfig.cbdBranchProbability,   0f, 1f);
+            EditorGUILayout.LabelField("Suburbs (periferia)", EditorStyles.boldLabel);
+            float newSubStr  = EditorGUILayout.Slider("Probabilità Dritto",     proceduralConfig.suburbStraightProbability, 0f, 1f);
+            float newSubBr   = EditorGUILayout.Slider("Probabilità Diramazione",proceduralConfig.suburbBranchProbability,   0f, 1f);
+            if (EditorGUI.EndChangeCheck())
+            {
+                Undo.RecordObject(proceduralConfig, "Set Branching Params");
+                proceduralConfig.maxBranchSegments        = Mathf.Max(10, newMaxSegs);
+                proceduralConfig.maxBranchGenerations     = Mathf.Max(1,  newMaxGen);
+                proceduralConfig.snapRadius               = Mathf.Max(0.5f, newSnap);
+                proceduralConfig.cbdStraightProbability   = newCbdStr;
+                proceduralConfig.cbdBranchProbability     = newCbdBr;
+                proceduralConfig.suburbStraightProbability = newSubStr;
+                proceduralConfig.suburbBranchProbability  = newSubBr;
+                EditorUtility.SetDirty(proceduralConfig);
+            }
+            int estBranch = Mathf.Min(proceduralConfig.maxBranchSegments,
+                Mathf.RoundToInt(Mathf.Pow(2f, Mathf.Min(proceduralConfig.maxBranchGenerations, 16)) * 4f));
+            EditorGUILayout.HelpBox($"Stima segmenti branching: fino a ~{Mathf.Min(estBranch, proceduralConfig.maxBranchSegments)} (cap: {proceduralConfig.maxBranchSegments}).", MessageType.None);
+        }
 
         DrawSubHeader("MAPPING ROAD PROFILES");
         EditorGUI.BeginChangeCheck();
