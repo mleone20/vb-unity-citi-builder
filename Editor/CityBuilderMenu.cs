@@ -219,6 +219,224 @@ public static class CityBuilderMenu
         Debug.Log($"[CityBuilder] AmericanCityConfig creato con ZoneType collegati: {path}");
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // CREATE EXAMPLE PREFABS AND ZONE DATA
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [MenuItem("Tools/City Builder/Create Example Prefabs and Zone Data")]
+    public static void CreateExamplePrefabsAndZoneData()
+    {
+        const string examplesRoot  = "Assets/BSCCityBuilder/Assets/Examples";
+        const string materialsPath = "Assets/BSCCityBuilder/Assets/Examples/Materials";
+        const string prefabsPath   = "Assets/BSCCityBuilder/Assets/Examples/Prefabs";
+
+        EnsureFolder("Assets/BSCCityBuilder/Assets");
+        EnsureFolder("Assets/BSCCityBuilder/Assets/Examples");
+        EnsureFolder(materialsPath);
+        EnsureFolder(prefabsPath);
+
+        // ── Materials ─────────────────────────────────────────────────────────
+        Material matSkyscraper  = CreateOrLoadMaterial(materialsPath, "Skyscraper",    new Color(0.40f, 0.50f, 0.70f)); // blu-vetro
+        Material matOfficeTower = CreateOrLoadMaterial(materialsPath, "OfficeTower",   new Color(0.20f, 0.25f, 0.35f)); // vetro scuro
+        Material matShop        = CreateOrLoadMaterial(materialsPath, "Shop",          new Color(0.85f, 0.55f, 0.20f)); // arancio caldo
+        Material matOffice      = CreateOrLoadMaterial(materialsPath, "Office",        new Color(0.45f, 0.60f, 0.75f)); // blu-grigio
+        Material matApartment   = CreateOrLoadMaterial(materialsPath, "Apartment",     new Color(0.85f, 0.78f, 0.65f)); // panna
+        Material matRowHouse    = CreateOrLoadMaterial(materialsPath, "RowHouse",      new Color(0.70f, 0.38f, 0.28f)); // mattone
+        Material matHouseWall   = CreateOrLoadMaterial(materialsPath, "HouseWall",     new Color(0.95f, 0.92f, 0.80f)); // giallo pallido
+        Material matRoof        = CreateOrLoadMaterial(materialsPath, "Roof",          new Color(0.55f, 0.25f, 0.20f)); // rosso tetto
+        Material matVilla       = CreateOrLoadMaterial(materialsPath, "Villa",         new Color(0.88f, 0.84f, 0.76f)); // bianco avorio
+        Material matFarmhouse   = CreateOrLoadMaterial(materialsPath, "Farmhouse",     new Color(0.60f, 0.47f, 0.33f)); // marrone terra
+        Material matBarn        = CreateOrLoadMaterial(materialsPath, "Barn",          new Color(0.65f, 0.15f, 0.10f)); // rosso fienile
+        Material matPark        = CreateOrLoadMaterial(materialsPath, "Park",          new Color(0.22f, 0.62f, 0.18f)); // verde parco
+        Material matPlaza       = CreateOrLoadMaterial(materialsPath, "Plaza",         new Color(0.75f, 0.72f, 0.68f)); // pietra chiara
+
+        AssetDatabase.SaveAssets();
+
+        // ── Prefab buildings ─────────────────────────────────────────────────
+        // Center
+        GameObject skyscraperPrefab  = CreateBuildingPrefab(prefabsPath, "Skyscraper",      new Vector3(6f, 30f, 6f),  matSkyscraper);
+        GameObject officeTowerPrefab = CreateBuildingPrefab(prefabsPath, "OfficeTower",     new Vector3(8f, 20f, 8f),  matOfficeTower);
+        // Commercial
+        GameObject shopPrefab        = CreateBuildingPrefab(prefabsPath, "Shop",            new Vector3(10f, 5f, 8f),  matShop);
+        GameObject officePrefab      = CreateBuildingPrefab(prefabsPath, "OfficeBuilding",  new Vector3(8f, 14f, 8f),  matOffice);
+        // Residential
+        GameObject apartmentPrefab   = CreateBuildingPrefab(prefabsPath, "ApartmentBlock",  new Vector3(8f, 8f, 8f),   matApartment);
+        GameObject rowHousePrefab    = CreateBuildingPrefab(prefabsPath, "RowHouse",        new Vector3(6f, 8f, 6f),   matRowHouse);
+        // Suburban
+        GameObject housePrefab       = CreateHousePrefab   (prefabsPath, "DetachedHouse",   7f, 4f, 7f, 2.5f,         matHouseWall, matRoof);
+        GameObject villaPrefab       = CreateHousePrefab   (prefabsPath, "Villa",           9f, 4.5f, 9f, 2.0f,       matVilla,     matRoof);
+        // Rural
+        GameObject farmhousePrefab   = CreateBuildingPrefab(prefabsPath, "Farmhouse",       new Vector3(6f, 4f, 8f),   matFarmhouse);
+        GameObject barnPrefab        = CreateBuildingPrefab(prefabsPath, "Barn",            new Vector3(10f, 6f, 12f), matBarn);
+        // Shared open-space
+        GameObject parkPrefab        = CreateGroundPrefab  (prefabsPath, "Park",            new Vector3(16f, 0.25f, 16f), matPark);
+        GameObject plazaPrefab       = CreateGroundPrefab  (prefabsPath, "Plaza",           new Vector3(12f, 0.30f, 12f), matPlaza);
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        // ── Collega alle ZoneType ─────────────────────────────────────────────
+        AssignPrefabsToZoneType("Center",      new[] { skyscraperPrefab, officeTowerPrefab, plazaPrefab });
+        AssignPrefabsToZoneType("Commercial",  new[] { shopPrefab,       officePrefab,      plazaPrefab });
+        AssignPrefabsToZoneType("Residential", new[] { apartmentPrefab,  rowHousePrefab,    parkPrefab  });
+        AssignPrefabsToZoneType("Suburban",    new[] { housePrefab,      villaPrefab,        parkPrefab  });
+        AssignPrefabsToZoneType("Rural",       new[] { farmhousePrefab,  barnPrefab,         parkPrefab  });
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        EditorUtility.DisplayDialog(
+            "Example Prefabs Creati",
+            $"Creati 13 prefab di esempio con materiali colorati.\n\nPath: {examplesRoot}\n\nI prefab sono stati collegati alle 5 ZoneType.",
+            "OK");
+
+        Debug.Log("[CityBuilder] CreateExamplePrefabsAndZoneData completato.");
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private static void EnsureFolder(string folderPath)
+    {
+        if (!AssetDatabase.IsValidFolder(folderPath))
+        {
+            string parent     = System.IO.Path.GetDirectoryName(folderPath).Replace('\\', '/');
+            string folderName = System.IO.Path.GetFileName(folderPath);
+            AssetDatabase.CreateFolder(parent, folderName);
+        }
+    }
+
+    private static Material CreateOrLoadMaterial(string folder, string matName, Color color)
+    {
+        string matPath = $"{folder}/{matName}.mat";
+        Material existing = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+        if (existing != null) return existing;
+
+        Shader shader = Shader.Find("HDRP/Lit")
+                     ?? Shader.Find("Universal Render Pipeline/Lit")
+                     ?? Shader.Find("Standard");
+
+        Material mat = new Material(shader) { name = matName };
+        // _BaseColor works for HDRP/Lit and URP/Lit; _Color for Standard
+        if (mat.HasProperty("_BaseColor"))
+            mat.SetColor("_BaseColor", color);
+        else
+            mat.SetColor("_Color", color);
+
+        AssetDatabase.CreateAsset(mat, matPath);
+        return mat;
+    }
+
+    /// <summary>Prefab con un singolo cubo (pivot al suolo).</summary>
+    private static GameObject CreateBuildingPrefab(string folder, string prefabName, Vector3 size, Material material)
+    {
+        string prefabPath = $"{folder}/{prefabName}.prefab";
+        GameObject existing = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        if (existing != null) return existing;
+
+        GameObject root = new GameObject(prefabName);
+
+        GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        body.name = "Body";
+        body.transform.SetParent(root.transform);
+        body.transform.localPosition = new Vector3(0f, size.y * 0.5f, 0f);
+        body.transform.localScale    = size;
+        body.GetComponent<MeshRenderer>().sharedMaterial = material;
+        Object.DestroyImmediate(body.GetComponent<BoxCollider>());
+
+        CityBuilderPrefab cbp       = root.AddComponent<CityBuilderPrefab>();
+        cbp.footprintSize           = new Vector2(size.x, size.z);
+        cbp.autoComputeFromRenderers = false;
+        cbp.frontageOffset          = new Vector3(0f, 0f, -size.z * 0.5f);
+        cbp.frontageDirection       = Vector3.back;
+
+        GameObject prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+        Object.DestroyImmediate(root);
+        return prefab;
+    }
+
+    /// <summary>Prefab casa con corpo + tetto a padiglione (due cubi).</summary>
+    private static GameObject CreateHousePrefab(string folder, string prefabName,
+        float width, float height, float depth, float roofHeight,
+        Material wallMat, Material roofMat)
+    {
+        string prefabPath = $"{folder}/{prefabName}.prefab";
+        GameObject existing = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        if (existing != null) return existing;
+
+        GameObject root = new GameObject(prefabName);
+
+        // Corpo
+        GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        body.name = "Body";
+        body.transform.SetParent(root.transform);
+        body.transform.localPosition = new Vector3(0f, height * 0.5f, 0f);
+        body.transform.localScale    = new Vector3(width, height, depth);
+        body.GetComponent<MeshRenderer>().sharedMaterial = wallMat;
+        Object.DestroyImmediate(body.GetComponent<BoxCollider>());
+
+        // Tetto (cubo schiacciato/allargato sopra il corpo)
+        GameObject roof = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        roof.name = "Roof";
+        roof.transform.SetParent(root.transform);
+        roof.transform.localPosition = new Vector3(0f, height + roofHeight * 0.5f, 0f);
+        roof.transform.localScale    = new Vector3(width + 0.4f, roofHeight, depth + 0.4f);
+        roof.GetComponent<MeshRenderer>().sharedMaterial = roofMat;
+        Object.DestroyImmediate(roof.GetComponent<BoxCollider>());
+
+        CityBuilderPrefab cbp       = root.AddComponent<CityBuilderPrefab>();
+        cbp.footprintSize           = new Vector2(width, depth);
+        cbp.autoComputeFromRenderers = false;
+        cbp.frontageOffset          = new Vector3(0f, 0f, -depth * 0.5f);
+        cbp.frontageDirection       = Vector3.back;
+
+        GameObject prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+        Object.DestroyImmediate(root);
+        return prefab;
+    }
+
+    /// <summary>Prefab piano (parco / piazza): cubo basso con pivot al suolo.</summary>
+    private static GameObject CreateGroundPrefab(string folder, string prefabName, Vector3 size, Material material)
+    {
+        string prefabPath = $"{folder}/{prefabName}.prefab";
+        GameObject existing = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        if (existing != null) return existing;
+
+        GameObject root = new GameObject(prefabName);
+
+        GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        body.name = "Ground";
+        body.transform.SetParent(root.transform);
+        body.transform.localPosition = new Vector3(0f, size.y * 0.5f, 0f);
+        body.transform.localScale    = size;
+        body.GetComponent<MeshRenderer>().sharedMaterial = material;
+        Object.DestroyImmediate(body.GetComponent<BoxCollider>());
+
+        CityBuilderPrefab cbp       = root.AddComponent<CityBuilderPrefab>();
+        cbp.footprintSize           = new Vector2(size.x, size.z);
+        cbp.autoComputeFromRenderers = false;
+
+        GameObject prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+        Object.DestroyImmediate(root);
+        return prefab;
+    }
+
+    private static void AssignPrefabsToZoneType(string zoneName, GameObject[] prefabs)
+    {
+        string[] guids = AssetDatabase.FindAssets($"t:ZoneType {zoneName}");
+        foreach (string guid in guids)
+        {
+            ZoneType zt = AssetDatabase.LoadAssetAtPath<ZoneType>(AssetDatabase.GUIDToAssetPath(guid));
+            if (zt != null && zt.GetDisplayName() == zoneName)
+            {
+                zt.buildingPrefabs = new System.Collections.Generic.List<GameObject>(prefabs);
+                EditorUtility.SetDirty(zt);
+                break;
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+
     [MenuItem("Tools/City Builder/Planarize Road Network")]
     public static void PlanarizeExistingNetworkMenu()
     {
