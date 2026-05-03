@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEditor;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
@@ -33,6 +35,13 @@ public class CityBuilderWindow : EditorWindow
 
     private AmericanCityConfig proceduralConfig;
     private string _lastProceduralReport = "";
+
+    // Async generation
+    private bool _isGenerating = false;
+    private float _generationProgress = 0f;
+    private string _generationStatus = "";
+    private IEnumerator _genCoroutine;
+    private Action _onGenCompleted;
 
     private GUIStyle headerStyle;
     private GUIStyle buttonStyle;
@@ -79,6 +88,55 @@ public class CityBuilderWindow : EditorWindow
     private void OnEnable()
     {
         FindCityManager();
+    }
+
+    private void OnDisable()
+    {
+        StopAsyncGeneration();
+    }
+
+    // ── Async generation helpers ──────────────────────────────────────────────
+
+    private void StartAsyncGeneration(IEnumerator coroutine, Action onDone)
+    {
+        StopAsyncGeneration();
+        _genCoroutine   = coroutine;
+        _onGenCompleted = onDone;
+        _isGenerating   = true;
+        _generationProgress = 0f;
+        _generationStatus   = "Avvio...";
+        EditorApplication.update += TickAsyncGeneration;
+        Repaint();
+    }
+
+    private void StopAsyncGeneration()
+    {
+        if (!_isGenerating) return;
+        EditorApplication.update -= TickAsyncGeneration;
+        _isGenerating   = false;
+        _genCoroutine   = null;
+        EditorUtility.ClearProgressBar();
+        Repaint();
+    }
+
+    private void TickAsyncGeneration()
+    {
+        if (_genCoroutine == null) { StopAsyncGeneration(); return; }
+        const int stepsPerTick = 4;
+        for (int i = 0; i < stepsPerTick; i++)
+        {
+            if (!_genCoroutine.MoveNext())
+            {
+                EditorApplication.update -= TickAsyncGeneration;
+                _isGenerating = false;
+                _genCoroutine = null;
+                _onGenCompleted?.Invoke();
+                EditorUtility.ClearProgressBar();
+                Repaint();
+                return;
+            }
+        }
+        Repaint();
     }
 
     private void OnGUI()
@@ -927,15 +985,38 @@ public class CityBuilderWindow : EditorWindow
         }
 
         DrawSubHeader("AZIONI");
-        if (DrawActionButton("Genera Rete Stradale", ColProc * 0.7f))
+        bool isAsync = proceduralConfig != null && proceduralConfig.generationMode == RoadGenerationMode.Branching;
+
+        if (_isGenerating)
+        {
+            EditorGUI.ProgressBar(EditorGUILayout.GetControlRect(GUILayout.Height(20)), _generationProgress, _generationStatus);
+            if (GUILayout.Button("Annulla Generazione", GUILayout.Height(24)))
+                StopAsyncGeneration();
+        }
+        else if (DrawActionButton("Genera Rete Stradale", ColProc * 0.7f))
         {
             bool ok = EditorUtility.DisplayDialog("Genera Rete Stradale",
                 "Verranno aggiunti nodi e segmenti alla rete stradale esistente. Continuare?", "Genera", "Annulla");
             if (ok)
             {
-                CityGeneratorBase.GenerationReport r = new AmericanCityGenerator(proceduralConfig).GenerateRoadNetwork(cityManager);
-                _lastProceduralReport = r.ToMultilineString();
-                EditorUtility.DisplayDialog("Rete Stradale Generata", _lastProceduralReport, "OK");
+                if (isAsync)
+                {
+                    StartAsyncGeneration(
+                        new AmericanCityGenerator(proceduralConfig).GenerateRoadNetworkAsync(
+                            cityManager,
+                            (p, s) => { _generationProgress = p; _generationStatus = s; },
+                            r => {
+                                _lastProceduralReport = r.ToMultilineString();
+                                EditorUtility.DisplayDialog("Rete Stradale Generata", _lastProceduralReport, "OK");
+                            }),
+                        null);
+                }
+                else
+                {
+                    CityGeneratorBase.GenerationReport r = new AmericanCityGenerator(proceduralConfig).GenerateRoadNetwork(cityManager);
+                    _lastProceduralReport = r.ToMultilineString();
+                    EditorUtility.DisplayDialog("Rete Stradale Generata", _lastProceduralReport, "OK");
+                }
             }
         }
         if (DrawActionButton("Assegna Zoning Automatico (per distanza)"))
@@ -947,6 +1028,8 @@ public class CityBuilderWindow : EditorWindow
 
         EditorGUILayout.Space(4);
         GUI.backgroundColor = new Color(0.3f, 0.85f, 0.5f);
+        bool genAllDisabled = _isGenerating;
+        GUI.enabled = !genAllDisabled;
         if (GUILayout.Button("\u25b6  GENERA TUTTO  (Rete + Blocchi + Zoning + Lotti)", GUILayout.Height(40)))
         {
             GUI.backgroundColor = Color.white;
@@ -959,6 +1042,39 @@ public class CityBuilderWindow : EditorWindow
             if (ok)
             {
                 AmericanCityGenerator generator = new AmericanCityGenerator(proceduralConfig);
+                if (isAsync)
+                {
+                    StartAsyncGeneration(
+                        generator.GenerateRoadNetworkAsync(
+                            cityManager,
+                            (p, s) => { _generationProgress = p * 0.55f; _generationStatus = s; },
+                            roadR => {
+                                _generationProgress = 0.6f; _generationStatus = "Rilevamento blocchi...";
+                                Undo.RecordObject(cityData, "Generate All: Clear Blocks");
+                                foreach (CityBlock b in cityData.blocks) { if (b != null) b.lotIDs.Clear(); }
+                                cityData.blocks.Clear();
+                                cityData.lots.Clear();
+                                EditorUtility.SetDirty(cityData);
+                                List<List<Vector3>> detected = CityBlockDetector.DetectBlocks(cityData);
+                                foreach (List<Vector3> verts in detected)
+                                    cityManager.AddBlock(verts);
+                                _generationProgress = 0.75f; _generationStatus = "Assegnazione zoning...";
+                                CityGeneratorBase.GenerationReport zoneR = generator.AssignZoningByDistance(cityManager);
+                                _generationProgress = 0.9f;  _generationStatus = "Generazione lotti...";
+                                int lotCount = RunLotGeneration();
+                                _lastProceduralReport =
+                                    "Rete: " + roadR.nodesCreated + " nodi, " + roadR.segmentsCreated + " segmenti\n" +
+                                    "Blocchi rilevati: " + detected.Count + "\n" +
+                                    "Blocchi zonati: " + zoneR.blocksZoned + "\n" +
+                                    "Lotti generati: " + lotCount;
+                                if (zoneR.warnings != null && zoneR.warnings.Count > 0)
+                                    _lastProceduralReport += "\nWarning zoning: " + zoneR.warnings.Count;
+                                EditorUtility.DisplayDialog("Generazione Completata", _lastProceduralReport, "OK");
+                            }),
+                        null);
+                }
+                else
+                {
                 CityGeneratorBase.GenerationReport roadR = generator.GenerateRoadNetwork(cityManager);
 
                 Undo.RecordObject(cityData, "Generate All: Clear Blocks");
@@ -983,8 +1099,10 @@ public class CityBuilderWindow : EditorWindow
                     _lastProceduralReport += "\nWarning zoning: " + zoneR.warnings.Count;
 
                 EditorUtility.DisplayDialog("Generazione Completata", _lastProceduralReport, "OK");
+                }
             }
         }
+        GUI.enabled = true;
         GUI.backgroundColor = Color.white;
 
         if (!string.IsNullOrEmpty(_lastProceduralReport))
@@ -1095,7 +1213,7 @@ public class CityBuilderWindow : EditorWindow
 
     private void FindCityManager()
     {
-        cityManager = Object.FindAnyObjectByType<CityManager>();
+        cityManager = UnityEngine.Object.FindAnyObjectByType<CityManager>();
         if (cityManager != null)
             cityData = cityManager.GetCityData();
     }

@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEditor;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 
 /// <summary>
@@ -65,6 +67,193 @@ public class AmericanCityGenerator : CityGeneratorBase
 
         Debug.Log($"[AmericanCityGenerator] Rete generata ({config.generationMode}): {report.nodesCreated} nodi, {report.segmentsCreated} segmenti.");
         return report;
+    }
+
+    public IEnumerator GenerateRoadNetworkAsync(
+        CityManager manager,
+        Action<float, string> onProgress,
+        Action<GenerationReport> onCompleted = null)
+    {
+        var report = new GenerationReport { warnings = new List<string>() };
+
+        if (manager == null || config == null)
+        {
+            Debug.LogError("[AmericanCityGenerator] CityManager o AmericanCityConfig non assegnati.");
+            onCompleted?.Invoke(report);
+            yield break;
+        }
+
+        CityData cityData = manager.GetCityData();
+        if (cityData == null)
+        {
+            Debug.LogError("[AmericanCityGenerator] CityData null nel CityManager.");
+            onCompleted?.Invoke(report);
+            yield break;
+        }
+
+        onProgress?.Invoke(0.02f, "Preparazione generazione...");
+
+        if (config.generationMode == RoadGenerationMode.Branching)
+        {
+            Vector3 p0      = config.centerWorldPosition;
+            float capRadius = config.maxGenerationRadius;
+            float merge     = Mathf.Max(0.1f, config.mergeThreshold);
+            int   maxSegs   = config.maxBranchSegments;
+            int   maxGen    = config.maxBranchGenerations;
+            float majorLen  = Mathf.Max(50f, config.majorGridSpacing);
+
+            float arteryStep = Mathf.Max(50f, Mathf.Min(majorLen, capRadius * 0.2f));
+            float snap = Mathf.Max(merge, config.snapRadius);
+
+            var rng = new System.Random(config.randomSeed);
+
+            var confirmedEndpoints = new List<Vector3>();
+            var pending = new List<PendingSegment>();
+
+            void Enqueue(PendingSegment s)
+            {
+                const float sameStartEps = 1.0f;
+                const float sameDirDot = 0.985f;
+
+                for (int i = 0; i < pending.Count; i++)
+                {
+                    PendingSegment p = pending[i];
+                    if ((p.start - s.start).sqrMagnitude > sameStartEps * sameStartEps) continue;
+                    if (Vector3.Dot(p.direction, s.direction) < sameDirDot) continue;
+                    if (Mathf.Abs(p.length - s.length) > merge) continue;
+                    return;
+                }
+
+                s.priority = Mathf.Sqrt(
+                    (s.start.x - p0.x) * (s.start.x - p0.x) +
+                    (s.start.z - p0.z) * (s.start.z - p0.z));
+                pending.Add(s);
+            }
+
+            GetOrCreateNode(manager, p0, merge, ref report);
+            confirmedEndpoints.Add(p0);
+
+            int hwCount = Mathf.Clamp(config.highwayCount, 1, 4);
+            for (int i = 0; i < hwCount; i++)
+            {
+                float angleDeg = i * (180f / hwCount);
+                float rad = angleDeg * Mathf.Deg2Rad;
+                Vector3 dirA = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)).normalized;
+                Enqueue(new PendingSegment { start = p0, direction = dirA,  length = arteryStep, generation = 0, isHighway = true });
+                Enqueue(new PendingSegment { start = p0, direction = -dirA, length = arteryStep, generation = 0, isHighway = true });
+
+                Vector3 orthoA = Quaternion.Euler(0f,  90f, 0f) * dirA;
+                Vector3 orthoB = Quaternion.Euler(0f, -90f, 0f) * dirA;
+                Enqueue(new PendingSegment { start = p0, direction = orthoA, length = arteryStep, generation = 0 });
+                Enqueue(new PendingSegment { start = p0, direction = orthoB, length = arteryStep, generation = 0 });
+            }
+
+            int confirmedCount = 0;
+            int loopCount = 0;
+            const int yieldEvery = 64;
+
+            while (pending.Count > 0 && confirmedCount < maxSegs)
+            {
+                PendingSegment seg = DequeueNearest(pending);
+                if (seg.generation > maxGen) continue;
+
+                Vector3 proposedEnd = seg.start + seg.direction * seg.length;
+
+                float distEnd = Mathf.Sqrt(
+                    (proposedEnd.x - p0.x) * (proposedEnd.x - p0.x) +
+                    (proposedEnd.z - p0.z) * (proposedEnd.z - p0.z));
+
+                if (distEnd > capRadius)
+                {
+                    float distStart = Mathf.Sqrt(
+                        (seg.start.x - p0.x) * (seg.start.x - p0.x) +
+                        (seg.start.z - p0.z) * (seg.start.z - p0.z));
+                    if (distStart >= capRadius) continue;
+
+                    float clampedLen = Mathf.Max(merge * 2f,
+                        seg.length * (capRadius - distStart) / Mathf.Max(0.001f, distEnd - distStart));
+                    proposedEnd = seg.start + seg.direction * clampedLen;
+                    seg.length  = clampedLen;
+                }
+
+                float bestSnapDist = snap;
+                Vector3 snappedEnd = proposedEnd;
+                for (int ei = 0; ei < confirmedEndpoints.Count; ei++)
+                {
+                    float dx = proposedEnd.x - confirmedEndpoints[ei].x;
+                    float dz = proposedEnd.z - confirmedEndpoints[ei].z;
+                    float d  = Mathf.Sqrt(dx * dx + dz * dz);
+                    if (d < bestSnapDist && d > merge * 0.5f)
+                    {
+                        bestSnapDist = d;
+                        snappedEnd = confirmedEndpoints[ei];
+                    }
+                }
+                if (bestSnapDist < snap)
+                {
+                    proposedEnd = snappedEnd;
+                    seg.length  = Vector3.Distance(seg.start, proposedEnd);
+                    if (seg.length < merge) continue;
+                }
+
+                CityNode nodeA = GetOrCreateNode(manager, seg.start,   merge, ref report);
+                CityNode nodeB = GetOrCreateNode(manager, proposedEnd, merge, ref report);
+                if (nodeA == null || nodeB == null || nodeA.id == nodeB.id) continue;
+
+                CitySegment roadSeg = manager.AddSegment(nodeA.id, nodeB.id);
+                if (roadSeg == null) continue;
+
+                RoadProfile profile = seg.isHighway ? config.highwayProfile
+                                    : (seg.isLocal  ? config.localStreetProfile
+                                                    : config.majorGridProfile);
+                ApplyProfile(roadSeg, profile);
+
+                report.segmentsCreated++;
+                confirmedCount++;
+                confirmedEndpoints.Add(proposedEnd);
+
+                float distFromCenter = Mathf.Sqrt(
+                    (proposedEnd.x - p0.x) * (proposedEnd.x - p0.x) +
+                    (proposedEnd.z - p0.z) * (proposedEnd.z - p0.z));
+                bool isCBD     = distFromCenter < capRadius * 0.25f;
+                bool isSuburbs = distFromCenter > capRadius * 0.55f;
+
+                if (seg.isHighway)
+                    BranchHighway(Enqueue, seg, proposedEnd, arteryStep, rng);
+                else
+                    BranchMajor(Enqueue, seg, proposedEnd, arteryStep, isCBD, isSuburbs, rng);
+
+                loopCount++;
+                if (loopCount % yieldEvery == 0)
+                {
+                    float p = Mathf.Lerp(0.05f, 0.88f, maxSegs <= 0 ? 1f : (float)confirmedCount / maxSegs);
+                    onProgress?.Invoke(p, $"Generazione rete: {confirmedCount}/{maxSegs} segmenti");
+                    yield return null;
+                }
+            }
+
+            if (confirmedCount >= maxSegs)
+                report.warnings.Add($"Limite maxBranchSegments ({maxSegs}) raggiunto. Aumenta il valore o riduci il raggio/generazioni.");
+        }
+        else
+        {
+            onProgress?.Invoke(0.15f, "Generazione rete griglia...");
+            GenerateRoadNetworkGrid(manager, ref report);
+            yield return null;
+        }
+
+        onProgress?.Invoke(0.92f, "Planarizzazione incroci...");
+        float mergePlanarize = Mathf.Max(0.1f, config.mergeThreshold);
+        int splitsDone = CityRoadPlanarizer.Planarize(manager, mergePlanarize);
+        if (splitsDone > 0)
+            report.warnings.Add($"{splitsDone} segmenti planarizzati (incroci risolti).");
+
+        EditorUtility.SetDirty(cityData);
+        SceneView.RepaintAll();
+
+        onProgress?.Invoke(1f, "Generazione completata");
+        Debug.Log($"[AmericanCityGenerator] Rete generata ({config.generationMode}): {report.nodesCreated} nodi, {report.segmentsCreated} segmenti.");
+        onCompleted?.Invoke(report);
     }
 
     public override GenerationReport AssignZoningByDistance(CityManager manager)
@@ -149,21 +338,38 @@ public class AmericanCityGenerator : CityGeneratorBase
         Vector3 p0      = config.centerWorldPosition;
         float capRadius = config.maxGenerationRadius;
         float merge     = Mathf.Max(0.1f, config.mergeThreshold);
-        float snap      = Mathf.Max(merge, config.snapRadius);
         int   maxSegs   = config.maxBranchSegments;
         int   maxGen    = config.maxBranchGenerations;
         float majorLen  = Mathf.Max(50f, config.majorGridSpacing);
-        float localLen  = Mathf.Max(20f, config.localStreetSpacing);
+
+        // arteryStep: passo di ogni segmento di branching.
+        // Auto-scalato a capRadius*0.2 → garantisce ≥ 5 passi visibili entro il raggio.
+        // Con preset (majorLen=1600, cap=2400) → 480 m.
+        // Con città grande (cap=10000, majorLen=1600) → 1600 m (comportamento originale).
+        float arteryStep = Mathf.Max(50f, Mathf.Min(majorLen, capRadius * 0.2f));
+
+        // Snap fisso dal config: evita agganci troppo aggressivi su nodi lontani.
+        float snap = Mathf.Max(merge, config.snapRadius);
 
         var rng = new System.Random(config.randomSeed);
 
         var confirmedEndpoints = new List<Vector3>();
         var pending = new List<PendingSegment>();
 
-        // Funzione locale: calcola priority = distanza start→p0 e inserisce nella lista.
-        // La priority-queue è ordinata per distanza minima dal centro → il centro si riempie sempre prima.
         void Enqueue(PendingSegment s)
         {
+            const float sameStartEps = 1.0f;
+            const float sameDirDot = 0.985f;
+
+            for (int i = 0; i < pending.Count; i++)
+            {
+                PendingSegment p = pending[i];
+                if ((p.start - s.start).sqrMagnitude > sameStartEps * sameStartEps) continue;
+                if (Vector3.Dot(p.direction, s.direction) < sameDirDot) continue;
+                if (Mathf.Abs(p.length - s.length) > merge) continue;
+                return;
+            }
+
             s.priority = Mathf.Sqrt(
                 (s.start.x - p0.x) * (s.start.x - p0.x) +
                 (s.start.z - p0.z) * (s.start.z - p0.z));
@@ -181,14 +387,14 @@ public class AmericanCityGenerator : CityGeneratorBase
             float angleDeg = i * (180f / hwCount);
             float rad = angleDeg * Mathf.Deg2Rad;
             Vector3 dirA = new Vector3(Mathf.Sin(rad), 0f, Mathf.Cos(rad)).normalized;
-            Enqueue(new PendingSegment { start = p0, direction = dirA,  length = majorLen, generation = 0, isHighway = true });
-            Enqueue(new PendingSegment { start = p0, direction = -dirA, length = majorLen, generation = 0, isHighway = true });
+            Enqueue(new PendingSegment { start = p0, direction = dirA,  length = arteryStep, generation = 0, isHighway = true });
+            Enqueue(new PendingSegment { start = p0, direction = -dirA, length = arteryStep, generation = 0, isHighway = true });
 
             // Assi ortogonali per griglia principale (evitano buchi se hwCount < 2)
             Vector3 orthoA = Quaternion.Euler(0f,  90f, 0f) * dirA;
             Vector3 orthoB = Quaternion.Euler(0f, -90f, 0f) * dirA;
-            Enqueue(new PendingSegment { start = p0, direction = orthoA, length = majorLen, generation = 0 });
-            Enqueue(new PendingSegment { start = p0, direction = orthoB, length = majorLen, generation = 0 });
+            Enqueue(new PendingSegment { start = p0, direction = orthoA, length = arteryStep, generation = 0 });
+            Enqueue(new PendingSegment { start = p0, direction = orthoB, length = arteryStep, generation = 0 });
         }
 
         int confirmedCount = 0;
@@ -265,55 +471,37 @@ public class AmericanCityGenerator : CityGeneratorBase
             bool isSuburbs = distFromCenter > capRadius * 0.55f;
 
             if (seg.isHighway)
-                BranchHighway(Enqueue, seg, proposedEnd, majorLen, localLen, distFromCenter, rng);
-            else if (seg.isLocal)
-                BranchLocal(Enqueue, seg, proposedEnd, localLen, isCBD, isSuburbs, rng);
+                BranchHighway(Enqueue, seg, proposedEnd, arteryStep, rng);
             else
-                BranchMajor(Enqueue, seg, proposedEnd, majorLen, localLen, isCBD, isSuburbs, distFromCenter, rng);
+                BranchMajor(Enqueue, seg, proposedEnd, arteryStep, isCBD, isSuburbs, rng);
         }
 
         if (confirmedCount >= maxSegs)
             report.warnings.Add($"Limite maxBranchSegments ({maxSegs}) raggiunto. Aumenta il valore o riduci il raggio/generazioni.");
-
-        // ── Pass 2: strade locali deterministiche (copertura garantita) ───────
-        // Il branching genera la rete arteriosa organica (autostrade + strade principali).
-        // Le strade locali vengono poi aggiunte come griglia interna ad ogni super-blocco,
-        // garantendo che il centro e tutta la città siano sempre coperti uniformemente.
-        float localCap = Mathf.Min(capRadius, config.localStreetMaxRadius);
-        bool localEnabled = localCap > 0f
-            && config.localStreetSpacing > 0f
-            && config.localStreetSpacing < config.majorGridSpacing * 0.95f;
-        if (localEnabled)
-            GenerateLocalStreets(manager, p0, localCap, merge, ref report);
+        // Nota: in modalità Branching la rete è generata organicamente dal loop sopra.
+        // GenerateLocalStreets (griglia deterministica) è usata solo dalla modalità Grid.
     }
 
     // ── Branching: autostrade ─────────────────────────────────────────────────
 
     private void BranchHighway(System.Action<PendingSegment> enqueue, PendingSegment seg,
-        Vector3 end, float majorLen, float localLen, float distFromCenter, System.Random rng)
+        Vector3 end, float step, System.Random rng)
     {
         // Continua sempre dritto
         enqueue(new PendingSegment
         {
             start = end, direction = seg.direction,
-            length = majorLen, generation = seg.generation + 1, isHighway = true
+            length = step, generation = seg.generation + 1, isHighway = true
         });
 
-        // Svincoli perpendicolari (griglia principale)
+        // Svincolo opzionale singolo (sinistra o destra): evita fan-out esplosivo.
         if (rng.NextDouble() < (double)config.cbdBranchProbability)
         {
+            float side = rng.NextDouble() < 0.5 ? -90f : 90f;
             enqueue(new PendingSegment
             {
-                start = end, direction = Quaternion.Euler(0f, 90f, 0f) * seg.direction,
-                length = majorLen, generation = seg.generation + 1, isHighway = false
-            });
-        }
-        if (rng.NextDouble() < (double)config.cbdBranchProbability)
-        {
-            enqueue(new PendingSegment
-            {
-                start = end, direction = Quaternion.Euler(0f, -90f, 0f) * seg.direction,
-                length = majorLen, generation = seg.generation + 1, isHighway = false
+                start = end, direction = Quaternion.Euler(0f, side, 0f) * seg.direction,
+                length = step, generation = seg.generation + 1, isHighway = false
             });
         }
     }
@@ -321,99 +509,75 @@ public class AmericanCityGenerator : CityGeneratorBase
     // ── Branching: strade principali ──────────────────────────────────────────
 
     private void BranchMajor(System.Action<PendingSegment> enqueue, PendingSegment seg,
-        Vector3 end, float majorLen, float localLen,
-        bool isCBD, bool isSuburbs, float distFromCenter, System.Random rng)
+        Vector3 end, float step,
+        bool isCBD, bool isSuburbs, System.Random rng)
     {
-        // Gradiente organico: CBD griglia rigida, inner city moderata, suburbs organici.
         float t = isSuburbs ? 0f : (isCBD ? 1f : 0.5f);
         float straightProb = Mathf.Lerp((float)config.suburbStraightProbability, (float)config.cbdStraightProbability, t);
         float branchProb   = Mathf.Lerp((float)config.suburbBranchProbability,   (float)config.cbdBranchProbability,   t);
 
-        // Continua dritto (con eventuale deviazione organica fuori CBD)
+        // Continua dritto (con deviazione organica fuori CBD)
         if (rng.NextDouble() < straightProb)
         {
             Vector3 dir = seg.direction;
             if (!isCBD)
             {
-                float jitter = isSuburbs ? 25f : 10f;
-                float angle = (float)(rng.NextDouble() * 2.0 - 1.0) * jitter;
-                dir = Quaternion.Euler(0f, angle, 0f) * dir;
+                float jitter = isSuburbs ? 25f : 12f;
+                dir = Quaternion.Euler(0f, (float)(rng.NextDouble() * 2.0 - 1.0) * jitter, 0f) * dir;
             }
-            enqueue(new PendingSegment
-            {
-                start = end, direction = dir,
-                length = majorLen, generation = seg.generation + 1
-            });
+            enqueue(new PendingSegment { start = end, direction = dir, length = step, generation = seg.generation + 1 });
         }
 
-        // Diramazione sinistra
-        if (rng.NextDouble() < branchProb)
+        if (isCBD)
         {
-            float angle = isCBD ? -90f : -(30f + (float)(rng.NextDouble() * 40f));
-            enqueue(new PendingSegment
+            if (rng.NextDouble() < branchProb)
             {
-                start = end, direction = Quaternion.Euler(0f, angle, 0f) * seg.direction,
-                length = majorLen, generation = seg.generation + 1
-            });
+                float angle = -90f;
+                enqueue(new PendingSegment { start = end, direction = Quaternion.Euler(0f, angle, 0f) * seg.direction, length = step, generation = seg.generation + 1 });
+            }
+            if (rng.NextDouble() < branchProb)
+            {
+                float angle = 90f;
+                enqueue(new PendingSegment { start = end, direction = Quaternion.Euler(0f, angle, 0f) * seg.direction, length = step, generation = seg.generation + 1 });
+            }
         }
-
-        // Diramazione destra
-        if (rng.NextDouble() < branchProb)
+        else if (rng.NextDouble() < branchProb)
         {
-            float angle = isCBD ? 90f : (30f + (float)(rng.NextDouble() * 40f));
-            enqueue(new PendingSegment
-            {
-                start = end, direction = Quaternion.Euler(0f, angle, 0f) * seg.direction,
-                length = majorLen, generation = seg.generation + 1
-            });
+            float sign = rng.NextDouble() < 0.5 ? -1f : 1f;
+            float angle = sign * (30f + (float)(rng.NextDouble() * 40f));
+            enqueue(new PendingSegment { start = end, direction = Quaternion.Euler(0f, angle, 0f) * seg.direction, length = step, generation = seg.generation + 1 });
         }
-        // Le strade locali vengono generate nel pass 2 (GenerateLocalStreets).
     }
 
-    // ── Branching: strade locali (fallback, usato solo se qualche ramo è isLocal) ──
+    // ── Branching: strade locali (spawned da BranchMajor nei suburbs) ─────────
 
     private void BranchLocal(System.Action<PendingSegment> enqueue, PendingSegment seg,
-        Vector3 end, float localLen,
+        Vector3 end, float step,
         bool isCBD, bool isSuburbs, System.Random rng)
     {
         float straightProb = isCBD ? (float)config.cbdStraightProbability
                                    : (float)config.suburbStraightProbability;
-        float branchProb   = isCBD ? (float)config.cbdBranchProbability * 0.5f
+        float branchProb   = isCBD ? (float)config.cbdBranchProbability  * 0.5f
                                    : (float)config.suburbBranchProbability * 0.4f;
 
         if (rng.NextDouble() < straightProb)
         {
             Vector3 dir = seg.direction;
             if (!isCBD && isSuburbs)
-            {
-                float angle = (float)(rng.NextDouble() * 2.0 - 1.0) * 20f;
-                dir = Quaternion.Euler(0f, angle, 0f) * dir;
-            }
-            enqueue(new PendingSegment
-            {
-                start = end, direction = dir,
-                length = localLen, generation = seg.generation + 1, isLocal = true
-            });
+                dir = Quaternion.Euler(0f, (float)(rng.NextDouble() * 2.0 - 1.0) * 20f, 0f) * dir;
+            enqueue(new PendingSegment { start = end, direction = dir, length = step, generation = seg.generation + 1, isLocal = true });
         }
 
         if (rng.NextDouble() < branchProb)
         {
-            float angle = 45f + (float)(rng.NextDouble() * 30f);
-            enqueue(new PendingSegment
-            {
-                start = end, direction = Quaternion.Euler(0f, -angle, 0f) * seg.direction,
-                length = localLen, generation = seg.generation + 1, isLocal = true
-            });
+            float a = 45f + (float)(rng.NextDouble() * 30f);
+            enqueue(new PendingSegment { start = end, direction = Quaternion.Euler(0f, -a, 0f) * seg.direction, length = step, generation = seg.generation + 1, isLocal = true });
         }
 
         if (rng.NextDouble() < branchProb)
         {
-            float angle = 45f + (float)(rng.NextDouble() * 30f);
-            enqueue(new PendingSegment
-            {
-                start = end, direction = Quaternion.Euler(0f, angle, 0f) * seg.direction,
-                length = localLen, generation = seg.generation + 1, isLocal = true
-            });
+            float a = 45f + (float)(rng.NextDouble() * 30f);
+            enqueue(new PendingSegment { start = end, direction = Quaternion.Euler(0f, a, 0f) * seg.direction, length = step, generation = seg.generation + 1, isLocal = true });
         }
     }
 
