@@ -247,6 +247,9 @@ public static class CityBuildingSpawner
                     report.prefabMissingMetadata++;
                 }
 
+                // Gli edifici devono ruotare solo in yaw (asse Y) per evitare capovolgimenti su lotti in pendenza.
+                spawnRotation = ExtractYawOnlyRotation(spawnRotation);
+
                 GameObject instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
                 if (instance == null)
                 {
@@ -779,6 +782,7 @@ public static class CityBuildingSpawner
         }
 
         Vector3 lotForward = ((backL + backR) * 0.5f - (frontL + frontR) * 0.5f).normalized;
+        lotForward.y = 0f;
         if (lotForward.sqrMagnitude < 0.0001f)
         {
             lotForward = Vector3.forward;
@@ -788,6 +792,18 @@ public static class CityBuildingSpawner
         center = lot.buildingCenter;
 
         return true;
+    }
+
+    private static Quaternion ExtractYawOnlyRotation(Quaternion inputRotation)
+    {
+        Vector3 flatForward = inputRotation * Vector3.forward;
+        flatForward.y = 0f;
+        if (flatForward.sqrMagnitude < 0.0001f)
+        {
+            return Quaternion.identity;
+        }
+
+        return Quaternion.LookRotation(flatForward.normalized, Vector3.up);
     }
 
     private static Vector3 ComputeLotMatchedSpawnPosition(
