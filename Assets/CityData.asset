@@ -12,10 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2719f52ae4cf1f24f8f66bab5b8b98fe, type: 3}
   m_Name: CityData
   m_EditorClassIdentifier: Assembly-CSharp::CityData
-  nodes:
-  - id: 0
-    position: {x: 0, y: 0, z: 0}
-    connectedSegmentIDs: 
+  nodes: []
   segments: []
   defaultRoadProfile: {fileID: 11400000, guid: c5ee0e2a7b9cfc0418ee5607abcea65d, type: 2}
   blocks: []

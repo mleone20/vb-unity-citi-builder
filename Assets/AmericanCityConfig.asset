@@ -14,32 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AmericanCityConfig
   centerWorldPosition: {x: 0, y: 0, z: 0}
   maxGenerationRadius: 2400
-  generationMode: 1
   majorGridSpacing: 1600
   localStreetSpacing: 100
   localStreetMaxRadius: 2400
-  blockSizeVariation: 0.05
+  blockSizeVariation: 0.45
   randomSeed: 42
   highwayCount: 2
-  mergeThreshold: 3
-  maxBranchSegments: 5000
-  maxBranchGenerations: 12
-  cbdStraightProbability: 0.98
-  cbdBranchProbability: 0.9
-  suburbStraightProbability: 0.72
-  suburbBranchProbability: 0.28
+  mergeThreshold: 1
   snapRadius: 20
-  initialNumDirections: 4
-  cbdBranchCount: 3
-  cbdBranchSweepAngle: 180
-  cbdBranchJitter: 0
-  suburbBranchCount: 3
-  suburbBranchSweepAngle: 120
-  suburbBranchJitter: 15
-  suburbBranchSymmetric: 1
-  localBranchCount: 2
-  localBranchSweepAngle: 90
-  localBranchJitter: 10
   blockDepthMultiplier: 2
   alleyEnabled: 1
   alleyProfile: {fileID: 11400000, guid: 9870cab19feef2e4e9cc7d80bd337b7b, type: 2}
@@ -48,19 +30,19 @@ MonoBehaviour:
   zoneRings:
   - label: CBD
     maxRadius: 400
-    zoneType: {fileID: 0}
+    zoneType: {fileID: 11400000, guid: 63e96ec985644f24e83e34b9f360dc62, type: 2}
     orientation: 0
   - label: Inner City
     maxRadius: 800
-    zoneType: {fileID: 0}
+    zoneType: {fileID: 11400000, guid: f4c40a60b9edd4144bca630d0364f927, type: 2}
     orientation: 0
   - label: Residential
     maxRadius: 1600
-    zoneType: {fileID: 0}
-    orientation: 1
+    zoneType: {fileID: 11400000, guid: eeba03b48ae74a146a5b3a56679dc2f0, type: 2}
+    orientation: 2
   - label: Suburban
     maxRadius: 2400
-    zoneType: {fileID: 0}
+    zoneType: {fileID: 11400000, guid: eeba03b48ae74a146a5b3a56679dc2f0, type: 2}
     orientation: 2
   highwayProfile: {fileID: 11400000, guid: f4358a56057e55e4ba1aa95e2dce82fb, type: 2}
   majorGridProfile: {fileID: 11400000, guid: c5ee0e2a7b9cfc0418ee5607abcea65d, type: 2}
