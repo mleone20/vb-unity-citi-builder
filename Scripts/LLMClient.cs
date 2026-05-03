@@ -10,9 +10,9 @@ using UnityEngine;
 /// </summary>
 public class LLMClient
 {
-    private const string DefaultBaseUrl = "http://100.105.213.67:11434";
-    private const string DefaultChatCompletionsPath = "/v1/chat/completions";
-    private const string DefaultModel = "local-model";
+    public const string DefaultBaseUrl = "http://100.105.213.67:11434";
+    public const string DefaultChatCompletionsPath = "/v1/chat/completions";
+    public const string DefaultModel = "local-model";
 
     private static readonly HttpClient SharedHttpClient = new HttpClient
     {
@@ -45,6 +45,20 @@ public class LLMClient
     }
 
     [Serializable]
+    public class AutoTagRequestData
+    {
+        public string endpointUrl;
+        public string model;
+        public string systemPrompt;
+        public string userPrompt;
+        public string imageDataUrl;
+        public string requestJson;
+        public int imageByteCount;
+        public int zoneTypeCount;
+        public bool usingApiKey;
+    }
+
+    [Serializable]
     private class ChatCompletionsResponse
     {
         public Choice[] choices;
@@ -73,39 +87,31 @@ public class LLMClient
     public bool TryAutoTagPrefab(byte[] prefabScreenshotPng, List<ZoneTypeCandidate> zoneTypeCandidates, out AutoTagResponse response, out string error)
     {
         response = null;
-        error = null;
-
-        if (prefabScreenshotPng == null || prefabScreenshotPng.Length == 0)
+        if (!TryBuildAutoTagRequest(prefabScreenshotPng, zoneTypeCandidates, out AutoTagRequestData requestData, out error))
         {
-            error = "Screenshot prefab assente o vuoto.";
             return false;
         }
 
-        if (zoneTypeCandidates == null || zoneTypeCandidates.Count == 0)
-        {
-            error = "Nessun ZoneType disponibile da inviare al modello.";
-            return false;
-        }
-
-        string systemPrompt = BuildSystemPrompt();
-        string userPrompt = BuildUserPrompt(zoneTypeCandidates);
-        string imageDataUrl = "data:image/png;base64," + Convert.ToBase64String(prefabScreenshotPng);
-        string requestJson = BuildChatCompletionsRequestJson(systemPrompt, userPrompt, imageDataUrl);
-
-        HttpResponseMessage httpResponse = null;
         string responseBody;
+        System.Net.HttpStatusCode statusCode;
+        bool isSuccess;
 
         try
         {
-            using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, baseUrl + DefaultChatCompletionsPath))
+            using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, requestData.endpointUrl))
             {
-                request.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+                request.Content = new StringContent(requestData.requestJson, Encoding.UTF8, "application/json");
                 if (!string.IsNullOrWhiteSpace(apiKey))
                 {
                     request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
                 }
 
-                httpResponse = SharedHttpClient.SendAsync(request).GetAwaiter().GetResult();
+                using (HttpResponseMessage httpResponse = SharedHttpClient.SendAsync(request).GetAwaiter().GetResult())
+                {
+                    statusCode = httpResponse.StatusCode;
+                    isSuccess = httpResponse.IsSuccessStatusCode;
+                    responseBody = httpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                }
             }
         }
         catch (Exception ex)
@@ -114,28 +120,11 @@ public class LLMClient
             return false;
         }
 
-        try
-        {
-            responseBody = httpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-        }
-        catch (Exception ex)
-        {
-            error = "Impossibile leggere la risposta di LM Studio: " + ex.Message;
-            return false;
-        }
-        finally
-        {
-            if (httpResponse != null)
-            {
-                httpResponse.Dispose();
-            }
-        }
-
-        if (!httpResponse.IsSuccessStatusCode)
+        if (!isSuccess)
         {
             string apiMessage = TryExtractApiError(responseBody);
             error = string.IsNullOrWhiteSpace(apiMessage)
-                ? "LM Studio ha risposto con stato HTTP " + (int)httpResponse.StatusCode + "."
+                ? "LM Studio ha risposto con stato HTTP " + (int)statusCode + "."
                 : apiMessage;
             return false;
         }
@@ -201,6 +190,44 @@ public class LLMClient
 
         response.description = response.description ?? string.Empty;
         response.zoneTypeDisplayNames = response.zoneTypeDisplayNames ?? new List<string>();
+        return true;
+    }
+
+    public bool TryBuildAutoTagRequest(byte[] prefabScreenshotPng, List<ZoneTypeCandidate> zoneTypeCandidates, out AutoTagRequestData requestData, out string error)
+    {
+        requestData = null;
+        error = null;
+
+        if (prefabScreenshotPng == null || prefabScreenshotPng.Length == 0)
+        {
+            error = "Screenshot prefab assente o vuoto.";
+            return false;
+        }
+
+        if (zoneTypeCandidates == null || zoneTypeCandidates.Count == 0)
+        {
+            error = "Nessun ZoneType disponibile da inviare al modello.";
+            return false;
+        }
+
+        string systemPrompt = BuildSystemPrompt();
+        string userPrompt = BuildUserPrompt(zoneTypeCandidates);
+        string imageDataUrl = "data:image/png;base64," + Convert.ToBase64String(prefabScreenshotPng);
+        string requestJson = BuildChatCompletionsRequestJson(systemPrompt, userPrompt, imageDataUrl);
+
+        requestData = new AutoTagRequestData
+        {
+            endpointUrl = baseUrl + DefaultChatCompletionsPath,
+            model = model,
+            systemPrompt = systemPrompt,
+            userPrompt = userPrompt,
+            imageDataUrl = imageDataUrl,
+            requestJson = requestJson,
+            imageByteCount = prefabScreenshotPng.Length,
+            zoneTypeCount = zoneTypeCandidates.Count,
+            usingApiKey = !string.IsNullOrWhiteSpace(apiKey)
+        };
+
         return true;
     }
 

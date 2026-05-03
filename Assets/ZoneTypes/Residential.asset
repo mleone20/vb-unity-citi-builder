@@ -20,5 +20,6 @@ MonoBehaviour:
   - {fileID: 8736832998991730174, guid: 8170e62c075dc794da37720ada415e39, type: 3}
   - {fileID: 142167432795707820, guid: ad38b919ebe690c4c994f88ccbb485b9, type: 3}
   - {fileID: 4436587874800999934, guid: 11ca54fd5070e564c9063530859d3b43, type: 3}
+  - {fileID: 5824523763231012750, guid: 9483706bfb0aae24db5416ad8cd4ac6c, type: 3}
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0

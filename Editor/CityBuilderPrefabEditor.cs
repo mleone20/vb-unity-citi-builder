@@ -63,6 +63,17 @@ public class CityBuilderPrefabEditor : Editor
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Auto Tagging LLM", EditorStyles.boldLabel);
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("LLM Settings", GUILayout.Height(24)))
+        {
+            LLMClientSettingsWindow.ShowWindow();
+        }
+        if (GUILayout.Button("Preview Request", GUILayout.Height(24)))
+        {
+            ShowLlmRequestPreview((CityBuilderPrefab)target);
+        }
+        EditorGUILayout.EndHorizontal();
+
         if (GUILayout.Button("Auto Tag with LLM", GUILayout.Height(28)))
         {
             TryAutoTagWithLlm((CityBuilderPrefab)target);
@@ -72,49 +83,21 @@ public class CityBuilderPrefabEditor : Editor
 
     private static void TryAutoTagWithLlm(CityBuilderPrefab selectedComponent)
     {
-        if (selectedComponent == null)
+        if (!TryPrepareAutoTagInput(
+            selectedComponent,
+            out GameObject prefabAsset,
+            out CityBuilderPrefab prefabMetadata,
+            out Texture2D previewTexture,
+            out byte[] previewPng,
+            out List<ZoneType> allZoneTypes,
+            out List<LLMClient.ZoneTypeCandidate> candidates,
+            out string preparationError))
         {
-            EditorUtility.DisplayDialog("AI Tagging", "CityBuilderPrefab non valido.", "OK");
+            EditorUtility.DisplayDialog("AI Tagging", preparationError, "OK");
             return;
         }
 
-        GameObject prefabAsset = ResolvePrefabAsset(selectedComponent.gameObject);
-        if (prefabAsset == null)
-        {
-            EditorUtility.DisplayDialog("AI Tagging", "Seleziona un prefab asset del progetto (o una sua istanza) che contiene CityBuilderPrefab.", "OK");
-            return;
-        }
-
-        CityBuilderPrefab prefabMetadata = prefabAsset.GetComponent<CityBuilderPrefab>();
-        if (prefabMetadata == null)
-        {
-            EditorUtility.DisplayDialog("AI Tagging", "Il prefab selezionato non contiene CityBuilderPrefab.", "OK");
-            return;
-        }
-
-        Texture2D previewTexture = AssetPreview.GetMiniThumbnail(prefabAsset);
-        if (previewTexture == null)
-        {
-            EditorUtility.DisplayDialog("AI Tagging", "Impossibile ottenere la preview del prefab.", "OK");
-            return;
-        }
-
-        byte[] previewPng = EncodeTextureToPng(previewTexture);
-        if (previewPng == null || previewPng.Length == 0)
-        {
-            EditorUtility.DisplayDialog("AI Tagging", "Impossibile convertire la preview in PNG.", "OK");
-            return;
-        }
-
-        List<ZoneType> allZoneTypes = LoadAllZoneTypes();
-        if (allZoneTypes.Count == 0)
-        {
-            EditorUtility.DisplayDialog("AI Tagging", "Nessun ZoneType trovato nel progetto.", "OK");
-            return;
-        }
-
-        List<LLMClient.ZoneTypeCandidate> candidates = BuildZoneTypeCandidates(allZoneTypes);
-        LLMClient llmClient = new LLMClient();
+        LLMClient llmClient = CreateConfiguredClient();
         if (!llmClient.TryAutoTagPrefab(previewPng, candidates, out LLMClient.AutoTagResponse response, out string error))
         {
             EditorUtility.DisplayDialog("AI Tagging", string.IsNullOrWhiteSpace(error) ? "LLMClient non disponibile." : error, "OK");
@@ -178,6 +161,133 @@ public class CityBuilderPrefabEditor : Editor
             "Suggerimenti senza match: " + unknownSuggestions;
 
         EditorUtility.DisplayDialog("AI Tagging", report, "OK");
+    }
+
+    private static void ShowLlmRequestPreview(CityBuilderPrefab selectedComponent)
+    {
+        if (!TryPrepareAutoTagInput(
+            selectedComponent,
+            out GameObject prefabAsset,
+            out CityBuilderPrefab prefabMetadata,
+            out Texture2D previewTexture,
+            out byte[] previewPng,
+            out List<ZoneType> allZoneTypes,
+            out List<LLMClient.ZoneTypeCandidate> candidates,
+            out string preparationError))
+        {
+            EditorUtility.DisplayDialog("Preview Request LLM", preparationError, "OK");
+            return;
+        }
+
+        LLMClient llmClient = CreateConfiguredClient();
+        if (!llmClient.TryBuildAutoTagRequest(previewPng, candidates, out LLMClient.AutoTagRequestData requestData, out string error))
+        {
+            EditorUtility.DisplayDialog("Preview Request LLM", string.IsNullOrWhiteSpace(error) ? "Impossibile creare la request." : error, "OK");
+            return;
+        }
+
+        LLMClientRequestPreviewWindow.ShowWindow(prefabAsset.name, previewTexture, requestData);
+    }
+
+    private static LLMClient CreateConfiguredClient()
+    {
+        string baseUrl = LLMClientEditorSettings.GetBaseUrl();
+        string model = LLMClientEditorSettings.GetModel();
+        string apiKey = LLMClientEditorSettings.GetApiKey();
+        return new LLMClient(baseUrl, model, apiKey);
+    }
+
+    private static bool TryPrepareAutoTagInput(
+        CityBuilderPrefab selectedComponent,
+        out GameObject prefabAsset,
+        out CityBuilderPrefab prefabMetadata,
+        out Texture2D previewTexture,
+        out byte[] previewPng,
+        out List<ZoneType> allZoneTypes,
+        out List<LLMClient.ZoneTypeCandidate> candidates,
+        out string error)
+    {
+        prefabAsset = null;
+        prefabMetadata = null;
+        previewTexture = null;
+        previewPng = null;
+        allZoneTypes = null;
+        candidates = null;
+        error = null;
+
+        if (selectedComponent == null)
+        {
+            error = "CityBuilderPrefab non valido.";
+            return false;
+        }
+
+        prefabAsset = ResolvePrefabAsset(selectedComponent.gameObject);
+        if (prefabAsset == null)
+        {
+            error = "Seleziona un prefab asset del progetto (o una sua istanza) che contiene CityBuilderPrefab.";
+            return false;
+        }
+
+        prefabMetadata = prefabAsset.GetComponent<CityBuilderPrefab>();
+        if (prefabMetadata == null)
+        {
+            error = "Il prefab selezionato non contiene CityBuilderPrefab.";
+            return false;
+        }
+
+        if (!TryGetRenderedModelPreview(prefabAsset, out previewTexture, out string previewError))
+        {
+            error = previewError;
+            return false;
+        }
+
+        previewPng = EncodeTextureToPng(previewTexture);
+        if (previewPng == null || previewPng.Length == 0)
+        {
+            error = "Impossibile convertire la preview in PNG.";
+            return false;
+        }
+
+        allZoneTypes = LoadAllZoneTypes();
+        if (allZoneTypes.Count == 0)
+        {
+            error = "Nessun ZoneType trovato nel progetto.";
+            return false;
+        }
+
+        candidates = BuildZoneTypeCandidates(allZoneTypes);
+        return true;
+    }
+
+    private static bool TryGetRenderedModelPreview(GameObject prefabAsset, out Texture2D previewTexture, out string error)
+    {
+        previewTexture = null;
+        error = null;
+
+        if (prefabAsset == null)
+        {
+            error = "Prefab non valido per la preview renderizzata.";
+            return false;
+        }
+
+        previewTexture = AssetPreview.GetAssetPreview(prefabAsset);
+        if (previewTexture != null)
+        {
+            return true;
+        }
+
+        // Forza la richiesta di generazione preview e segnala all'utente di riprovare.
+        AssetPreview.GetAssetPreview(prefabAsset);
+
+        bool stillLoading = AssetPreview.IsLoadingAssetPreview(prefabAsset.GetInstanceID()) || AssetPreview.IsLoadingAssetPreviews();
+        if (stillLoading)
+        {
+            error = "La preview renderizzata del modello e in preparazione. Attendi qualche istante e riprova.";
+            return false;
+        }
+
+        error = "Impossibile generare una preview renderizzata del modello per questo prefab.";
+        return false;
     }
 
     private static GameObject ResolvePrefabAsset(GameObject source)
