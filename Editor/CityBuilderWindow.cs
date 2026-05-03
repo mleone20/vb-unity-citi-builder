@@ -913,8 +913,7 @@ public class CityBuilderWindow : EditorWindow
             proceduralConfig.generationMode = RoadGenerationMode.Grid;
             EditorUtility.SetDirty(proceduralConfig);
         }
-        EditorGUILayout.LabelField("Modalità", "Grid");
-        EditorGUILayout.HelpBox("Branching rimosso: il tool genera solo con algoritmo Grid.", MessageType.Info);
+        EditorGUILayout.LabelField("Modalità", "Grid"); 
 
         DrawSubHeader("GRIGLIA STRADALE");
         EditorGUI.BeginChangeCheck();
@@ -944,9 +943,7 @@ public class CityBuilderWindow : EditorWindow
         int halfEst  = Mathf.CeilToInt(proceduralConfig.maxGenerationRadius / Mathf.Max(1f, proceduralConfig.majorGridSpacing));
         int estNodes = Mathf.RoundToInt((2 * halfEst + 1) * (2 * halfEst + 1) * 0.78f);
         EditorGUILayout.HelpBox("Stima nodi griglia principale: ~" + estNodes + ". Strade locali entro " + proceduralConfig.localStreetMaxRadius.ToString("F0") + " m.", MessageType.None);
-
-        // Branching rimosso completamente
-
+ 
         DrawSubHeader("VICOLI (ALLEY)");
         EditorGUI.BeginChangeCheck();
         bool  newAlleyOn   = EditorGUILayout.Toggle("Abilita Vicoli",       proceduralConfig.alleyEnabled);

@@ -49,7 +49,7 @@ public class AmericanCityConfig : ScriptableObject
     public float maxGenerationRadius = 3000f;
 
     [Header("Algoritmo di Generazione")]
-    [Tooltip("Modalità di generazione stradale. Branching rimosso: il sistema usa solo Grid.")]
+    [Tooltip("Modalità di generazione stradale.")]
     public RoadGenerationMode generationMode = RoadGenerationMode.Grid;
 
     [Header("Griglia Stradale")]
@@ -78,82 +78,12 @@ public class AmericanCityConfig : ScriptableObject
 
     [Tooltip("Distanza soglia (m) entro cui due nodi vengono uniti per evitare duplicati.")]
     [Min(0.1f)]
-    public float mergeThreshold = 2f;
-
-    [Header("Branching - Parametri Avanzati")]
-    [Tooltip("Numero massimo di segmenti generabili dal branching (limite di sicurezza).")]
-    [Min(10)]
-    public int maxBranchSegments = 8000;
-
-    [Tooltip("Profondità massima di ramificazione (generazioni). Più alto = città più grande.")]
-    [Min(1)]
-    public int maxBranchGenerations = 12;
-
-    [Tooltip("Probabilità (0-1) che una strada continui dritto ad ogni iterazione (zona CBD).")]
-    [Range(0f, 1f)]
-    public float cbdStraightProbability = 0.95f;
-
-    [Tooltip("Probabilità (0-1) che una strada generi una diramazione laterale a 90° (zona CBD).")]
-    [Range(0f, 1f)]
-    public float cbdBranchProbability = 0.80f;
-
-    [Tooltip("Probabilità che una strada locale continui dritto nei suburbs.")]
-    [Range(0f, 1f)]
-    public float suburbStraightProbability = 0.75f;
-
-    [Tooltip("Probabilità di diramazione organica nei suburbs (angolo casuale 30-70°).")]
-    [Range(0f, 1f)]
-    public float suburbBranchProbability = 0.40f;
+    public float mergeThreshold = 2f;  
 
     [Tooltip("Raggio di snapping: due endpoint entro questa distanza vengono uniti in un nodo condiviso.")]
     [Min(0.5f)]
     public float snapRadius = 8f;
-
-    [Header("Branching - Seed 360")]
-    [Tooltip("Numero di direzioni iniziali dal centro P0 per la modalità Branching. Le direzioni sono distribuite uniformemente su 360°.")]
-    [Range(2, 16)]
-    public int initialNumDirections = 4;
-
-    [Header("Branching - Ventaglio Parametrico")]
-    [Tooltip("Numero totale di rami per segmento in CBD (include il ramo dritto).")]
-    [Range(1, 6)]
-    public int cbdBranchCount = 3;
-
-    [Tooltip("Sweep totale in gradi del ventaglio CBD.")]
-    [Range(0f, 360f)]
-    public float cbdBranchSweepAngle = 180f;
-
-    [Tooltip("Jitter angolare casuale in gradi applicato ai rami laterali CBD.")]
-    [Range(0f, 30f)]
-    public float cbdBranchJitter = 0f;
-
-    [Tooltip("Numero totale di rami per segmento in Suburbs (include il ramo dritto).")]
-    [Range(1, 6)]
-    public int suburbBranchCount = 3;
-
-    [Tooltip("Sweep totale in gradi del ventaglio Suburbs.")]
-    [Range(0f, 360f)]
-    public float suburbBranchSweepAngle = 120f;
-
-    [Tooltip("Jitter angolare casuale in gradi applicato ai rami laterali Suburbs.")]
-    [Range(0f, 45f)]
-    public float suburbBranchJitter = 15f;
-
-    [Tooltip("Se attivo, i rami laterali vengono distribuiti in modo simmetrico rispetto alla direzione corrente.")]
-    public bool suburbBranchSymmetric = true;
-
-    [Tooltip("Numero totale di rami per segmento in Local (include il ramo dritto).")]
-    [Range(1, 4)]
-    public int localBranchCount = 2;
-
-    [Tooltip("Sweep totale in gradi del ventaglio Local.")]
-    [Range(0f, 180f)]
-    public float localBranchSweepAngle = 90f;
-
-    [Tooltip("Jitter angolare casuale in gradi applicato ai rami laterali Local.")]
-    [Range(0f, 30f)]
-    public float localBranchJitter = 10f;
-
+    
     [Header("Blocchi - Proporzioni")]
     [Tooltip("Rapporto profondità/larghezza dei blocchi locali. 2.0 = blocchi 1:2 (es. 100×200 m con localStreetSpacing=100).")]
     [Range(1f, 4f)]
@@ -250,19 +180,7 @@ public class AmericanCityConfig : ScriptableObject
     /// I ZoneType devono essere collegati manualmente nella UI.
     /// </summary>
     public void ResetToAmericanDefaults()
-    {
-        initialNumDirections     = 4;
-        cbdBranchCount           = 3;
-        cbdBranchSweepAngle      = 180f;
-        cbdBranchJitter          = 0f;
-        suburbBranchCount        = 3;
-        suburbBranchSweepAngle   = 120f;
-        suburbBranchJitter       = 15f;
-        suburbBranchSymmetric    = true;
-        localBranchCount         = 2;
-        localBranchSweepAngle    = 90f;
-        localBranchJitter        = 10f;
-
+    { 
         zoneRings = new List<ZoneRing>
         {
             new ZoneRing { label = "CBD (Downtown)",      maxRadius =  2000f, orientation = BlockOrientation.Interior },
@@ -275,8 +193,7 @@ public class AmericanCityConfig : ScriptableObject
 
     /// <summary>
     /// Preset valori consigliati per una città di gioco con blocchi americani realistici.
-    /// Raggio 2400 m, superblocchi da 1 miglio (1600 m), blocchi locali 100×200 m, vicoli centrali.
-    /// Modalità Branching con probabilità calibrate per CBD compatto e suburbs organici.
+    /// Raggio 2400 m, superblocchi da 1 miglio (1600 m), blocchi locali 100×200 m, vicoli centrali.  
     /// I ZoneType devono essere collegati manualmente o via Setup Default Zone Types.
     /// </summary>
     public void ResetToGameDefaults()
@@ -293,25 +210,8 @@ public class AmericanCityConfig : ScriptableObject
         highwayCount              = 2;
         alleyEnabled              = true;
         alleyPositionFraction     = 0.5f;
-        alleyMaxRadius            = 2400f;
-        maxBranchSegments         = 5000;
-        maxBranchGenerations      = 12;
-        snapRadius                = 20f;
-        initialNumDirections      = 4;
-        cbdBranchCount            = 3;
-        cbdBranchSweepAngle       = 180f;
-        cbdBranchJitter           = 0f;
-        cbdStraightProbability    = 0.98f;
-        cbdBranchProbability      = 0.90f;
-        suburbBranchCount         = 3;
-        suburbBranchSweepAngle    = 120f;
-        suburbBranchJitter        = 15f;
-        suburbBranchSymmetric     = true;
-        suburbStraightProbability = 0.72f;
-        suburbBranchProbability   = 0.28f;
-        localBranchCount          = 2;
-        localBranchSweepAngle     = 90f;
-        localBranchJitter         = 10f;
+        alleyMaxRadius            = 2400f; 
+        snapRadius                = 20f; 
         zoneRings = new List<ZoneRing>
         {
             new ZoneRing { label = "CBD",         maxRadius =  400f, orientation = BlockOrientation.Interior },
