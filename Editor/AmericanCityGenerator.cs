@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
 using System;
 using System.Collections;
@@ -48,7 +48,7 @@ public class AmericanCityGenerator : CityGeneratorBase
         EditorUtility.SetDirty(cityData);
         SceneView.RepaintAll();
 
-        Debug.Log($"[AmericanCityGenerator] Rete generata ({config.generationMode}): {report.nodesCreated} nodi, {report.segmentsCreated} segmenti.");
+        Debug.Log($"[AmericanCityGenerator] Rete generata: {report.nodesCreated} nodi, {report.segmentsCreated} segmenti.");
         return report;
     }
 
@@ -95,7 +95,7 @@ public class AmericanCityGenerator : CityGeneratorBase
         SceneView.RepaintAll();
 
         onProgress?.Invoke(1f, "Generazione completata");
-        Debug.Log($"[AmericanCityGenerator] Rete generata ({config.generationMode}): {report.nodesCreated} nodi, {report.segmentsCreated} segmenti.");
+        Debug.Log($"[AmericanCityGenerator] Rete generata: {report.nodesCreated} nodi, {report.segmentsCreated} segmenti.");
         onCompleted?.Invoke(report);
     }
 
@@ -167,6 +167,7 @@ public class AmericanCityGenerator : CityGeneratorBase
         if (localEnabled)
             GenerateLocalStreets(manager, p0, localCap, merge, ref report);
     }
+
 
     private void GenerateHighways(
         CityManager manager, CityNode centerNode, Vector3 p0,

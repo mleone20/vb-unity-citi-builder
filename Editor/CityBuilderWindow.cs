@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
 using System;
 using System.Collections;
@@ -906,15 +906,6 @@ public class CityBuilderWindow : EditorWindow
         }
         EditorGUILayout.EndHorizontal();
 
-        DrawSubHeader("MODALITÀ DI GENERAZIONE");
-        if (proceduralConfig.generationMode != RoadGenerationMode.Grid)
-        {
-            Undo.RecordObject(proceduralConfig, "Force Grid Generation Mode");
-            proceduralConfig.generationMode = RoadGenerationMode.Grid;
-            EditorUtility.SetDirty(proceduralConfig);
-        }
-        EditorGUILayout.LabelField("Modalità", "Grid"); 
-
         DrawSubHeader("GRIGLIA STRADALE");
         EditorGUI.BeginChangeCheck();
         float newMajor    = EditorGUILayout.FloatField("Spaziatura Griglia Principale (m)", proceduralConfig.majorGridSpacing);
@@ -943,7 +934,7 @@ public class CityBuilderWindow : EditorWindow
         int halfEst  = Mathf.CeilToInt(proceduralConfig.maxGenerationRadius / Mathf.Max(1f, proceduralConfig.majorGridSpacing));
         int estNodes = Mathf.RoundToInt((2 * halfEst + 1) * (2 * halfEst + 1) * 0.78f);
         EditorGUILayout.HelpBox("Stima nodi griglia principale: ~" + estNodes + ". Strade locali entro " + proceduralConfig.localStreetMaxRadius.ToString("F0") + " m.", MessageType.None);
- 
+
         DrawSubHeader("VICOLI (ALLEY)");
         EditorGUI.BeginChangeCheck();
         bool  newAlleyOn   = EditorGUILayout.Toggle("Abilita Vicoli",       proceduralConfig.alleyEnabled);

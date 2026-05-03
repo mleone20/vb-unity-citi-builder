@@ -2,14 +2,6 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// Modalità di generazione della rete stradale.
-/// </summary>
-public enum RoadGenerationMode
-{
-    Grid       // Modalità supportata
-}
-
-/// <summary>
 /// Rappresenta una fascia di distanza da P0 con la zona e l'orientamento lotti associati.
 /// Gli anelli devono essere ordinati per maxRadius crescente; l'ultimo ring cattura
 /// tutto ciò che supera il suo maxRadius.
@@ -48,10 +40,6 @@ public class AmericanCityConfig : ScriptableObject
     [Min(1f)]
     public float maxGenerationRadius = 3000f;
 
-    [Header("Algoritmo di Generazione")]
-    [Tooltip("Modalità di generazione stradale.")]
-    public RoadGenerationMode generationMode = RoadGenerationMode.Grid;
-
     [Header("Griglia Stradale")]
     [Tooltip("Spaziatura griglia principale (Major Grid) in metri. Default americano: 1600 m = 1 miglio.")]
     [Min(50f)]
@@ -83,7 +71,7 @@ public class AmericanCityConfig : ScriptableObject
     [Tooltip("Raggio di snapping: due endpoint entro questa distanza vengono uniti in un nodo condiviso.")]
     [Min(0.5f)]
     public float snapRadius = 8f;
-    
+
     [Header("Blocchi - Proporzioni")]
     [Tooltip("Rapporto profondità/larghezza dei blocchi locali. 2.0 = blocchi 1:2 (es. 100×200 m con localStreetSpacing=100).")]
     [Range(1f, 4f)]
@@ -198,7 +186,6 @@ public class AmericanCityConfig : ScriptableObject
     /// </summary>
     public void ResetToGameDefaults()
     {
-        generationMode            = RoadGenerationMode.Grid;
         maxGenerationRadius       = 2400f;
         mergeThreshold            = 3f;
         majorGridSpacing          = 1600f;
