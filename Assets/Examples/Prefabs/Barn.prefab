@@ -99,7 +99,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8126324706736594597}
-  - component: {fileID: 7996763740244051953}
+  - component: {fileID: 9176412582186961914}
   m_Layer: 0
   m_Name: Barn
   m_TagString: Untagged
@@ -123,7 +123,7 @@ Transform:
   - {fileID: 3345346056755336112}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7996763740244051953
+--- !u!114 &9176412582186961914
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -138,8 +138,8 @@ MonoBehaviour:
   footprintSize: {x: 10, y: 12}
   autoComputeFromRenderers: 0
   pivotOffset: {x: 0, y: 0, z: 0}
-  frontageOffset: {x: 0, y: 0, z: -6}
-  frontageDirection: {x: 0, y: 0, z: -1}
+  frontageOffset: {x: -5, y: 0, z: 0}
+  frontageDirection: {x: -1, y: 0, z: 0}
   frontageDisplayHeight: 4
   frontageOffsetInitialized: 1
   frontageDirectionInitialized: 1

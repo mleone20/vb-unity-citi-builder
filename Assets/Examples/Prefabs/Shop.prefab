@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3376120162429202488}
-  - component: {fileID: 7979049470182686569}
+  - component: {fileID: -3473291563627896137}
   m_Layer: 0
   m_Name: Shop
   m_TagString: Untagged
@@ -33,7 +33,7 @@ Transform:
   - {fileID: 5859625152132109811}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7979049470182686569
+--- !u!114 &-3473291563627896137
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

@@ -99,7 +99,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2615577778300402806}
-  - component: {fileID: 2596125086987506840}
+  - component: {fileID: 2058614719181737227}
   m_Layer: 0
   m_Name: ApartmentBlock
   m_TagString: Untagged
@@ -123,7 +123,7 @@ Transform:
   - {fileID: 9000929700002355406}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2596125086987506840
+--- !u!114 &2058614719181737227
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

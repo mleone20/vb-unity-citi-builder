@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 995190420197835561}
-  - component: {fileID: 3785509429476529134}
+  - component: {fileID: -2911176090363425146}
   m_Layer: 0
   m_Name: DetachedHouse
   m_TagString: Untagged
@@ -34,7 +34,7 @@ Transform:
   - {fileID: 7277717990629965137}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &3785509429476529134
+--- !u!114 &-2911176090363425146
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -46,10 +46,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 323fa384f24c5fc43a5407df76d8d178, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CityBuilderPrefab
-  footprintSize: {x: 7, y: 7}
+  footprintSize: {x: 7.4, y: 7.4}
   autoComputeFromRenderers: 0
   pivotOffset: {x: 0, y: 0, z: 0}
-  frontageOffset: {x: 0, y: 0, z: -3.5}
+  frontageOffset: {x: 0, y: 0, z: -3.7}
   frontageDirection: {x: 0, y: 0, z: -1}
   frontageDisplayHeight: 4
   frontageOffsetInitialized: 1

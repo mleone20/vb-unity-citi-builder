@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 970577409027396527}
-  - component: {fileID: 4715221798195839704}
+  - component: {fileID: -8917494596701645017}
   m_Layer: 0
   m_Name: OfficeBuilding
   m_TagString: Untagged
@@ -33,7 +33,7 @@ Transform:
   - {fileID: 6273149783353892550}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4715221798195839704
+--- !u!114 &-8917494596701645017
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

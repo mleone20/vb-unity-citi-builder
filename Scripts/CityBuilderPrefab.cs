@@ -373,26 +373,16 @@ public class CityBuilderPrefab : MonoBehaviour
 
     private static void ApplyAutoGroundPivot(CityBuilderPrefab component)
     {
-        Renderer[] renderers = component.GetComponentsInChildren<Renderer>(true);
-        if (renderers == null || renderers.Length == 0)
+        // Usare bounds in spazio LOCALE per evitare che OnValidate eseguito su un'istanza
+        // posizionata in scena (Y != 0) scriva coordinate world in pivotOffset, causando
+        // il posizionamento sottoterra durante lo spawn.
+        if (!component.TryCalculateLocalRendererBounds(out Bounds localBounds))
         {
-            EditorUtility.DisplayDialog("Auto ground pivot", "Nessun Renderer trovato nel prefab.", "OK");
             return;
         }
 
-        Bounds combined = renderers[0].bounds;
-        for (int i = 1; i < renderers.Length; i++)
-        {
-            if (renderers[i] != null)
-            {
-                combined.Encapsulate(renderers[i].bounds);
-            }
-        }
-
-        Vector3 bottomCenterWorld = new Vector3(combined.center.x, combined.min.y, combined.center.z);
-
-        Undo.RecordObject(component, "Auto ground pivot");
-        component.pivotOffset = bottomCenterWorld;
+        Vector3 bottomCenterLocal = new Vector3(localBounds.center.x, localBounds.min.y, localBounds.center.z);
+        component.pivotOffset = bottomCenterLocal;
         EditorUtility.SetDirty(component);
     }
 

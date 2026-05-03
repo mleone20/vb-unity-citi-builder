@@ -90,6 +90,10 @@ public class CityBuilderPrefabEditor : Editor
 
     private static void ApplyAutoGroundPivot(CityBuilderPrefab component)
     {
+        // Calcola bounds in spazio LOCALE trasformando i corner world di ciascun renderer.
+        // L'uso diretto di renderer.bounds (world-space) causava la scrittura di coordinate
+        // assolute in pivotOffset, portando allo spawn sottoterra quando OnValidate scattava
+        // su istanze già posizionate in scena a Y != 0.
         Renderer[] renderers = component.GetComponentsInChildren<Renderer>(true);
         if (renderers == null || renderers.Length == 0)
         {
@@ -97,19 +101,40 @@ public class CityBuilderPrefabEditor : Editor
             return;
         }
 
-        Bounds combined = renderers[0].bounds;
-        for (int i = 1; i < renderers.Length; i++)
+        bool initialized = false;
+        Vector3 min = Vector3.zero;
+        Vector3 max = Vector3.zero;
+
+        for (int i = 0; i < renderers.Length; i++)
         {
-            if (renderers[i] != null)
+            if (renderers[i] == null) continue;
+            Bounds wb = renderers[i].bounds;
+            Vector3 ext = wb.extents;
+            Vector3 ctr = wb.center;
+            Vector3[] corners =
             {
-                combined.Encapsulate(renderers[i].bounds);
+                ctr + new Vector3(-ext.x, -ext.y, -ext.z),
+                ctr + new Vector3(-ext.x, -ext.y,  ext.z),
+                ctr + new Vector3(-ext.x,  ext.y, -ext.z),
+                ctr + new Vector3(-ext.x,  ext.y,  ext.z),
+                ctr + new Vector3( ext.x, -ext.y, -ext.z),
+                ctr + new Vector3( ext.x, -ext.y,  ext.z),
+                ctr + new Vector3( ext.x,  ext.y, -ext.z),
+                ctr + new Vector3( ext.x,  ext.y,  ext.z),
+            };
+            foreach (Vector3 corner in corners)
+            {
+                Vector3 lc = component.transform.InverseTransformPoint(corner);
+                if (!initialized) { min = lc; max = lc; initialized = true; }
+                else { min = Vector3.Min(min, lc); max = Vector3.Max(max, lc); }
             }
         }
 
-        Vector3 bottomCenterWorld = new Vector3(combined.center.x, combined.min.y, combined.center.z);
+        if (!initialized) return;
 
+        Vector3 bottomCenterLocal = new Vector3((min.x + max.x) * 0.5f, min.y, (min.z + max.z) * 0.5f);
         Undo.RecordObject(component, "Auto ground pivot");
-        component.pivotOffset = bottomCenterWorld;
+        component.pivotOffset = bottomCenterLocal;
         EditorUtility.SetDirty(component);
     }
 }

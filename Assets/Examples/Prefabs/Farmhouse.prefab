@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3666782576331851226}
-  - component: {fileID: 6206755151171120091}
+  - component: {fileID: 4459152989287369235}
   m_Layer: 0
   m_Name: Farmhouse
   m_TagString: Untagged
@@ -33,7 +33,7 @@ Transform:
   - {fileID: 117381809784527486}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &6206755151171120091
+--- !u!114 &4459152989287369235
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -48,8 +48,8 @@ MonoBehaviour:
   footprintSize: {x: 6, y: 8}
   autoComputeFromRenderers: 0
   pivotOffset: {x: 0, y: 0, z: 0}
-  frontageOffset: {x: 0, y: 0, z: -4}
-  frontageDirection: {x: 0, y: 0, z: -1}
+  frontageOffset: {x: -3, y: 0, z: 0}
+  frontageDirection: {x: -1, y: 0, z: 0}
   frontageDisplayHeight: 4
   frontageOffsetInitialized: 1
   frontageDirectionInitialized: 1

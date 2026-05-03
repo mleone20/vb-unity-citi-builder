@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 962196143312863665}
-  - component: {fileID: 5547257296614805212}
+  - component: {fileID: -918164213190603915}
   m_Layer: 0
   m_Name: Skyscraper
   m_TagString: Untagged
@@ -33,7 +33,7 @@ Transform:
   - {fileID: 2352505323173998662}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &5547257296614805212
+--- !u!114 &-918164213190603915
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
