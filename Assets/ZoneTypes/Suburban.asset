@@ -16,9 +16,6 @@ MonoBehaviour:
   zoneColor: {r: 0.55, g: 0.76, b: 0.29, a: 1}
   buildingHeight: 5
   description: 'Periferia: case unifamiliari e villette.'
-  buildingPrefabs:
-  - {fileID: 2936757253146281749, guid: 5208ffb919898d6408e97ddf6658f968, type: 3}
-  - {fileID: 8117487799665925805, guid: c4c6ff2f15c2671408395805eb2490dc, type: 3}
-  - {fileID: 4436587874800999934, guid: 11ca54fd5070e564c9063530859d3b43, type: 3}
+  buildingPrefabs: []
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0
