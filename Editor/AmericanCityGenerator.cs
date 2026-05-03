@@ -150,7 +150,7 @@ public class AmericanCityGenerator : CityGeneratorBase
 
             int confirmedCount = 0;
             int loopCount = 0;
-            const int yieldEvery = 64;
+            const int yieldEvery = 8;
 
             while (pending.Count > 0 && confirmedCount < maxSegs)
             {
