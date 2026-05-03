@@ -29,7 +29,7 @@ public static class CityLotGenerator
         int tempID            = 0;
 
         // Raccolta candidati prefab con metadata valida.
-        List<(GameObject go, CityBuilderPrefab meta)> candidates = CollectCandidates(zoning);
+        List<(GameObject go, CityBuilderPrefab meta, float weight)> candidates = CollectCandidates(zoning);
         if (candidates.Count == 0)
         {
             return lots;
@@ -70,7 +70,11 @@ public static class CityLotGenerator
             {
                 // ── Seleziona prefab e dimensioni lotto ──────────────────────
                 float lotWidth, lotDepth;
-                int   prefabIndex = PickCandidateIndex(blockIndex, edgeIdx, lotIdx, candidates.Count);
+                int prefabIndex = PickCandidateIndex(blockIndex, edgeIdx, lotIdx, candidates, zoning);
+                if (prefabIndex < 0)
+                {
+                    break;
+                }
                 Vector2 fp        = candidates[prefabIndex].meta.GetAlignedFootprintSize();
                 lotWidth          = fp.x;
                 lotDepth          = fp.y;
@@ -182,7 +186,7 @@ public static class CityLotGenerator
         float margin         = cityData.globalRoadWidth * 0.5f + LotSafetyMargin;
         int   tempID         = 0;
 
-        List<(GameObject go, CityBuilderPrefab meta)> candidates = CollectCandidates(zoning);
+        List<(GameObject go, CityBuilderPrefab meta, float weight)> candidates = CollectCandidates(zoning);
         if (candidates.Count == 0) return lots;
 
         // AABB del blocco in XZ.
@@ -198,7 +202,7 @@ public static class CityLotGenerator
 
         // Passo griglia basato su footprint medio + gap massimo.
         float avgW = 0f, avgD = 0f;
-        foreach (var (_, meta) in candidates)
+        foreach (var (_, meta, _) in candidates)
         {
             Vector2 fp = meta.GetAlignedFootprintSize();
             avgW += fp.x;
@@ -228,7 +232,12 @@ public static class CityLotGenerator
                 Vector3 center = new Vector3(cx, centerY, cz);
 
                 // Prefab e rotazione (multipli di 90°, deterministici).
-                int   prefabIndex = PickCandidateIndex(blockIndex, cellIdx, 0, candidates.Count);
+                int prefabIndex = PickCandidateIndex(blockIndex, cellIdx, 0, candidates, zoning);
+                if (prefabIndex < 0)
+                {
+                    cellIdx++;
+                    continue;
+                }
                 int   angleSteps  = Mathf.Abs(blockIndex * 7 + cellIdx * 13) % 4;
                 float angleDeg    = angleSteps * 90f;
                 Quaternion rot    = Quaternion.Euler(0f, angleDeg, 0f);
@@ -281,28 +290,92 @@ public static class CityLotGenerator
 
     // ── Selezione prefab ─────────────────────────────────────────────────────
 
-    private static List<(GameObject, CityBuilderPrefab)> CollectCandidates(ZoneType zone)
+    private static List<(GameObject, CityBuilderPrefab, float)> CollectCandidates(ZoneType zone)
     {
-        var result = new List<(GameObject, CityBuilderPrefab)>();
-        if (zone == null || zone.buildingPrefabs == null) return result;
-
-        foreach (GameObject go in zone.buildingPrefabs)
+        var result = new List<(GameObject, CityBuilderPrefab, float)>();
+        if (zone == null)
         {
-            if (go == null) continue;
+            return result;
+        }
+
+        List<ZonePrefabSpawnEntry> entries = zone.GetValidPrefabEntries();
+        for (int i = 0; i < entries.Count; i++)
+        {
+            ZonePrefabSpawnEntry entry = entries[i];
+            if (entry == null || entry.prefab == null)
+            {
+                continue;
+            }
+
+            float weight = Mathf.Clamp01(entry.spawnProbability);
+            if (weight <= 0f)
+            {
+                continue;
+            }
+
+            GameObject go = entry.prefab;
             CityBuilderPrefab meta = go.GetComponent<CityBuilderPrefab>();
-            if (meta != null) result.Add((go, meta));
+            if (meta != null)
+            {
+                result.Add((go, meta, weight));
+            }
         }
         return result;
     }
 
-    private static int PickCandidateIndex(int blockIdx, int edgeIdx, int lotIdx, int count)
+    private static int PickCandidateIndex(int blockIdx, int edgeIdx, int lotIdx, List<(GameObject go, CityBuilderPrefab meta, float weight)> candidates, ZoneType zone)
     {
+        int count = candidates != null ? candidates.Count : 0;
+        if (count <= 0)
+        {
+            return -1;
+        }
+
         if (count <= 1) return 0;
-        int hash = 17;
-        hash = hash * 31 + blockIdx;
-        hash = hash * 31 + edgeIdx;
-        hash = hash * 31 + lotIdx;
-        return Mathf.Abs(hash) % count;
+
+        float totalWeight = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            totalWeight += Mathf.Max(0f, candidates[i].weight);
+        }
+
+        if (totalWeight <= 0f)
+        {
+            return 0;
+        }
+
+        float randomValue;
+        bool deterministic = zone != null && zone.deterministicPrefabSelection;
+        int seed = zone != null ? zone.prefabSelectionSeed : 0;
+
+        if (deterministic)
+        {
+            int hash = 17;
+            hash = hash * 31 + seed;
+            hash = hash * 31 + blockIdx;
+            hash = hash * 31 + edgeIdx;
+            hash = hash * 31 + lotIdx;
+
+            uint unsignedHash = (uint)hash;
+            float normalized = (unsignedHash & 0x00FFFFFF) / (float)0x01000000;
+            randomValue = normalized * totalWeight;
+        }
+        else
+        {
+            randomValue = Random.value * totalWeight;
+        }
+
+        float cumulative = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            cumulative += Mathf.Max(0f, candidates[i].weight);
+            if (randomValue <= cumulative)
+            {
+                return i;
+            }
+        }
+
+        return count - 1;
     }
 
     // ── SAT 2-D ──────────────────────────────────────────────────────────────

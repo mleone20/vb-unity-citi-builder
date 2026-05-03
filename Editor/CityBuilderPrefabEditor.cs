@@ -90,7 +90,7 @@ public class CityBuilderPrefabEditor : Editor
             out Texture2D previewTexture,
             out byte[] previewPng,
             out List<ZoneType> allZoneTypes,
-            out List<LLMClient.ZoneTypeCandidate> candidates,
+            out List<LLMClient.ZoneTypeCandidate> candidates, 
             out string preparationError))
         {
             EditorUtility.DisplayDialog("AI Tagging", preparationError, "OK");
@@ -131,22 +131,14 @@ public class CityBuilderPrefabEditor : Editor
                 continue;
             }
 
-            if (matchedZone.buildingPrefabs == null)
-            {
-                Undo.RecordObject(matchedZone, AutoTagUndoName);
-                matchedZone.buildingPrefabs = new List<GameObject>();
-            }
-            else if (!ContainsPrefabReference(matchedZone.buildingPrefabs, prefabAsset))
-            {
-                Undo.RecordObject(matchedZone, AutoTagUndoName);
-            }
-            else
+            if (matchedZone.ContainsPrefab(prefabAsset))
             {
                 duplicateEntries++;
                 continue;
             }
 
-            matchedZone.buildingPrefabs.Add(prefabAsset);
+            Undo.RecordObject(matchedZone, AutoTagUndoName);
+            matchedZone.TryAddPrefab(prefabAsset, 1f);
             EditorUtility.SetDirty(matchedZone);
             zonesUpdated++;
         }

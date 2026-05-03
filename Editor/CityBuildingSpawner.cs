@@ -183,14 +183,7 @@ public static class CityBuildingSpawner
                 continue;
             }
 
-            List<GameObject> validPrefabs = CollectValidPrefabs(block.zoning.buildingPrefabs);
-            if (validPrefabs.Count == 0)
-            {
-                report.blocksWithoutPrefabs++;
-                continue;
-            }
-
-            List<GameObject> frontagePrefabs = CollectPrefabsWithMetadata(validPrefabs);
+            List<GameObject> frontagePrefabs = CollectZonePrefabsWithMetadata(block.zoning);
             if (frontagePrefabs.Count == 0)
             {
                 report.blocksWithoutPrefabs++;
@@ -709,6 +702,32 @@ public static class CityBuildingSpawner
             if (prefab != null && prefab.GetComponent<CityBuilderPrefab>() != null)
             {
                 result.Add(prefab);
+            }
+        }
+
+        return result;
+    }
+
+    private static List<GameObject> CollectZonePrefabsWithMetadata(ZoneType zone)
+    {
+        List<GameObject> result = new List<GameObject>();
+        if (zone == null)
+        {
+            return result;
+        }
+
+        List<ZonePrefabSpawnEntry> entries = zone.GetValidPrefabEntries();
+        for (int i = 0; i < entries.Count; i++)
+        {
+            ZonePrefabSpawnEntry entry = entries[i];
+            if (entry == null || entry.prefab == null)
+            {
+                continue;
+            }
+
+            if (entry.prefab.GetComponent<CityBuilderPrefab>() != null)
+            {
+                result.Add(entry.prefab);
             }
         }
 

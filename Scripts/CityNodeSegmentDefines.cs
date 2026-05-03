@@ -14,14 +14,192 @@ public class ZoneType : ScriptableObject
     [TextArea] public string description;
 
     [Header("Building Prefabs")]
+    public List<ZonePrefabSpawnEntry> buildingPrefabEntries = new List<ZonePrefabSpawnEntry>();
+
+    [HideInInspector]
     public List<GameObject> buildingPrefabs = new List<GameObject>();
+
     public bool deterministicPrefabSelection = true;
     public int prefabSelectionSeed = 0;
+
+    private void OnValidate()
+    {
+        EnsurePrefabEntries();
+        SyncLegacyPrefabListFromEntries();
+    }
+
+    public void EnsurePrefabEntries()
+    {
+        if (buildingPrefabEntries == null)
+        {
+            buildingPrefabEntries = new List<ZonePrefabSpawnEntry>();
+        }
+
+        if (buildingPrefabEntries.Count > 0)
+        {
+            return;
+        }
+
+        if (buildingPrefabs == null || buildingPrefabs.Count == 0)
+        {
+            return;
+        }
+
+        for (int i = 0; i < buildingPrefabs.Count; i++)
+        {
+            GameObject prefab = buildingPrefabs[i];
+            if (prefab == null)
+            {
+                continue;
+            }
+
+            buildingPrefabEntries.Add(new ZonePrefabSpawnEntry
+            {
+                prefab = prefab,
+                spawnProbability = 1f
+            });
+        }
+    }
+
+    public List<ZonePrefabSpawnEntry> GetValidPrefabEntries(bool includeZeroProbability = false)
+    {
+        EnsurePrefabEntries();
+
+        List<ZonePrefabSpawnEntry> result = new List<ZonePrefabSpawnEntry>();
+        for (int i = 0; i < buildingPrefabEntries.Count; i++)
+        {
+            ZonePrefabSpawnEntry entry = buildingPrefabEntries[i];
+            if (entry == null || entry.prefab == null)
+            {
+                continue;
+            }
+
+            float probability = Mathf.Clamp01(entry.spawnProbability);
+            if (!includeZeroProbability && probability <= 0f)
+            {
+                continue;
+            }
+
+            result.Add(new ZonePrefabSpawnEntry
+            {
+                prefab = entry.prefab,
+                spawnProbability = probability
+            });
+        }
+
+        return result;
+    }
+
+    public bool ContainsPrefab(GameObject prefab)
+    {
+        if (prefab == null)
+        {
+            return false;
+        }
+
+        EnsurePrefabEntries();
+        for (int i = 0; i < buildingPrefabEntries.Count; i++)
+        {
+            ZonePrefabSpawnEntry entry = buildingPrefabEntries[i];
+            if (entry != null && entry.prefab == prefab)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool TryAddPrefab(GameObject prefab, float spawnProbability = 1f)
+    {
+        if (prefab == null)
+        {
+            return false;
+        }
+
+        EnsurePrefabEntries();
+        if (ContainsPrefab(prefab))
+        {
+            return false;
+        }
+
+        buildingPrefabEntries.Add(new ZonePrefabSpawnEntry
+        {
+            prefab = prefab,
+            spawnProbability = Mathf.Clamp01(spawnProbability)
+        });
+
+        SyncLegacyPrefabListFromEntries();
+        return true;
+    }
+
+    public void SetPrefabs(IEnumerable<GameObject> prefabs)
+    {
+        EnsurePrefabEntries();
+        buildingPrefabEntries.Clear();
+
+        if (prefabs != null)
+        {
+            foreach (GameObject prefab in prefabs)
+            {
+                if (prefab == null)
+                {
+                    continue;
+                }
+
+                buildingPrefabEntries.Add(new ZonePrefabSpawnEntry
+                {
+                    prefab = prefab,
+                    spawnProbability = 1f
+                });
+            }
+        }
+
+        SyncLegacyPrefabListFromEntries();
+    }
+
+    private void SyncLegacyPrefabListFromEntries()
+    {
+        if (buildingPrefabs == null)
+        {
+            buildingPrefabs = new List<GameObject>();
+        }
+        else
+        {
+            buildingPrefabs.Clear();
+        }
+
+        if (buildingPrefabEntries == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < buildingPrefabEntries.Count; i++)
+        {
+            ZonePrefabSpawnEntry entry = buildingPrefabEntries[i];
+            if (entry == null || entry.prefab == null)
+            {
+                continue;
+            }
+
+            if (!buildingPrefabs.Contains(entry.prefab))
+            {
+                buildingPrefabs.Add(entry.prefab);
+            }
+        }
+    }
 
     public string GetDisplayName()
     {
         return string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     }
+}
+
+[System.Serializable]
+public class ZonePrefabSpawnEntry
+{
+    public GameObject prefab;
+    [Range(0f, 1f)] public float spawnProbability = 1f;
 }
 
 public enum CitySegmentGeometryType

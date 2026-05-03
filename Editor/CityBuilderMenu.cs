@@ -501,7 +501,7 @@ public static class CityBuilderMenu
             ZoneType zt = AssetDatabase.LoadAssetAtPath<ZoneType>(AssetDatabase.GUIDToAssetPath(guid));
             if (zt != null && zt.GetDisplayName() == zoneName)
             {
-                zt.buildingPrefabs = new System.Collections.Generic.List<GameObject>(prefabs);
+                zt.SetPrefabs(prefabs);
                 EditorUtility.SetDirty(zt);
                 break;
             }

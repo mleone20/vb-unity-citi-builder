@@ -12,7 +12,7 @@ public class ZoneTypeEditor : Editor
         SerializedProperty zoneColor = serializedObject.FindProperty("zoneColor");
         SerializedProperty buildingHeight = serializedObject.FindProperty("buildingHeight");
         SerializedProperty description = serializedObject.FindProperty("description");
-        SerializedProperty buildingPrefabs = serializedObject.FindProperty("buildingPrefabs");
+        SerializedProperty buildingPrefabEntries = serializedObject.FindProperty("buildingPrefabEntries");
         SerializedProperty deterministicPrefabSelection = serializedObject.FindProperty("deterministicPrefabSelection");
         SerializedProperty prefabSelectionSeed = serializedObject.FindProperty("prefabSelectionSeed");
 
@@ -27,7 +27,7 @@ public class ZoneTypeEditor : Editor
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Building Spawn", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(buildingPrefabs, new GUIContent("Building Prefabs"), true);
+        EditorGUILayout.PropertyField(buildingPrefabEntries, new GUIContent("Building Prefabs"), true);
         EditorGUILayout.PropertyField(deterministicPrefabSelection, new GUIContent("Deterministic Selection"));
         if (deterministicPrefabSelection.boolValue)
         {
@@ -36,7 +36,7 @@ public class ZoneTypeEditor : Editor
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Prefab Preview", EditorStyles.boldLabel);
-        DrawPrefabThumbnails(buildingPrefabs);
+        DrawPrefabThumbnails(buildingPrefabEntries);
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Preset", EditorStyles.boldLabel);
@@ -71,9 +71,9 @@ public class ZoneTypeEditor : Editor
             Repaint();
     }
 
-    private void DrawPrefabThumbnails(SerializedProperty buildingPrefabs)
+    private void DrawPrefabThumbnails(SerializedProperty buildingPrefabEntries)
     {
-        int count = buildingPrefabs.arraySize;
+        int count = buildingPrefabEntries.arraySize;
         if (count == 0)
         {
             EditorGUILayout.HelpBox("Nessun prefab assegnato.", MessageType.None);
@@ -90,8 +90,12 @@ public class ZoneTypeEditor : Editor
 
         for (int i = 0; i < count; i++)
         {
-            SerializedProperty element = buildingPrefabs.GetArrayElementAtIndex(i);
-            GameObject prefab = element.objectReferenceValue as GameObject;
+            SerializedProperty element = buildingPrefabEntries.GetArrayElementAtIndex(i);
+            SerializedProperty prefabProperty = element.FindPropertyRelative("prefab");
+            SerializedProperty probabilityProperty = element.FindPropertyRelative("spawnProbability");
+
+            GameObject prefab = prefabProperty != null ? prefabProperty.objectReferenceValue as GameObject : null;
+            float probability = probabilityProperty != null ? Mathf.Clamp01(probabilityProperty.floatValue) : 1f;
 
             EditorGUILayout.BeginVertical(GUILayout.Width(thumbnailSize));
 
@@ -107,6 +111,7 @@ public class ZoneTypeEditor : Editor
 
             string label = prefab != null ? prefab.name : "(None)";
             EditorGUILayout.LabelField(label, EditorStyles.centeredGreyMiniLabel, GUILayout.Width(thumbnailSize));
+            EditorGUILayout.LabelField((probability * 100f).ToString("0") + "%", EditorStyles.centeredGreyMiniLabel, GUILayout.Width(thumbnailSize));
 
             EditorGUILayout.EndVertical();
 

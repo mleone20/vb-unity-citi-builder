@@ -281,19 +281,13 @@ public class LLMBulkClassifierWindow : EditorWindow
                 continue;
             }
 
-            if (zone.buildingPrefabs == null)
-            {
-                Undo.RecordObject(zone, "Bulk Auto Tag Prefabs");
-                zone.buildingPrefabs = new List<GameObject>();
-            }
-
-            if (zone.buildingPrefabs.Contains(prefab))
+            if (zone.ContainsPrefab(prefab))
             {
                 continue;
             }
 
             Undo.RecordObject(zone, "Bulk Auto Tag Prefabs");
-            zone.buildingPrefabs.Add(prefab);
+            zone.TryAddPrefab(prefab, 1f);
             EditorUtility.SetDirty(zone);
             added++;
         }
