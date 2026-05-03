@@ -72,10 +72,6 @@ public class AmericanCityConfig : ScriptableObject
     [Min(0.5f)]
     public float snapRadius = 8f;
 
-    [Header("Blocchi - Proporzioni")]
-    [Tooltip("Rapporto profondità/larghezza dei blocchi locali. 2.0 = blocchi 1:2 (es. 100×200 m con localStreetSpacing=100).")]
-    [Range(1f, 4f)]
-    public float blockDepthMultiplier = 2.0f;
 
     [Header("Vicoli (Alley)")]
     [Tooltip("Abilita la generazione di vicoli al centro di ogni blocco (modalità Grid e alley-pass finale in Branching).")]
@@ -192,7 +188,6 @@ public class AmericanCityConfig : ScriptableObject
         localStreetSpacing        = 100f;
         localStreetMaxRadius      = 2400f;
         blockSizeVariation        = 0.05f;
-        blockDepthMultiplier      = 2.0f;
         randomSeed                = 42;
         highwayCount              = 2;
         alleyEnabled              = true;

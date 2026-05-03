@@ -910,7 +910,6 @@ public class CityBuilderWindow : EditorWindow
         EditorGUI.BeginChangeCheck();
         float newMajor    = EditorGUILayout.FloatField("Spaziatura Griglia Principale (m)", proceduralConfig.majorGridSpacing);
         float newLocal    = EditorGUILayout.FloatField("Spaziatura Strade Locali (m)",      proceduralConfig.localStreetSpacing);
-        float newDepthM   = EditorGUILayout.Slider("Rapporto Profondit\u00e0 Blocco (x larghezza)", proceduralConfig.blockDepthMultiplier, 1f, 4f);
         float newLocalCap = EditorGUILayout.FloatField("Raggio Max Strade Locali (m)",      proceduralConfig.localStreetMaxRadius);
         float newVariation= EditorGUILayout.Slider("Variazione Dimensione Blocchi",         proceduralConfig.blockSizeVariation, 0f, 0.45f);
         int   newSeed     = EditorGUILayout.IntField("Seme Casuale",                        proceduralConfig.randomSeed);
@@ -920,8 +919,7 @@ public class CityBuilderWindow : EditorWindow
         {
             Undo.RecordObject(proceduralConfig, "Set American City Grid Params");
             proceduralConfig.majorGridSpacing     = Mathf.Max(50f,  newMajor);
-            proceduralConfig.localStreetSpacing   = Mathf.Max(20f,  newLocal);
-            proceduralConfig.blockDepthMultiplier = Mathf.Clamp(newDepthM, 1f, 4f);
+            proceduralConfig.localStreetSpacing   = Mathf.Max(20f,  newLocal); 
             proceduralConfig.localStreetMaxRadius = Mathf.Max(0f,   newLocalCap);
             proceduralConfig.blockSizeVariation   = newVariation;
             proceduralConfig.randomSeed           = newSeed;
@@ -929,7 +927,7 @@ public class CityBuilderWindow : EditorWindow
             proceduralConfig.mergeThreshold       = Mathf.Max(0.1f, newMerge);
             EditorUtility.SetDirty(proceduralConfig);
         }
-        float localDepthEst = proceduralConfig.localStreetSpacing * Mathf.Max(1f, proceduralConfig.blockDepthMultiplier);
+        float localDepthEst = proceduralConfig.localStreetSpacing;
         EditorGUILayout.HelpBox($"Dimensione blocco locale: {proceduralConfig.localStreetSpacing:F0} m \u00d7 {localDepthEst:F0} m (larghezza \u00d7 profondit\u00e0).", MessageType.None);
         int halfEst  = Mathf.CeilToInt(proceduralConfig.maxGenerationRadius / Mathf.Max(1f, proceduralConfig.majorGridSpacing));
         int estNodes = Mathf.RoundToInt((2 * halfEst + 1) * (2 * halfEst + 1) * 0.78f);

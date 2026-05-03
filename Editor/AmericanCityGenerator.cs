@@ -267,8 +267,7 @@ public class AmericanCityGenerator : CityGeneratorBase
     {
         float majorSpacing  = Mathf.Max(50f, config.majorGridSpacing);
         float localSpacing  = Mathf.Max(20f, config.localStreetSpacing);
-        float variation     = Mathf.Clamp01(config.blockSizeVariation);
-        float depthMult     = Mathf.Max(1f, config.blockDepthMultiplier);
+        float variation     = Mathf.Clamp01(config.blockSizeVariation); 
         RoadProfile profile = config.localStreetProfile;
         int halfMajorSteps  = Mathf.CeilToInt(localCap / majorSpacing);
 
@@ -282,7 +281,7 @@ public class AmericanCityGenerator : CityGeneratorBase
                 float xMin = p0.x + cx * majorSpacing;
                 float zMin = p0.z + cz * majorSpacing;
                 int stepsX = Mathf.Max(2, Mathf.RoundToInt(majorSpacing / localSpacing));
-                int stepsZ = Mathf.Max(2, Mathf.RoundToInt(majorSpacing / (localSpacing * depthMult)));
+                int stepsZ = Mathf.Max(2, Mathf.RoundToInt(majorSpacing / localSpacing));
                 if (stepsX < 2 && stepsZ < 2) continue;
 
                 var rng = new System.Random(config.randomSeed ^ (cx * 73856093) ^ (cz * 19349663));
