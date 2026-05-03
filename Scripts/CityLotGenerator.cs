@@ -350,32 +350,90 @@ public static class CityLotGenerator
 
         if (deterministic)
         {
-            int hash = 17;
-            hash = hash * 31 + seed;
-            hash = hash * 31 + blockIdx;
-            hash = hash * 31 + edgeIdx;
-            hash = hash * 31 + lotIdx;
-
-            uint unsignedHash = (uint)hash;
-            float normalized = (unsignedHash & 0x00FFFFFF) / (float)0x01000000;
-            randomValue = normalized * totalWeight;
+            randomValue = GetDeterministic01(seed, blockIdx, edgeIdx, lotIdx, 0) * totalWeight;
         }
         else
         {
             randomValue = Random.value * totalWeight;
         }
 
+        int selectedIndex = count - 1;
         float cumulative = 0f;
         for (int i = 0; i < count; i++)
         {
             cumulative += Mathf.Max(0f, candidates[i].weight);
             if (randomValue <= cumulative)
             {
-                return i;
+                selectedIndex = i;
+                break;
             }
         }
 
-        return count - 1;
+        float selectedWeight = Mathf.Max(0f, candidates[selectedIndex].weight);
+        List<int> sameWeightIndices = null;
+        for (int i = 0; i < count; i++)
+        {
+            if (Mathf.Approximately(Mathf.Max(0f, candidates[i].weight), selectedWeight))
+            {
+                if (sameWeightIndices == null)
+                {
+                    sameWeightIndices = new List<int>();
+                }
+
+                sameWeightIndices.Add(i);
+            }
+        }
+
+        if (sameWeightIndices != null && sameWeightIndices.Count > 1)
+        {
+            int tieIndex;
+            if (deterministic)
+            {
+                float tieRandom = GetDeterministic01(seed, blockIdx, edgeIdx, lotIdx, 1);
+                tieIndex = Mathf.FloorToInt(tieRandom * sameWeightIndices.Count);
+            }
+            else
+            {
+                tieIndex = Random.Range(0, sameWeightIndices.Count);
+            }
+
+            tieIndex = Mathf.Clamp(tieIndex, 0, sameWeightIndices.Count - 1);
+            return sameWeightIndices[tieIndex];
+        }
+
+        return selectedIndex;
+    }
+
+    private static float GetDeterministic01(int seed, int blockIdx, int edgeIdx, int lotIdx, int salt)
+    {
+        unchecked
+        {
+            uint h = 2166136261u;
+
+            h ^= (uint)seed;
+            h *= 16777619u;
+
+            h ^= (uint)blockIdx;
+            h *= 16777619u;
+
+            h ^= (uint)edgeIdx;
+            h *= 16777619u;
+
+            h ^= (uint)lotIdx;
+            h *= 16777619u;
+
+            h ^= (uint)salt;
+            h *= 16777619u;
+
+            // Avalanche finale per distribuire meglio anche input piccoli/correlati.
+            h ^= h >> 16;
+            h *= 0x7feb352du;
+            h ^= h >> 15;
+            h *= 0x846ca68bu;
+            h ^= h >> 16;
+
+            return (h & 0x00FFFFFFu) / 16777216f;
+        }
     }
 
     // ── SAT 2-D ──────────────────────────────────────────────────────────────
