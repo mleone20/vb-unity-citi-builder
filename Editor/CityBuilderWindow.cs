@@ -16,7 +16,6 @@ public class CityBuilderWindow : EditorWindow
         Blocks,
         Zoning,
         Buildings,
-        Configuration,
         ProceduralGeneration,
         Tools,
         Statistics
@@ -71,7 +70,6 @@ public class CityBuilderWindow : EditorWindow
             case EditorSection.Blocks:              return ColBlocks;
             case EditorSection.Zoning:              return ColZoning;
             case EditorSection.Buildings:           return ColBuildings;
-            case EditorSection.Configuration:       return ColConfig;
             case EditorSection.ProceduralGeneration:return ColProc;
             case EditorSection.Tools:               return ColTools;
             case EditorSection.Statistics:          return ColStats;
@@ -248,12 +246,12 @@ public class CityBuilderWindow : EditorWindow
 
     private void DrawTabToolbar()
     {
-        string[] tabIcons   = new string[] { "\U0001f6a7", "\U0001f3d8", "\U0001f7e9", "\U0001f3db", "\u2699",    "\U0001f916", "\U0001f527", "\U0001f4ca" };
-        string[] tabLabels  = new string[] { "STRADE",     "BLOCCHI",    "ZONE",       "EDIFICI",    "CONFIG",    "PROC",       "STRUM",      "STAT"       };
+        string[] tabIcons   = new string[] { "\U0001f6a7", "\U0001f3d8", "\U0001f7e9", "\U0001f3db", "\U0001f916", "\U0001f527", "\U0001f4ca" };
+        string[] tabLabels  = new string[] { "STRADE",     "BLOCCHI",    "ZONE",       "EDIFICI",    "PROC",       "STRUM",      "STAT"       };
         EditorSection[] tabSections = new EditorSection[]
         {
             EditorSection.Paths, EditorSection.Blocks, EditorSection.Zoning, EditorSection.Buildings,
-            EditorSection.Configuration, EditorSection.ProceduralGeneration, EditorSection.Tools, EditorSection.Statistics
+            EditorSection.ProceduralGeneration, EditorSection.Tools, EditorSection.Statistics
         };
 
         EditorGUILayout.BeginHorizontal(GUILayout.Height(36));
@@ -300,7 +298,6 @@ public class CityBuilderWindow : EditorWindow
             case EditorSection.Blocks:              icon="\U0001f3d8"; title="BLOCCHI";         subtitle="Definisci i blocchi urbani"; break;
             case EditorSection.Zoning:              icon="\U0001f7e9"; title="ZONE / LOTTI";    subtitle="Assegna zone e genera lotti"; break;
             case EditorSection.Buildings:           icon="\U0001f3db"; title="EDIFICI";         subtitle="Spawn edifici dai prefab di zona"; break;
-            case EditorSection.Configuration:       icon="\u2699";     title="CONFIGURAZIONE";  subtitle="Profili stradali e parametri globali"; break;
             case EditorSection.ProceduralGeneration:icon="\U0001f916"; title="PROCEDURALE";     subtitle="Generazione citta automatica"; break;
             case EditorSection.Tools:               icon="\U0001f527"; title="STRUMENTI";       subtitle="Manutenzione e azioni correttive"; break;
             case EditorSection.Statistics:          icon="\U0001f4ca"; title="STATISTICHE";     subtitle="Dati metrici della citta corrente"; break;
@@ -325,7 +322,6 @@ public class CityBuilderWindow : EditorWindow
             case EditorSection.Blocks:              DrawBlocksSection();            break;
             case EditorSection.Zoning:              DrawZoningSection();            break;
             case EditorSection.Buildings:           DrawBuildingsSection();         break;
-            case EditorSection.Configuration:       DrawConfigurationSection();     break;
             case EditorSection.ProceduralGeneration:DrawProceduralGenerationSection(); break;
             case EditorSection.Tools:               DrawToolsSection();             break;
             case EditorSection.Statistics:          DrawStatsSection();             break;
@@ -446,6 +442,31 @@ public class CityBuilderWindow : EditorWindow
         }
 
         EditorGUILayout.Space(6);
+        DrawSubHeader("PROFILI STRADALI");
+        EditorGUILayout.HelpBox("La larghezza globale e un fallback per segmenti senza RoadProfile assegnato.", MessageType.Info);
+
+        RoadProfile defaultRoadProfile = (RoadProfile)EditorGUILayout.ObjectField(
+            "Road Profile di default", cityData.defaultRoadProfile, typeof(RoadProfile), false);
+        if (defaultRoadProfile != cityData.defaultRoadProfile)
+        {
+            Undo.RecordObject(cityData, "Set Default Road Profile");
+            cityData.defaultRoadProfile = defaultRoadProfile;
+            EditorUtility.SetDirty(cityData);
+        }
+
+        float globalWidth = EditorGUILayout.Slider("Larghezza Globale (fallback)", cityData.globalRoadWidth, 1f, 10f);
+        if (globalWidth != cityData.globalRoadWidth)
+            cityManager.SetGlobalRoadWidth(globalWidth);
+
+        EditorGUILayout.Space(4);
+        EditorGUILayout.BeginHorizontal();
+        if (DrawActionButton("Setup Road Profiles di Default"))
+            CityBuilderMenu.SetupDefaultRoadProfiles();
+        if (DrawActionButton("Setup Zone Types di Default"))
+            CityBuilderMenu.SetupDefaultZoneTypes();
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.Space(6);
         DrawSubHeader("INFORMAZIONI");
         EditorGUILayout.LabelField(string.Format("Nodi: {0}   Segmenti: {1}", cityData.nodes.Count, cityData.segments.Count));
         EditorGUILayout.LabelField(string.Format("Nodo selezionato: {0}   Segmento: {1}", cityManager.GetSelectedNodeID(), cityManager.GetSelectedSegmentID()));
@@ -551,36 +572,6 @@ public class CityBuilderWindow : EditorWindow
         }
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField("Lotti totali: " + cityData.lots.Count, EditorStyles.miniLabel);
-    }
-
-    // ── CONFIGURAZIONE ─────────────────────────────────────────
-
-    private void DrawConfigurationSection()
-    {
-        DrawSubHeader("PROFILI STRADALI");
-        EditorGUILayout.HelpBox("La larghezza globale e un fallback per segmenti senza RoadProfile assegnato.", MessageType.Info);
-
-        RoadProfile defaultRoadProfile = (RoadProfile)EditorGUILayout.ObjectField(
-            "Road Profile di default", cityData.defaultRoadProfile, typeof(RoadProfile), false);
-        if (defaultRoadProfile != cityData.defaultRoadProfile)
-        {
-            Undo.RecordObject(cityData, "Set Default Road Profile");
-            cityData.defaultRoadProfile = defaultRoadProfile;
-            EditorUtility.SetDirty(cityData);
-        }
-
-        float globalWidth = EditorGUILayout.Slider("Larghezza Globale (fallback)", cityData.globalRoadWidth, 1f, 10f);
-        if (globalWidth != cityData.globalRoadWidth)
-            cityManager.SetGlobalRoadWidth(globalWidth);
-
-        EditorGUILayout.Space(6);
-        DrawSubHeader("SETUP ASSET");
-        EditorGUILayout.BeginHorizontal();
-        if (DrawActionButton("Setup Road Profiles di Default"))
-            CityBuilderMenu.SetupDefaultRoadProfiles();
-        if (DrawActionButton("Setup Zone Types di Default"))
-            CityBuilderMenu.SetupDefaultZoneTypes();
-        EditorGUILayout.EndHorizontal();
     }
 
     // ── STRUMENTI ──────────────────────────────────────────────
