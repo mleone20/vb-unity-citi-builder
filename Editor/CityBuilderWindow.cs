@@ -978,8 +978,22 @@ public class CityBuilderWindow : EditorWindow
             EditorUtility.SetDirty(proceduralConfig);
         }
 
+        DrawSubHeader("PLUGIN ATTIVI");
+        if (DrawActionButton("Apri Plugin Browser", ColProc * 0.9f))
+        {
+            CityPluginBrowserWindow.ShowWindow();
+        }
+
+        CityPluginSettings pluginSettings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
+        EditorGUILayout.LabelField("Process", pluginSettings.activeProcessPluginId, EditorStyles.miniLabel);
+        EditorGUILayout.LabelField("Road Network", pluginSettings.activeRoadNetworkPluginId, EditorStyles.miniLabel);
+        EditorGUILayout.LabelField("Road Planarization", pluginSettings.activeRoadPlanarizationPluginId, EditorStyles.miniLabel);
+        EditorGUILayout.LabelField("Block Detection", pluginSettings.activeBlockDetectionPluginId, EditorStyles.miniLabel);
+        EditorGUILayout.LabelField("Zoning", pluginSettings.activeZoningPluginId, EditorStyles.miniLabel);
+        EditorGUILayout.LabelField("Lot Layout", pluginSettings.activeLotLayoutPluginId, EditorStyles.miniLabel);
+        EditorGUILayout.LabelField("Lot Selection", pluginSettings.activeLotSelectionPluginId, EditorStyles.miniLabel);
+
         DrawSubHeader("AZIONI");
-        bool isAsync = false;
 
         if (_isGenerating)
         {
@@ -993,30 +1007,15 @@ public class CityBuilderWindow : EditorWindow
                 "Verranno aggiunti nodi e segmenti alla rete stradale esistente. Continuare?", "Genera", "Annulla");
             if (ok)
             {
-                if (isAsync)
-                {
-                    StartAsyncGeneration(
-                        new AmericanCityGenerator(proceduralConfig).GenerateRoadNetworkAsync(
-                            cityManager,
-                            (p, s) => { _generationProgress = p; _generationStatus = s; },
-                            r => {
-                                _lastProceduralReport = r.ToMultilineString();
-                                EditorUtility.DisplayDialog("Rete Stradale Generata", _lastProceduralReport, "OK");
-                            }),
-                        null);
-                }
-                else
-                {
-                    CityGeneratorBase.GenerationReport r = new AmericanCityGenerator(proceduralConfig).GenerateRoadNetwork(cityManager);
-                    _lastProceduralReport = r.ToMultilineString();
-                    EditorUtility.DisplayDialog("Rete Stradale Generata", _lastProceduralReport, "OK");
-                }
+                CityGenerationReport report = CityGenerationPipelineHost.GenerateRoadNetwork(cityManager, proceduralConfig);
+                _lastProceduralReport = report.ToMultilineString();
+                EditorUtility.DisplayDialog("Rete Stradale Generata", _lastProceduralReport, "OK");
             }
         }
         if (DrawActionButton("Assegna Zoning Automatico (per distanza)"))
         {
-            CityGeneratorBase.GenerationReport r = new AmericanCityGenerator(proceduralConfig).AssignZoningByDistance(cityManager);
-            _lastProceduralReport = r.ToMultilineString();
+            CityGenerationReport report = CityGenerationPipelineHost.AssignZoning(cityManager, proceduralConfig);
+            _lastProceduralReport = report.ToMultilineString();
             EditorUtility.DisplayDialog("Zoning Assegnato", _lastProceduralReport, "OK");
         }
 
@@ -1035,65 +1034,9 @@ public class CityBuilderWindow : EditorWindow
                 "Genera", "Annulla");
             if (ok)
             {
-                AmericanCityGenerator generator = new AmericanCityGenerator(proceduralConfig);
-                if (isAsync)
-                {
-                    StartAsyncGeneration(
-                        generator.GenerateRoadNetworkAsync(
-                            cityManager,
-                            (p, s) => { _generationProgress = p * 0.55f; _generationStatus = s; },
-                            roadR => {
-                                _generationProgress = 0.6f; _generationStatus = "Rilevamento blocchi...";
-                                Undo.RecordObject(cityData, "Generate All: Clear Blocks");
-                                foreach (CityBlock b in cityData.blocks) { if (b != null) b.lotIDs.Clear(); }
-                                cityData.blocks.Clear();
-                                cityData.lots.Clear();
-                                EditorUtility.SetDirty(cityData);
-                                List<List<Vector3>> detected = CityBlockDetector.DetectBlocks(cityData);
-                                foreach (List<Vector3> verts in detected)
-                                    cityManager.AddBlock(verts);
-                                _generationProgress = 0.75f; _generationStatus = "Assegnazione zoning...";
-                                CityGeneratorBase.GenerationReport zoneR = generator.AssignZoningByDistance(cityManager);
-                                _generationProgress = 0.9f;  _generationStatus = "Generazione lotti...";
-                                int lotCount = RunLotGeneration();
-                                _lastProceduralReport =
-                                    "Rete: " + roadR.nodesCreated + " nodi, " + roadR.segmentsCreated + " segmenti\n" +
-                                    "Blocchi rilevati: " + detected.Count + "\n" +
-                                    "Blocchi zonati: " + zoneR.blocksZoned + "\n" +
-                                    "Lotti generati: " + lotCount;
-                                if (zoneR.warnings != null && zoneR.warnings.Count > 0)
-                                    _lastProceduralReport += "\nWarning zoning: " + zoneR.warnings.Count;
-                                EditorUtility.DisplayDialog("Generazione Completata", _lastProceduralReport, "OK");
-                            }),
-                        null);
-                }
-                else
-                {
-                CityGeneratorBase.GenerationReport roadR = generator.GenerateRoadNetwork(cityManager);
-
-                Undo.RecordObject(cityData, "Generate All: Clear Blocks");
-                foreach (CityBlock b in cityData.blocks) { if (b != null) b.lotIDs.Clear(); }
-                cityData.blocks.Clear();
-                cityData.lots.Clear();
-                EditorUtility.SetDirty(cityData);
-
-                List<List<Vector3>> detected = CityBlockDetector.DetectBlocks(cityData);
-                foreach (List<Vector3> verts in detected)
-                    cityManager.AddBlock(verts);
-
-                CityGeneratorBase.GenerationReport zoneR = generator.AssignZoningByDistance(cityManager);
-                int lotCount = RunLotGeneration();
-
-                _lastProceduralReport =
-                    "Rete: " + roadR.nodesCreated + " nodi, " + roadR.segmentsCreated + " segmenti\n" +
-                    "Blocchi rilevati: " + detected.Count + "\n" +
-                    "Blocchi zonati: " + zoneR.blocksZoned + "\n" +
-                    "Lotti generati: " + lotCount;
-                if (zoneR.warnings != null && zoneR.warnings.Count > 0)
-                    _lastProceduralReport += "\nWarning zoning: " + zoneR.warnings.Count;
-
+                CityGenerationReport report = CityGenerationPipelineHost.GenerateAll(cityManager, proceduralConfig);
+                _lastProceduralReport = report.ToMultilineString();
                 EditorUtility.DisplayDialog("Generazione Completata", _lastProceduralReport, "OK");
-                }
             }
         }
         GUI.enabled = true;
@@ -1226,28 +1169,7 @@ public class CityBuilderWindow : EditorWindow
 
     private int RunLotGeneration()
     {
-        cityData.lots.Clear();
-        foreach (CityBlock b in cityData.blocks)
-        {
-            if (b != null) b.lotIDs.Clear();
-        }
-        int lotCount = 0;
-        for (int i = 0; i < cityData.blocks.Count; i++)
-        {
-            CityBlock block = cityData.blocks[i];
-            var generatedLots = CityLotGenerator.GenerateLotsForBlock(
-                block, block.zoning, i, cityData, block.orientation);
-            foreach (var lot in generatedLots)
-            {
-                lot.id = cityData.GetNextLotID();
-                cityData.lots.Add(lot);
-                block.lotIDs.Add(lot.id);
-                lotCount++;
-            }
-        }
-        EditorUtility.SetDirty(cityData);
-        SceneView.RepaintAll();
-        return lotCount;
+        return CityGenerationPipelineHost.GenerateLots(cityManager, proceduralConfig);
     }
 
     private void SpawnBuildingsFromZoneTypes()

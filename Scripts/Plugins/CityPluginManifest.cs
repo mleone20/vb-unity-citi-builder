@@ -1,0 +1,42 @@
+using UnityEngine;
+
+/// <summary>
+/// ScriptableObject manifest per plugin esterni caricati da DLL esterne.
+///
+/// FASE 2 - Placeholder strutturale.
+/// In questa fase il manifest viene riconosciuto dall'editor ma il loader
+/// non effettua nessun caricamento reale di assembly.
+///
+/// Utilizzo futuro (Fase 2):
+///   1. Creare un asset CityPluginManifest via Assets > Create > CityBuilder > Plugin Manifest
+///   2. Compilare il plugin come .dll e metterlo nel percorso indicato in dllPath
+///   3. CityExternalPluginLoader caricherà l'assembly e registrerà i plugin nel registry
+/// </summary>
+[CreateAssetMenu(
+    menuName = "CityBuilder/Plugin Manifest",
+    fileName = "CityPluginManifest",
+    order = 202)]
+public class CityPluginManifest : ScriptableObject
+{
+    [Header("Informazioni plugin")]
+    [Tooltip("Nome leggibile del plugin esterno.")]
+    public string pluginDisplayName = "My Custom Plugin";
+
+    [Tooltip("Autore/organizzazione del plugin.")]
+    public string author = "";
+
+    [Tooltip("Versione semantica (es. 1.0.0).")]
+    public string version = "1.0.0";
+
+    [Header("Assembly esterno (Fase 2)")]
+    [Tooltip("Percorso relativo alla cartella Plugins/ della .dll esterna. Lasciare vuoto per plugin interni.")]
+    public string dllRelativePath = "";
+
+    [Header("Whitelist categorie")]
+    [Tooltip("Categorie per cui questo manifest può registrare plugin. Limita la superficie di attacco.")]
+    public CityPluginCategory[] allowedCategories = new CityPluginCategory[0];
+
+    [Header("Stato (sola lettura)")]
+    [Tooltip("Impostato a runtime da CityExternalPluginLoader. Non modificare manualmente.")]
+    public bool isLoaded = false;
+}

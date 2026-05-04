@@ -366,6 +366,42 @@ public static class CityBuilderMenu
         Debug.Log("[CityBuilder] CreateExamplePrefabsAndZoneData completato.");
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // PLUGIN SYSTEM
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [MenuItem("Tools/City Builder/Setup Plugin Settings")]
+    public static void SetupPluginSettings()
+    {
+        var settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
+        EditorUtility.FocusProjectWindow();
+        Selection.activeObject = settings;
+
+        string msg = "CityPluginSettings asset pronto.\n\n" +
+                     "Aprire Window/City Builder/Plugin Browser per configurare i plugin attivi.";
+        EditorUtility.DisplayDialog("Plugin Settings", msg, "OK");
+        Debug.Log("[CityBuilder] Plugin settings: " + AssetDatabase.GetAssetPath(settings));
+    }
+
+    [MenuItem("Tools/City Builder/Open Plugin Browser")]
+    public static void OpenPluginBrowser()
+    {
+        CityPluginBrowserWindow.ShowWindow();
+    }
+
+    [MenuItem("Tools/City Builder/Reload Plugin Registry")]
+    public static void ReloadPluginRegistry()
+    {
+        CityPluginRegistry.Refresh();
+        int count = 0;
+        foreach (CityPluginCategory cat in System.Enum.GetValues(typeof(CityPluginCategory)))
+            count += CityPluginRegistry.GetPlugins(cat).Count;
+
+        string msg = $"Registry ricaricato. {count} plugin totali rilevati.";
+        EditorUtility.DisplayDialog("Plugin Registry", msg, "OK");
+        Debug.Log($"[CityBuilder] {msg}");
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static void EnsureFolder(string folderPath)

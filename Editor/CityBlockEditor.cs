@@ -59,7 +59,7 @@ public class CityBlockEditor
         
         if (GUILayout.Button("Suggerisci Blocchi (Rileva su grafo)", GUILayout.Height(30)))
         {
-            SuggestBlocksFromGraph(cityData);
+            SuggestBlocksFromGraph(manager);
         }
 
         if (showingPreview && GUILayout.Button("Nascondi Anteprima Suggeriti", GUILayout.Height(24)))
@@ -123,12 +123,25 @@ public class CityBlockEditor
         }
     }
 
-    private static void SuggestBlocksFromGraph(CityData cityData)
+    private static void SuggestBlocksFromGraph(CityManager manager)
     {
         suggestedBlocks.Clear();
 
-        // Chiama algoritmo rilevamento blocchi
-        suggestedBlocks = CityBlockDetector.DetectBlocks(cityData);
+        if (manager == null)
+        {
+            showingPreview = false;
+            return;
+        }
+
+        CityData cityData = manager.GetCityData();
+        if (cityData == null)
+        {
+            showingPreview = false;
+            return;
+        }
+
+        // Passa dalla pipeline plugin per consentire sostituzione algoritmo.
+        suggestedBlocks = CityGenerationPipelineHost.DetectBlocks(manager, null);
 
         if (suggestedBlocks.Count > 0)
         {

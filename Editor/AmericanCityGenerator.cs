@@ -7,6 +7,15 @@ using System.Collections.Generic;
 /// <summary>
 /// Generatore procedurale di rete stradale in stile americano.
 /// </summary>
+/// <remarks>
+/// DEPRECATO: questa classe è mantenuta solo per compatibilità di riferimento.
+/// Usare il plugin system tramite <see cref="CityGenerationPipelineHost"/>:
+/// - Road network  → <see cref="AmericanRoadNetworkPlugin"/>
+/// - Zoning        → <see cref="AmericanZoningPlugin"/>
+/// - Full process  → <see cref="AmericanFullProcessPlugin"/>
+/// </remarks>
+[System.Obsolete("Usare CityGenerationPipelineHost e il plugin system. " +
+    "AmericanCityGenerator è mantenuto solo come riferimento storico.")]
 public class AmericanCityGenerator : CityGeneratorBase
 {
     private readonly AmericanCityConfig config;

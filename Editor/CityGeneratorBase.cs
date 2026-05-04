@@ -3,16 +3,14 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Classe base astratta per tutti i generatori procedurali di città.
-///
-/// Definisce il contratto pubblico (GenerateRoadNetwork / AssignZoningByDistance),
-/// il tipo GenerationReport condiviso e le utility protette di grafo stradale
-/// riusabili da qualsiasi generatore concreto.
-///
-/// Per creare un generatore personalizzato:
-///   1. Estendi questa classe
-///   2. Implementa GenerateRoadNetwork(CityManager) e AssignZoningByDistance(CityManager)
-///   3. Usa i protected helpers GetOrCreateNode() e ApplyProfile() per manipolare il grafo
 /// </summary>
+/// <remarks>
+/// DEPRECATO: il pattern di ereditarietà da CityGeneratorBase è sostituito dal plugin system.
+/// Implementare invece le interfacce in <c>CityPluginContracts.cs</c> e decorare
+/// la classe con <see cref="CityPluginAttribute"/>.
+/// Questa classe è mantenuta solo per non rompere eventuali script editor pre-esistenti.
+/// </remarks>
+[System.Obsolete("Estendere le interfacce plugin in CityPluginContracts invece di ereditare da CityGeneratorBase.")]
 public abstract class CityGeneratorBase
 {
     // ========== REPORT ==========
