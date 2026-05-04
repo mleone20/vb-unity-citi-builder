@@ -1,0 +1,214 @@
+# BSCCityBuilder
+
+Sistema di **generazione procedurale di città** per Unity (HDRP). Crea automaticamente layout urbani completi — rete stradale, isolati, zonizzazione e posizionamento edifici — a partire da ScriptableObject di configurazione.
+
+Compatibile con **Unity 6000.4.0f1** e **HDRP**.
+
+---
+
+## Funzionalità principali
+
+- **Rete stradale procedurale** — griglie americane, strade radiali, curve di Bézier
+- **Rilevamento automatico degli isolati** — algoritmo left-hand rule sul grafo stradale
+- **Zonizzazione** — anelli concentrici configurabili (Centro, Commerciale, Residenziale, Suburbano, Rurale)
+- **Generazione lotti** — frontage-based o sparse con rispetto delle dimensioni impronta degli edifici
+- **Spawn edifici** — selezione pesata/deterministica di prefab, appiattimento terreno opzionale
+- **Mesh stradali** — generazione di mesh Unity da segmenti (quad-strip + giunzioni)
+- **Sistema plugin** — 7 categorie di plugin con interfacce swappable
+- **Editor integrato** — finestra tabulata con anteprima scene-view, gizmo, statistiche
+- **AI tagging** — classificazione automatica prefab via LLM locale (LM Studio / OpenAI-compatibile)
+
+---
+
+## Requisiti
+
+| Dipendenza | Versione |
+|---|---|
+| Unity Editor | 6000.4.0f1 |
+| HDRP | incluso nel progetto padre |
+| .NET | Standard 2.1 (Assembly-CSharp) |
+
+> Il modulo fa parte del progetto Unity padre `DevAmbient1`. Non è distribuito come pacchetto UPM autonomo.
+
+---
+
+## Architettura
+
+Il sistema è strutturato in cinque layer sovrapposti:
+
+```
+┌─────────────────────────────────┐
+│         Editor Tools            │  Window, Scene Handles, Mesh Builder
+├─────────────────────────────────┤
+│       Generation Pipeline       │  6 step modulari con plugin swappabili
+├─────────────────────────────────┤
+│         Management              │  CityManager: API programmatica + Undo
+├─────────────────────────────────┤
+│         Rendering               │  CityRenderer: Gizmos, LOD, frustum culling
+├─────────────────────────────────┤
+│         Data Model              │  CityData, CityNode, CitySegment, CityBlock, CityLot
+└─────────────────────────────────┘
+```
+
+---
+
+## Modello dati
+
+Tutti i dati della città risiedono in un `CityData` (ScriptableObject).
+
+| Tipo | Descrizione |
+|---|---|
+| `CityNode` | Intersezione stradale (posizione Vector3 + ID segmenti connessi) |
+| `CitySegment` | Strada tra due nodi (retta o curva di Bézier) |
+| `CityBlock` | Isolato urbano (poligono + zona + lista lotti) |
+| `CityLot` | Lotto edificabile (vertici + centro + altezza + prefab assegnato) |
+
+---
+
+## Pipeline di generazione
+
+La pipeline è orchestrata da `CityGenerationPipelineHost` e si articola in 6 passi:
+
+| Passo | Plugin interface | Descrizione |
+|---|---|---|
+| 1. Rete stradale | `IRoadNetworkGenerationPlugin` | Genera nodi e segmenti (griglia + radiali) |
+| 2. Planarizzazione | `IRoadPlanarizationPlugin` | Splitta segmenti che si intersecano |
+| 3. Rilevamento isolati | `IBlockDetectionPlugin` | Traccia cicli nel grafo → poligoni isolati |
+| 4. Zonizzazione | `IZoningAssignmentPlugin` | Assegna `ZoneType` per distanza dal centro |
+| 5. Layout lotti | `ILotLayoutPlugin` | Divide isolati in lotti edificabili |
+| 6. Selezione prefab | `ILotSelectionPlugin` | Sceglie il prefab per ogni lotto |
+
+Ogni passo è indipendente e può essere sostituito con un'implementazione custom.
+
+---
+
+## Configurazione
+
+### ZoneType
+Asset (`Assets/ZoneTypes/`) che definisce un distretto urbano:
+- colore di visualizzazione
+- altezza massima edifici
+- lista di prefab edificio con pesi
+- nome display (es. `"Center"`, `"Residential"`)
+
+### RoadProfile
+Asset (`Assets/RoadProfiles/`) che definisce una categoria stradale:
+- larghezza carreggiata
+- materiali
+- raggio di clearance (per evitare sovrapposizioni)
+- gerarchia (Autostrada → Via Locale → Vicolo)
+
+### CityConfig
+Asset (`Assets/Settings/`) con parametri globali della generazione:
+- passo della griglia
+- numero di strade radiali
+- raggi degli anelli di zonizzazione
+- dimensioni minime/massime lotti
+
+---
+
+## Strumenti Editor
+
+Aprire la finestra principale: **Window → BSC City Builder**
+
+| Tab | Funzione |
+|---|---|
+| **Paths** | Aggiunta/rimozione nodi e segmenti in Scene View |
+| **Blocks** | Lancio rilevamento isolati + visualizzazione |
+| **Zoning** | Assegnazione zona per isolato |
+| **Buildings** | Anteprima prefab e spawn manuale |
+| **Procedural Generation** | Esecuzione pipeline completa con progress bar |
+| **Tools** | Mesh stradale, appiattimento terreno, utility |
+| **Statistics** | Metriche città (nodi, segmenti, isolati, lotti) |
+
+### Interazione Scene View
+`CitySceneHandle` gestisce i seguenti shortcut in modalità editing:
+- Click sinistro → piazza nodo
+- Drag nodo → connetti segmento
+- Click isolato → seleziona per zonizzazione
+
+### Prefab Building
+Aggiungere il componente **`CityBuilderPrefab`** a ogni prefab edificio:
+
+| Campo | Descrizione |
+|---|---|
+| `footprintSize` | Dimensione impronta (X=larghezza, Y=profondità) su piano XZ |
+| `frontageOffset` | Offset locale del fronte edificio |
+| `frontageDirection` | Normale del fronte (per edifici non ortogonali) |
+| `autoComputeFromRenderers` | Calcola automaticamente dalle bounding box dei Renderer |
+
+---
+
+## AI Tagging
+
+Il sistema integra un client LLM locale per classificare automaticamente i prefab edificio.
+
+**Prerequisiti**: LM Studio in esecuzione su `http://localhost:11434` con un modello vision.
+
+**Workflow**:
+1. Aprire **Window → BSC City Builder AI → Bulk Classifier**
+2. Selezionare i prefab da classificare
+3. Il sistema cattura uno screenshot del prefab, costruisce un prompt con i `ZoneType` disponibili e invia al modello
+4. La risposta JSON (`{ "description": "...", "zoneTypeDisplayNames": [...] }`) viene salvata nei campi `aiDescription` e `aiSuggestedZoneDisplayNames` del componente `CityBuilderPrefab`
+
+**Finestre AI**:
+- `LLMClientSettingsWindow` — configura endpoint e modello
+- `LLMBulkClassifierWindow` — classifica batch di prefab
+- `LLMClientRequestPreviewWindow` — debug request/response
+
+---
+
+## Sistema Plugin
+
+Registrare implementazioni custom tramite `CityPluginRegistry`. Ogni plugin deve implementare l'interfaccia corrispondente:
+
+```csharp
+public class MyRoadPlugin : IRoadNetworkGenerationPlugin
+{
+    public void Generate(CityData city, CityPluginSettings settings) { ... }
+}
+```
+
+Plugin built-in disponibili:
+
+| Plugin | Classe |
+|---|---|
+| Block detection | `DefaultBlockDetectionPlugin` |
+| Lot layout (frontage) | `DefaultLotLayoutPlugin` |
+| Lot selection (pesata) | `DefaultLotSelectionPlugin` |
+| Lot selection (random) | `RandomLotSelectionPlugin` |
+| American city network | pipeline in `AmericanCityConfig` |
+
+---
+
+## Struttura cartelle
+
+```
+BSCCityBuilder/
+├── Assets/
+│   ├── RoadProfiles/       # RoadProfile ScriptableObject
+│   ├── Settings/           # CityConfig ScriptableObject
+│   └── ZoneTypes/          # ZoneType ScriptableObject
+├── Editor/
+│   ├── AI/                 # LLM client e finestre AI
+│   ├── Inspectors/         # Custom Inspector (ZoneType, CityBlock, CityBuilderPrefab)
+│   ├── Plugins/            # CityGenerationPipelineHost, CityExternalPluginLoader
+│   ├── Tools/              # CityRoadMeshBuilder, CityBuildingSpawner, CitySceneHandle
+│   └── Windows/            # CityBuilderWindow e tab
+└── Scripts/
+    ├── Components/         # CityBuilderPrefab (MonoBehaviour)
+    ├── Config/             # AmericanCityConfig, CityPluginSettings
+    ├── Core/               # CityData, CityNode, CitySegment, CityBlock, CityLot
+    ├── Generation/         # Plugin interfaces e implementazioni default
+    ├── Management/         # CityManager
+    ├── Plugins/            # CityPluginRegistry, CityPluginManifest
+    └── Rendering/          # CityRenderer
+```
+
+---
+
+## Note di sviluppo
+
+- Le query sui nodi più vicini usano distanza planare **XZ** (non 3D) per correttezza su terreni inclinati.
+- Nei namespace `BSCCityBuilder.Editor.*`, usare `UnityEditor.Editor` qualificato per evitare conflitti tipo-vs-namespace.
+- Il sistema di plugin esterni (caricamento .dll) è un placeholder attualmente inattivo (`CityExternalPluginLoader`).
