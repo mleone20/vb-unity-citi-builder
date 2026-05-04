@@ -31,18 +31,6 @@ public static class CityBuilderMenu
         Debug.Log($"[CityBuilder] CityData asset creato: {path}");
     }
 
-    [MenuItem("GameObject/CityBuilder/Create CityManager")]
-    public static void CreateCityManager()
-    {
-        // Crea una scena vuota se non esiste un gameobject selezionato
-        GameObject managerGO = new GameObject("CityManager");
-        
-        CityManager manager = managerGO.AddComponent<CityManager>();
-        
-        Debug.Log("[CityBuilder] CityManager creato nella scena!");
-        
-        Selection.activeGameObject = managerGO;
-    }
 
     [MenuItem("Tools/City Builder/Setup Default Zone Types")]
     public static void SetupDefaultZoneTypes()

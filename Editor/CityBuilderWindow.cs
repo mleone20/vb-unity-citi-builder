@@ -148,25 +148,13 @@ public class CityBuilderWindow : EditorWindow
         {
             EditorGUILayout.Space(6);
             EditorGUILayout.HelpBox("CityManager non trovato nella scena!\nCrea un GameObject con il componente CityManager.", MessageType.Warning);
-            if (GUILayout.Button("Crea CityManager", GUILayout.Height(30)))
+            if (GUILayout.Button("Cerca CityManager", GUILayout.Height(30)))
             {
-                CityBuilderMenu.CreateCityManager();
                 FindCityManager();
             }
             return;
         }
-
-        if (cityData == null)
-        {
-            EditorGUILayout.Space(6);
-            EditorGUILayout.HelpBox("CityData non assegnato al CityManager!", MessageType.Warning);
-            if (GUILayout.Button("Crea CityData Asset"))
-            {
-                CityBuilderMenu.CreateCityData();
-                cityData = cityManager.GetCityData();
-            }
-            return;
-        }
+ 
 
         DrawTabToolbar();
 
