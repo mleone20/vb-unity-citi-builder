@@ -4,7 +4,7 @@ using UnityEngine;
 public class CityPluginSettings : ScriptableObject
 {
     [Header("Active Plugin IDs")]
-    public string activeProcessPluginId = "bsc.process.american-full";
+    public string activeProcessPluginId = "bsc.process.default-random";
     public string activeRoadNetworkPluginId = "bsc.american.road-network";
     public string activeRoadPlanarizationPluginId = "bsc.default.planarization";
     public string activeBlockDetectionPluginId = "bsc.default.block-detection";

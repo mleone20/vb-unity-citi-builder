@@ -3,11 +3,51 @@ using UnityEngine;
 using System.Collections.Generic;
 
 [CityPlugin("bsc.process.american-full", "American Full Process", CityPluginCategory.Process, "Preset completo: road network + planarization + block detection + zoning + lot generation.")]
-public class AmericanFullProcessPlugin : ICityProcessPlugin
+public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginEditorUI
 {
+    public string ConfigurationLabel => "American City Config";
+    public System.Type ConfigurationType => typeof(AmericanCityConfig);
+
+    public ScriptableObject CreateDefaultConfigurationAsset()
+    {
+        const string folder = "Assets/BSCCityBuilder/Assets";
+        if (!AssetDatabase.IsValidFolder(folder))
+            AssetDatabase.CreateFolder("Assets/BSCCityBuilder", "Assets");
+
+        AmericanCityConfig config = ScriptableObject.CreateInstance<AmericanCityConfig>();
+        config.ResetToAmericanDefaults();
+        string path = AssetDatabase.GenerateUniqueAssetPath(folder + "/AmericanCityConfig.asset");
+        AssetDatabase.CreateAsset(config, path);
+        AssetDatabase.SaveAssets();
+        Selection.activeObject = config;
+        return config;
+    }
+
+    public void DrawConfigurationGUI(ScriptableObject config)
+    {
+        AmericanCityConfig american = config as AmericanCityConfig;
+        if (american == null)
+        {
+            EditorGUILayout.HelpBox("Config non valida per il plugin American Full Process.", MessageType.Warning);
+            return;
+        }
+
+        Editor editor = Editor.CreateEditor(american);
+        if (editor != null)
+        {
+            editor.OnInspectorGUI();
+        }
+    }
+
     public CityGenerationReport GenerateAll(CityGenerationContext context)
     {
         CityGenerationReport total = new CityGenerationReport { warnings = new List<string>() };
+        AmericanCityConfig cfg = context.GetProcessConfig<AmericanCityConfig>();
+        if (cfg == null)
+        {
+            total.warnings.Add("AmericanCityConfig non assegnato o non compatibile con American Full Process.");
+            return total;
+        }
 
         if (context.manager == null)
         {
@@ -26,6 +66,10 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin
 
         ILotSelectionPlugin lotSelection = CityPluginRegistry.Create<ILotSelectionPlugin>(CityPluginCategory.LotSelection, settings.activeLotSelectionPluginId);
         CityPluginRuntime.SetLotSelectionPlugin(lotSelection);
+
+        // Garantisce che i plugin step legacy che leggono context.config ricevano il config americano.
+        context.processConfig = cfg;
+        context.config = cfg;
 
         IRoadNetworkGenerationPlugin road = new AmericanRoadNetworkPlugin();
         total.Merge(road.GenerateRoadNetwork(context));

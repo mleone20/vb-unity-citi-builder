@@ -33,7 +33,7 @@ public class CityBuilderWindow : EditorWindow
     private float simplifyMaxDeviationDeg = 8f;
     private bool _terrainFoldout = false;
 
-    private AmericanCityConfig proceduralConfig;
+    private ScriptableObject proceduralConfig;
     private string _lastProceduralReport = "";
 
     // Async generation
@@ -313,7 +313,7 @@ public class CityBuilderWindow : EditorWindow
             case EditorSection.Zoning:              icon="\U0001f7e9"; title="ZONE / LOTTI";    subtitle="Assegna zone e genera lotti"; break;
             case EditorSection.Buildings:           icon="\U0001f3db"; title="EDIFICI";         subtitle="Spawn edifici dai prefab di zona"; break;
             case EditorSection.Configuration:       icon="\u2699";     title="CONFIGURAZIONE";  subtitle="Profili stradali e parametri globali"; break;
-            case EditorSection.ProceduralGeneration:icon="\U0001f916"; title="PROCEDURALE";     subtitle="Generazione citta americana automatica"; break;
+            case EditorSection.ProceduralGeneration:icon="\U0001f916"; title="PROCEDURALE";     subtitle="Generazione citta automatica"; break;
             case EditorSection.Tools:               icon="\U0001f527"; title="STRUMENTI";       subtitle="Manutenzione e azioni correttive"; break;
             case EditorSection.Statistics:          icon="\U0001f4ca"; title="STATISTICHE";     subtitle="Dati metrici della citta corrente"; break;
             default:                                icon="";           title="";                subtitle=""; break;
@@ -610,7 +610,8 @@ public class CityBuilderWindow : EditorWindow
         }
 
         DrawSubHeader("PROFILI STRADE");
-        if (proceduralConfig != null)
+        AmericanCityConfig americanConfig = proceduralConfig as AmericanCityConfig;
+        if (americanConfig != null)
         {
             if (DrawActionButton("Aggiorna Profili Strade Esistenti", ColConfig * 0.8f))
             {
@@ -629,13 +630,13 @@ public class CityBuilderWindow : EditorWindow
                         }
                         else
                         {
-                            if (proceduralConfig.highwayProfile != null &&
-                                seg.width >= proceduralConfig.highwayProfile.roadWidth * 0.75f)
-                                profile = proceduralConfig.highwayProfile;
-                            else if (proceduralConfig.majorGridProfile != null)
-                                profile = proceduralConfig.majorGridProfile;
-                            else if (proceduralConfig.localStreetProfile != null)
-                                profile = proceduralConfig.localStreetProfile;
+                            if (americanConfig.highwayProfile != null &&
+                                seg.width >= americanConfig.highwayProfile.roadWidth * 0.75f)
+                                profile = americanConfig.highwayProfile;
+                            else if (americanConfig.majorGridProfile != null)
+                                profile = americanConfig.majorGridProfile;
+                            else if (americanConfig.localStreetProfile != null)
+                                profile = americanConfig.localStreetProfile;
                             if (profile != null)
                             {
                                 seg.roadProfile = profile;
@@ -652,7 +653,7 @@ public class CityBuilderWindow : EditorWindow
         }
         else
         {
-            EditorGUILayout.HelpBox("Assegna un AmericanCityConfig nella sezione PROC per usare l aggiornamento profili.", MessageType.None);
+            EditorGUILayout.HelpBox("Questa azione richiede un AmericanCityConfig attivo nel plugin process corrente.", MessageType.None);
         }
 
         DrawSubHeader("PERCORSI");
@@ -693,7 +694,8 @@ public class CityBuilderWindow : EditorWindow
         }
         if (!_isGenerating && DrawActionButton("Planarizza Rete Stradale", ColProc * 0.7f))
         {
-            float mergeTol = proceduralConfig != null ? proceduralConfig.mergeThreshold : 2f;
+            AmericanCityConfig planarizeConfig = proceduralConfig as AmericanCityConfig;
+            float mergeTol = planarizeConfig != null ? planarizeConfig.mergeThreshold : 2f;
             Undo.RecordObject(cityData, "Planarizza Rete Stradale");
 
             int nodesBefore = cityData.nodes.Count;
@@ -771,220 +773,76 @@ public class CityBuilderWindow : EditorWindow
 
     private void DrawProceduralGenerationSection()
     {
-        DrawSubHeader("CONFIGURAZIONE ASSET");
-        EditorGUI.BeginChangeCheck();
-        AmericanCityConfig newConfig = (AmericanCityConfig)EditorGUILayout.ObjectField(
-            "American City Config", proceduralConfig, typeof(AmericanCityConfig), false);
-        if (EditorGUI.EndChangeCheck()) proceduralConfig = newConfig;
+        CityPluginSettings pluginSettings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
+        List<CityPluginDescriptor> processPlugins = CityPluginRegistry.GetPlugins(CityPluginCategory.Process);
 
-        if (proceduralConfig == null)
+        DrawSubHeader("PLUGIN PROCESS");
+        if (processPlugins.Count == 0)
         {
-            EditorGUILayout.HelpBox("Assegna un asset AmericanCityConfig oppure creane uno nuovo.", MessageType.Warning);
-            if (DrawActionButton("Crea Nuova Configurazione", ColProc * 0.8f))
-                CityBuilderMenu.CreateAmericanCityConfig();
+            EditorGUILayout.HelpBox("Nessun plugin process disponibile.", MessageType.Warning);
             return;
         }
 
-        DrawSubHeader("CENTRO CITTA (P0)");
-        EditorGUI.BeginChangeCheck();
-        Vector3 newCenter = EditorGUILayout.Vector3Field("Posizione Mondo", proceduralConfig.centerWorldPosition);
-        if (EditorGUI.EndChangeCheck())
+        int currentIndex = 0;
+        string[] labels = new string[processPlugins.Count];
+        for (int i = 0; i < processPlugins.Count; i++)
         {
-            Undo.RecordObject(proceduralConfig, "Set American City Center");
-            proceduralConfig.centerWorldPosition = newCenter;
-            EditorUtility.SetDirty(proceduralConfig);
-        }
-        if (DrawActionButton("Usa Oggetto Selezionato in Scena"))
-        {
-            if (Selection.activeTransform != null)
-            {
-                Undo.RecordObject(proceduralConfig, "Set American City Center from Selection");
-                proceduralConfig.centerWorldPosition = Selection.activeTransform.position;
-                EditorUtility.SetDirty(proceduralConfig);
-            }
-            else
-            {
-                EditorUtility.DisplayDialog("Info", "Seleziona un GameObject nella scena per usarne la posizione.", "OK");
-            }
+            labels[i] = processPlugins[i].displayName + " (" + processPlugins[i].id + ")";
+            if (string.Equals(processPlugins[i].id, pluginSettings.activeProcessPluginId, StringComparison.OrdinalIgnoreCase))
+                currentIndex = i;
         }
 
-        DrawSubHeader("CAP GENERAZIONE");
-        EditorGUI.BeginChangeCheck();
-        float newCap = Mathf.Max(1f, EditorGUILayout.FloatField("Raggio Massimo (m)", proceduralConfig.maxGenerationRadius));
-        if (EditorGUI.EndChangeCheck())
+        int newIndex = EditorGUILayout.Popup("Plugin di Generazione", currentIndex, labels);
+        if (newIndex != currentIndex)
         {
-            Undo.RecordObject(proceduralConfig, "Set Max Generation Radius");
-            proceduralConfig.maxGenerationRadius = newCap;
-            EditorUtility.SetDirty(proceduralConfig);
+            pluginSettings.activeProcessPluginId = processPlugins[newIndex].id;
+            EditorUtility.SetDirty(pluginSettings);
+            AssetDatabase.SaveAssets();
         }
-        EditorGUILayout.HelpBox("Ridurre per scene di gioco (es. 2000-5000 m). Default realistici (30 km) genererebbero decine di migliaia di nodi.", MessageType.Info);
 
-        DrawSubHeader("ZONE RINGS");
-        EditorGUILayout.HelpBox("Ogni ring definisce una fascia di distanza da P0 e la zona/orientamento associati.\nOrdina per raggio crescente.", MessageType.None);
+        if (DrawActionButton("Apri Plugin Browser", ColProc * 0.9f))
+            CityPluginBrowserWindow.ShowWindow();
 
-        if (proceduralConfig.zoneRings == null)
-            proceduralConfig.zoneRings = new System.Collections.Generic.List<ZoneRing>();
+        ICityProcessPlugin process = CityPluginRegistry.Create<ICityProcessPlugin>(CityPluginCategory.Process, pluginSettings.activeProcessPluginId);
+        ICityProcessPluginEditorUI processUi = process as ICityProcessPluginEditorUI;
 
-        bool ringsDirty = false;
-        for (int ri = 0; ri < proceduralConfig.zoneRings.Count; ri++)
+        DrawSubHeader("CONFIGURAZIONE PLUGIN");
+        if (processUi == null)
         {
-            ZoneRing ring = proceduralConfig.zoneRings[ri];
-            if (ring == null) continue;
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.HelpBox("Il plugin process attivo non espone una UI custom di configurazione.", MessageType.Info);
+        }
+        else
+        {
+            Type cfgType = processUi.ConfigurationType;
+            string cfgLabel = string.IsNullOrWhiteSpace(processUi.ConfigurationLabel) ? "Process Config" : processUi.ConfigurationLabel;
+
             EditorGUI.BeginChangeCheck();
-            string rLabel = EditorGUILayout.TextField(ring.label, GUILayout.MinWidth(80));
-            float rMax = EditorGUILayout.FloatField(ring.maxRadius, GUILayout.Width(80));
-            EditorGUILayout.LabelField("m", GUILayout.Width(14));
-            if (ring.zoneType != null)
-            {
-                Rect cr = GUILayoutUtility.GetRect(16f, 16f, GUILayout.Width(18f));
-                EditorGUI.DrawRect(cr, ring.zoneType.zoneColor);
-            }
+            ScriptableObject newConfig = (ScriptableObject)EditorGUILayout.ObjectField(
+                cfgLabel,
+                proceduralConfig,
+                cfgType,
+                false);
             if (EditorGUI.EndChangeCheck())
-            {
-                Undo.RecordObject(proceduralConfig, "Edit Zone Ring");
-                ring.label = rLabel;
-                ring.maxRadius = Mathf.Max(0f, rMax);
-                ringsDirty = true;
-            }
-            if (GUILayout.Button("x", GUILayout.Width(22)))
-            {
-                Undo.RecordObject(proceduralConfig, "Remove Zone Ring");
-                proceduralConfig.zoneRings.RemoveAt(ri);
-                EditorUtility.SetDirty(proceduralConfig);
-                EditorGUILayout.EndHorizontal();
-                EditorGUILayout.EndVertical();
-                break;
-            }
-            EditorGUILayout.EndHorizontal();
-            EditorGUI.BeginChangeCheck();
-            ZoneType rZone = (ZoneType)EditorGUILayout.ObjectField("ZoneType", ring.zoneType, typeof(ZoneType), false);
-            BlockOrientation rOrient = (BlockOrientation)EditorGUILayout.EnumPopup("Orientamento", ring.orientation);
-            if (EditorGUI.EndChangeCheck())
-            {
-                Undo.RecordObject(proceduralConfig, "Edit Zone Ring");
-                ring.zoneType = rZone;
-                ring.orientation = rOrient;
-                ringsDirty = true;
-            }
-            EditorGUILayout.EndVertical();
-        }
-        if (ringsDirty) EditorUtility.SetDirty(proceduralConfig);
+                proceduralConfig = newConfig;
 
-        EditorGUILayout.BeginHorizontal();
-        if (DrawActionButton("+ Aggiungi Ring"))
-        {
-            Undo.RecordObject(proceduralConfig, "Add Zone Ring");
-            float defMax = proceduralConfig.zoneRings.Count > 0
-                ? proceduralConfig.zoneRings[proceduralConfig.zoneRings.Count - 1].maxRadius * 2f
-                : 1000f;
-            proceduralConfig.zoneRings.Add(new ZoneRing { label = "New Ring", maxRadius = defMax });
-            EditorUtility.SetDirty(proceduralConfig);
-        }
-        if (DrawActionButton("Ordina per Raggio"))
-        {
-            Undo.RecordObject(proceduralConfig, "Sort Zone Rings");
-            proceduralConfig.zoneRings.Sort((a, b) => a.maxRadius.CompareTo(b.maxRadius));
-            EditorUtility.SetDirty(proceduralConfig);
-        }
-        if (DrawActionButton("Reset Default Americani"))
-        {
-            if (EditorUtility.DisplayDialog("Reset Zone Rings", "Sovrascrivere con i valori di default americani (5 fasce)?\nI ZoneType di default verranno creati e collegati automaticamente.", "Si", "No"))
+            if (proceduralConfig == null)
             {
-                Undo.RecordObject(proceduralConfig, "Reset Zone Rings to Defaults");
-                proceduralConfig.ResetToAmericanDefaults();
-                EditorUtility.SetDirty(proceduralConfig);
-                CityBuilderMenu.SetupDefaultZoneTypes();
-                CityBuilderMenu.LinkAmericanZoneTypesToConfig(proceduralConfig);
+                EditorGUILayout.HelpBox("Assegna un asset di configurazione oppure creane uno nuovo.", MessageType.Warning);
+                if (DrawActionButton("Crea Configurazione", ColProc * 0.8f))
+                    proceduralConfig = processUi.CreateDefaultConfigurationAsset();
+                return;
             }
-        }
-        if (DrawActionButton("Preset Gioco (2.4 km)", new Color(0.4f, 0.7f, 1f)))
-        {
-            if (EditorUtility.DisplayDialog("Preset Scala Citt\u00e0 di Gioco",
-                "Verranno applicati i valori ottimali per una citt\u00e0 di gioco (~2.4 km, blocchi 100\u00d7200 m, vicoli).\n" +
-                "Modalit\u00e0: Grid. Zone rings: CBD 400 m, Inner City 800 m, Residential 1600 m, Suburban 2400 m.\n\n" +
-                "I ZoneType di default verranno creati e collegati automaticamente.", "Applica", "Annulla"))
+
+            if (!cfgType.IsInstanceOfType(proceduralConfig))
             {
-                Undo.RecordObject(proceduralConfig, "Apply Game City Defaults");
-                proceduralConfig.ResetToGameDefaults();
-                EditorUtility.SetDirty(proceduralConfig);
-                CityBuilderMenu.SetupDefaultZoneTypes();
-                CityBuilderMenu.SetupDefaultRoadProfiles();
-                CityBuilderMenu.LinkGameZoneTypesToConfig(proceduralConfig);
-                CityBuilderMenu.LinkDefaultRoadProfilesToConfig(proceduralConfig);
-                EditorUtility.DisplayDialog("Preset Applicato",
-                    "Valori di gioco applicati.\nRicorda di assegnare il profilo 'Vicolo' al campo Vicolo (Alley) nella sezione Mapping se non \u00e8 stato collegato automaticamente.", "OK");
+                EditorGUILayout.HelpBox("La configurazione assegnata non è compatibile con il plugin selezionato.", MessageType.Error);
+                return;
             }
-        }
-        EditorGUILayout.EndHorizontal();
 
-        DrawSubHeader("GRIGLIA STRADALE");
-        EditorGUI.BeginChangeCheck();
-        float newMajor    = EditorGUILayout.FloatField("Spaziatura Griglia Principale (m)", proceduralConfig.majorGridSpacing);
-        float newLocal    = EditorGUILayout.FloatField("Spaziatura Strade Locali (m)",      proceduralConfig.localStreetSpacing);
-        float newLocalCap = EditorGUILayout.FloatField("Raggio Max Strade Locali (m)",      proceduralConfig.localStreetMaxRadius);
-        float newVariation= EditorGUILayout.Slider("Variazione Dimensione Blocchi",         proceduralConfig.blockSizeVariation, 0f, 0.45f);
-        int   newSeed     = EditorGUILayout.IntField("Seme Casuale",                        proceduralConfig.randomSeed);
-        int   newHw       = EditorGUILayout.IntSlider("Numero Autostrade",                  proceduralConfig.highwayCount, 1, 4);
-        float newMerge    = EditorGUILayout.FloatField("Soglia Merge Nodi (m)",             proceduralConfig.mergeThreshold);
-        if (EditorGUI.EndChangeCheck())
-        {
-            Undo.RecordObject(proceduralConfig, "Set American City Grid Params");
-            proceduralConfig.majorGridSpacing     = Mathf.Max(50f,  newMajor);
-            proceduralConfig.localStreetSpacing   = Mathf.Max(20f,  newLocal); 
-            proceduralConfig.localStreetMaxRadius = Mathf.Max(0f,   newLocalCap);
-            proceduralConfig.blockSizeVariation   = newVariation;
-            proceduralConfig.randomSeed           = newSeed;
-            proceduralConfig.highwayCount         = newHw;
-            proceduralConfig.mergeThreshold       = Mathf.Max(0.1f, newMerge);
-            EditorUtility.SetDirty(proceduralConfig);
-        }
-        float localDepthEst = proceduralConfig.localStreetSpacing;
-        EditorGUILayout.HelpBox($"Dimensione blocco locale: {proceduralConfig.localStreetSpacing:F0} m \u00d7 {localDepthEst:F0} m (larghezza \u00d7 profondit\u00e0).", MessageType.None);
-        int halfEst  = Mathf.CeilToInt(proceduralConfig.maxGenerationRadius / Mathf.Max(1f, proceduralConfig.majorGridSpacing));
-        int estNodes = Mathf.RoundToInt((2 * halfEst + 1) * (2 * halfEst + 1) * 0.78f);
-        EditorGUILayout.HelpBox("Stima nodi griglia principale: ~" + estNodes + ". Strade locali entro " + proceduralConfig.localStreetMaxRadius.ToString("F0") + " m.", MessageType.None);
-
-        DrawSubHeader("VICOLI (ALLEY)");
-        EditorGUI.BeginChangeCheck();
-        bool  newAlleyOn   = EditorGUILayout.Toggle("Abilita Vicoli",       proceduralConfig.alleyEnabled);
-        RoadProfile newAlP = (RoadProfile)EditorGUILayout.ObjectField("Profilo Vicolo",       proceduralConfig.alleyProfile, typeof(RoadProfile), false);
-        float newAlleyFrac = EditorGUILayout.Slider("Posizione Vicolo (frac.)", proceduralConfig.alleyPositionFraction, 0.3f, 0.7f);
-        float newAlleyCap  = EditorGUILayout.FloatField("Raggio Max Vicoli (m)", proceduralConfig.alleyMaxRadius);
-        if (EditorGUI.EndChangeCheck())
-        {
-            Undo.RecordObject(proceduralConfig, "Set Alley Params");
-            proceduralConfig.alleyEnabled         = newAlleyOn;
-            proceduralConfig.alleyProfile         = newAlP;
-            proceduralConfig.alleyPositionFraction = Mathf.Clamp(newAlleyFrac, 0.3f, 0.7f);
-            proceduralConfig.alleyMaxRadius       = Mathf.Max(0f, newAlleyCap);
-            EditorUtility.SetDirty(proceduralConfig);
-        }
-        if (proceduralConfig.alleyEnabled && proceduralConfig.alleyProfile == null)
-            EditorGUILayout.HelpBox("Vicoli abilitati ma nessun profilo assegnato. Assegna il profilo 'Vicolo' o premi Preset Gioco.", MessageType.Warning);
-
-        DrawSubHeader("MAPPING ROAD PROFILES");
-        EditorGUI.BeginChangeCheck();
-        RoadProfile newHwP  = (RoadProfile)EditorGUILayout.ObjectField("Autostrada",         proceduralConfig.highwayProfile,     typeof(RoadProfile), false);
-        RoadProfile newMajP = (RoadProfile)EditorGUILayout.ObjectField("Griglia Principale",  proceduralConfig.majorGridProfile,   typeof(RoadProfile), false);
-        RoadProfile newLocP = (RoadProfile)EditorGUILayout.ObjectField("Strade Locali",       proceduralConfig.localStreetProfile, typeof(RoadProfile), false);
-        if (EditorGUI.EndChangeCheck())
-        {
-            Undo.RecordObject(proceduralConfig, "Set American City Profile Mapping");
-            proceduralConfig.highwayProfile     = newHwP;
-            proceduralConfig.majorGridProfile   = newMajP;
-            proceduralConfig.localStreetProfile = newLocP;
-            EditorUtility.SetDirty(proceduralConfig);
+            processUi.DrawConfigurationGUI(proceduralConfig);
         }
 
         DrawSubHeader("PLUGIN ATTIVI");
-        if (DrawActionButton("Apri Plugin Browser", ColProc * 0.9f))
-        {
-            CityPluginBrowserWindow.ShowWindow();
-        }
-
-        CityPluginSettings pluginSettings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
         EditorGUILayout.LabelField("Process", pluginSettings.activeProcessPluginId, EditorStyles.miniLabel);
         EditorGUILayout.LabelField("Road Network", pluginSettings.activeRoadNetworkPluginId, EditorStyles.miniLabel);
         EditorGUILayout.LabelField("Road Planarization", pluginSettings.activeRoadPlanarizationPluginId, EditorStyles.miniLabel);
@@ -993,6 +851,7 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.LabelField("Lot Layout", pluginSettings.activeLotLayoutPluginId, EditorStyles.miniLabel);
         EditorGUILayout.LabelField("Lot Selection", pluginSettings.activeLotSelectionPluginId, EditorStyles.miniLabel);
 
+        AmericanCityConfig americanConfig = proceduralConfig as AmericanCityConfig;
         DrawSubHeader("AZIONI");
 
         if (_isGenerating)
@@ -1001,36 +860,43 @@ public class CityBuilderWindow : EditorWindow
             if (GUILayout.Button("Annulla Generazione", GUILayout.Height(24)))
                 StopAsyncGeneration();
         }
-        else if (DrawActionButton("Genera Rete Stradale", ColProc * 0.7f))
+        else
         {
-            bool ok = EditorUtility.DisplayDialog("Genera Rete Stradale",
-                "Verranno aggiunti nodi e segmenti alla rete stradale esistente. Continuare?", "Genera", "Annulla");
-            if (ok)
+            using (new EditorGUI.DisabledScope(americanConfig == null))
             {
-                CityGenerationReport report = CityGenerationPipelineHost.GenerateRoadNetwork(cityManager, proceduralConfig);
-                _lastProceduralReport = report.ToMultilineString();
-                EditorUtility.DisplayDialog("Rete Stradale Generata", _lastProceduralReport, "OK");
+                if (DrawActionButton("Genera Rete Stradale", ColProc * 0.7f))
+                {
+                    bool ok = EditorUtility.DisplayDialog("Genera Rete Stradale",
+                        "Verranno aggiunti nodi e segmenti alla rete stradale esistente. Continuare?", "Genera", "Annulla");
+                    if (ok)
+                    {
+                        CityGenerationReport report = CityGenerationPipelineHost.GenerateRoadNetwork(cityManager, americanConfig);
+                        _lastProceduralReport = report.ToMultilineString();
+                        EditorUtility.DisplayDialog("Rete Stradale Generata", _lastProceduralReport, "OK");
+                    }
+                }
+
+                if (DrawActionButton("Assegna Zoning Automatico (per distanza)"))
+                {
+                    CityGenerationReport report = CityGenerationPipelineHost.AssignZoning(cityManager, americanConfig);
+                    _lastProceduralReport = report.ToMultilineString();
+                    EditorUtility.DisplayDialog("Zoning Assegnato", _lastProceduralReport, "OK");
+                }
             }
-        }
-        if (DrawActionButton("Assegna Zoning Automatico (per distanza)"))
-        {
-            CityGenerationReport report = CityGenerationPipelineHost.AssignZoning(cityManager, proceduralConfig);
-            _lastProceduralReport = report.ToMultilineString();
-            EditorUtility.DisplayDialog("Zoning Assegnato", _lastProceduralReport, "OK");
+
+            if (americanConfig == null)
+                EditorGUILayout.HelpBox("Le azioni step-by-step (Road/Zoning) richiedono un AmericanCityConfig. Usa GENERA TUTTO per process plugin non-americani.", MessageType.None);
         }
 
         EditorGUILayout.Space(4);
         GUI.backgroundColor = new Color(0.3f, 0.85f, 0.5f);
-        bool genAllDisabled = _isGenerating;
+        bool genAllDisabled = _isGenerating || proceduralConfig == null;
         GUI.enabled = !genAllDisabled;
-        if (GUILayout.Button("\u25b6  GENERA TUTTO  (Rete + Blocchi + Zoning + Lotti)", GUILayout.Height(40)))
+        if (GUILayout.Button("▶  GENERA TUTTO (via Process Plugin)", GUILayout.Height(40)))
         {
             GUI.backgroundColor = Color.white;
-            string existingMsg = cityData.nodes.Count > 0
-                ? "Attenzione: presenti " + cityData.nodes.Count + " nodi e " + cityData.blocks.Count + " blocchi.\nLa rete verra AGGIUNTA; i blocchi saranno SOSTITUITI.\n\n"
-                : "";
             bool ok = EditorUtility.DisplayDialog("Genera Tutto",
-                existingMsg + "Verranno eseguiti in sequenza:\n1. Genera Rete Stradale\n2. Auto-Detect Blocchi\n3. Assegna Zoning\n4. Genera Lotti\n\nContinuare?",
+                "La pipeline completa verrà delegata al plugin process selezionato. Continuare?",
                 "Genera", "Annulla");
             if (ok)
             {
@@ -1169,7 +1035,7 @@ public class CityBuilderWindow : EditorWindow
 
     private int RunLotGeneration()
     {
-        return CityGenerationPipelineHost.GenerateLots(cityManager, proceduralConfig);
+        return CityGenerationPipelineHost.GenerateLots(cityManager, proceduralConfig as AmericanCityConfig);
     }
 
     private void SpawnBuildingsFromZoneTypes()

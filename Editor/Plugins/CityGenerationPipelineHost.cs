@@ -116,9 +116,9 @@ public static class CityGenerationPipelineHost
         return lotCount;
     }
 
-    public static CityGenerationReport GenerateAll(CityManager manager, AmericanCityConfig config)
+    public static CityGenerationReport GenerateAll(CityManager manager, ScriptableObject processConfig)
     {
-        CityGenerationContext context = BuildContext(manager, config);
+        CityGenerationContext context = BuildContext(manager, processConfig);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
 
         ICityProcessPlugin processPlugin = CityPluginRegistry.Create<ICityProcessPlugin>(CityPluginCategory.Process, settings.activeProcessPluginId);
@@ -128,6 +128,11 @@ public static class CityGenerationPipelineHost
         }
 
         return GenerateAllWithCurrentStepPlugins(context, settings);
+    }
+
+    public static CityGenerationReport GenerateAll(CityManager manager, AmericanCityConfig config)
+    {
+        return GenerateAll(manager, (ScriptableObject)config);
     }
 
     public static CityGenerationReport GenerateAllWithCurrentStepPlugins(CityGenerationContext context, CityPluginSettings settings)
@@ -181,12 +186,19 @@ public static class CityGenerationPipelineHost
 
     private static CityGenerationContext BuildContext(CityManager manager, AmericanCityConfig config)
     {
+        return BuildContext(manager, (ScriptableObject)config);
+    }
+
+    private static CityGenerationContext BuildContext(CityManager manager, ScriptableObject processConfig)
+    {
         CityData data = manager != null ? manager.GetCityData() : null;
+        AmericanCityConfig americanConfig = processConfig as AmericanCityConfig;
         return new CityGenerationContext
         {
             manager = manager,
             cityData = data,
-            config = config
+            processConfig = processConfig,
+            config = americanConfig
         };
     }
 

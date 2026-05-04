@@ -34,7 +34,17 @@ public struct CityGenerationContext
 {
     public CityManager manager;
     public CityData cityData;
+
+    // Config asset del plugin process attivo (agnostico rispetto al tema città)
+    public ScriptableObject processConfig;
+
+    // Legacy alias: resta per compatibilità con plugin step esistenti a tema American.
     public AmericanCityConfig config;
+
+    public T GetProcessConfig<T>() where T : ScriptableObject
+    {
+        return processConfig as T;
+    }
 }
 
 public struct CityGenerationReport
