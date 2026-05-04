@@ -2,7 +2,16 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Rendering;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Editor.Inspectors;
 
+namespace BSCCityBuilder.Editor.Tools
+{
 /// <summary>
 /// Editor script che cattura input dalla Scene View per la modalità City Builder.
 /// Gestisce click su nodi, connessioni, e altre interazioni.
@@ -661,4 +670,6 @@ public class CitySceneHandle
             EditorUtility.SetDirty(cachedCityManager.GetCityData());
         }
     }
+}
+
 }

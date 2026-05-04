@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+namespace BSCCityBuilder.Core
+{
 /// <summary>
 /// Asset che descrive una destinazione d'uso della città.
 /// Colore e altezza edificio sono ora definiti per zona tramite ScriptableObject.
@@ -381,4 +383,6 @@ public class CityLot
         }
         return avg / vertices.Count;
     }
+}
+
 }

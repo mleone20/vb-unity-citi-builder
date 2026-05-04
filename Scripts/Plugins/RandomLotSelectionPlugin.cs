@@ -1,5 +1,11 @@
 using UnityEngine;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
 
+namespace BSCCityBuilder.Plugins
+{
 /// <summary>
 /// Plugin di selezione lotto completamente casuale (nessun determinismo).
 /// Utile per test visivi rapidi o per scene in cui la variazione massima è desiderata.
@@ -37,4 +43,6 @@ public class RandomLotSelectionPlugin : ILotSelectionPlugin
         }
         return ctx.candidates.Count - 1;
     }
+}
+
 }

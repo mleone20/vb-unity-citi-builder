@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Components;
+using BSCCityBuilder.Editor.Tools;
 
 namespace BSCCityBuilder.AI
 {

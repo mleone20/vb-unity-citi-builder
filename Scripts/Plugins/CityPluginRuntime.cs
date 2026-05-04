@@ -1,5 +1,11 @@
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
 
+namespace BSCCityBuilder.Plugins
+{
 public static class CityPluginRuntime
 {
     private static ILotSelectionPlugin _activeLotSelectionPlugin;
@@ -19,4 +25,6 @@ public static class CityPluginRuntime
 
         return plugin.PickCandidateIndex(context);
     }
+}
+
 }

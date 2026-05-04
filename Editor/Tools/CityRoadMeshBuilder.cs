@@ -1,7 +1,15 @@
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Rendering;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Tools
+{
 /// <summary>
 /// Genera mesh Unity reali (MeshFilter + MeshRenderer) per tutta la rete stradale
 /// memorizzata in un CityManager.
@@ -457,4 +465,6 @@ public static class CityRoadMeshBuilder
 
         return selected;
     }
+}
+
 }

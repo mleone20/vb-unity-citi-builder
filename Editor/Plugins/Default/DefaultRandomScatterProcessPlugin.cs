@@ -2,7 +2,15 @@ using UnityEditor;
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Editor.Plugins;
 
+namespace BSCCityBuilder.Editor.Plugins.Default
+{
 [CityPlugin("bsc.process.default-random", "Default Random Scatter", CityPluginCategory.Process, "Generazione base non tematica con scattering casuale e opzioni minime.")]
 public class DefaultRandomScatterProcessPlugin : ICityProcessPlugin, ICityProcessPluginEditorUI
 {
@@ -189,4 +197,6 @@ public class DefaultRandomScatterProcessPlugin : ICityProcessPlugin, ICityProces
         SceneView.RepaintAll();
         return report;
     }
+}
+
 }

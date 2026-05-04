@@ -1,6 +1,11 @@
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Rendering;
 
+namespace BSCCityBuilder.Management
+{
 /// <summary>
 /// MonoBehaviour che gestisce la città nella scena.
 /// Detiene il riferimento a CityData e coordina le operazioni di costruzione.
@@ -926,4 +931,6 @@ public class CityManager : MonoBehaviour
   - Lotti: {cityData.lots.Count}
   - Modalità Editor: {currentMode}");
     }
+}
+
 }

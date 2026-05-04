@@ -1,6 +1,12 @@
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
 
+namespace BSCCityBuilder.Plugins
+{
 [CityPlugin("bsc.default.block-detection", "Default Block Detection", CityPluginCategory.BlockDetection, "Rileva blocchi dal grafo stradale con algoritmo a facce cicliche.")]
 public class DefaultBlockDetectionPlugin : IBlockDetectionPlugin
 {
@@ -13,4 +19,6 @@ public class DefaultBlockDetectionPlugin : IBlockDetectionPlugin
 
         return CityBlockDetector.DetectBlocks(context.cityData);
     }
+}
+
 }

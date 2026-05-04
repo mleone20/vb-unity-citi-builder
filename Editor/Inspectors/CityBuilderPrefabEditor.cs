@@ -3,10 +3,18 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using BSCCityBuilder.AI;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Components;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Editor.Tools;
 
+namespace BSCCityBuilder.Editor.Inspectors
+{
 [CustomEditor(typeof(CityBuilderPrefab))]
 [CanEditMultipleObjects]
-public class CityBuilderPrefabEditor : Editor
+public class CityBuilderPrefabEditor : UnityEditor.Editor
 {
     private const string AutoTagUndoName = "Auto Tag Building Prefab";
 
@@ -527,4 +535,6 @@ public class CityBuilderPrefabEditor : Editor
         component.pivotOffset = bottomCenterLocal;
         EditorUtility.SetDirty(component);
     }
+}
+
 }

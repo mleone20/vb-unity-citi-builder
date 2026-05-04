@@ -1,7 +1,17 @@
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Components;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Editor.Tools;
+using BSCCityBuilder.Editor.Plugins;
+using BSCCityBuilder.AI;
 
+namespace BSCCityBuilder.Editor.Inspectors
+{
 /// <summary>
 /// Editor script per il rilevamento e modifica manuale dei blocchi.
 /// Fornisce UI per auto-detect e definizione manuale di blocchi.
@@ -351,4 +361,6 @@ public class CityBlockEditor
 
         Handles.color = Color.white;
     }
+}
+
 }

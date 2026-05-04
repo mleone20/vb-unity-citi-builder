@@ -1,7 +1,14 @@
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Plugins
+{
 /// <summary>
 /// Loader di plugin esterni da assembly .dll — FASE 2 PLACEHOLDER.
 ///
@@ -94,4 +101,6 @@ public static class CityExternalPluginLoader
 
     /// <summary>Restituisce tutti i manifest caricati in questa sessione.</summary>
     public static IReadOnlyList<CityPluginManifest> LoadedManifests => _loadedManifests;
+}
+
 }

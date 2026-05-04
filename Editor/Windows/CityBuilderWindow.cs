@@ -1,9 +1,22 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEditor;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Components;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Rendering;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Editor.Tools;
+using BSCCityBuilder.Editor.Inspectors;
+using BSCCityBuilder.Editor.Plugins;
+using BSCCityBuilder.AI;
 
+namespace BSCCityBuilder.Editor.Windows
+{
 /// <summary>
 /// EditorWindow principale per City Builder Studio.
 /// Interfaccia a tab colorati per layout procedurale citta.
@@ -1110,4 +1123,6 @@ public class CityBuilderWindow : EditorWindow
         SceneView.RepaintAll();
         EditorUtility.DisplayDialog("Flatten Terrain - Blocchi & Lotti (Consolidato)", report.ToMultilineString(), "OK");
     }
+}
+
 }

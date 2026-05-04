@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e94e178d4b5e86a4d8318500ab64fd51, type: 3}
+  m_Name: CityPluginSettings
+  m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Plugins.CityPluginSettings
+  activeProcessPluginId: bsc.process.default-random
+  activeRoadNetworkPluginId: bsc.american.road-network
+  activeRoadPlanarizationPluginId: bsc.default.planarization
+  activeBlockDetectionPluginId: bsc.default.block-detection
+  activeZoningPluginId: bsc.american.zoning
+  activeLotLayoutPluginId: bsc.default.lot-layout
+  activeLotSelectionPluginId: bsc.default.lot-selection
+  runPlanarizationAfterRoadNetwork: 1
+  runPlanarizationInFullGeneration: 1

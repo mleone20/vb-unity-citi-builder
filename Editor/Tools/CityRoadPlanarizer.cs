@@ -3,7 +3,15 @@ using UnityEditor;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Rendering;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Tools
+{
 /// <summary>
 /// Algoritmo di planarizzazione della rete stradale.
 /// Rileva gli incroci geometrici tra segmenti non connessi (es. autostrade diagonali
@@ -264,4 +272,6 @@ public static class CityRoadPlanarizer
         }
         list.Add(pos);
     }
+}
+
 }

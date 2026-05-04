@@ -1,7 +1,14 @@
 using UnityEditor;
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Plugins
+{
 public class CityPluginBrowserWindow : EditorWindow
 {
     private Vector2 _scroll;
@@ -92,4 +99,6 @@ public class CityPluginBrowserWindow : EditorWindow
         EditorGUILayout.EndVertical();
         EditorGUILayout.Space(4);
     }
+}
+
 }

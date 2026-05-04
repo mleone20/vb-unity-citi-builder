@@ -1,7 +1,15 @@
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Rendering;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Tools
+{
 public static class RoadProfileEditorUtility
 {
     public static List<RoadProfile> LoadAllRoadProfiles()
@@ -31,4 +39,6 @@ public static class RoadProfileEditorUtility
 
         return profile.GetDisplayName();
     }
+}
+
 }

@@ -1,7 +1,10 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using BSCCityBuilder.Core;
 
+namespace BSCCityBuilder.Generation
+{
 /// <summary>
 /// Algoritmo per rilevare blocchi (cicli) da un grafo stradale.
 /// Processa nodi e segmenti per trovare poligoni chiusi.
@@ -331,5 +334,7 @@ public static class CityBlockDetector
 
         return inside;
     }
+
+}
 
 }

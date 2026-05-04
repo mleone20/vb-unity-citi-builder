@@ -1,6 +1,9 @@
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
 
+namespace BSCCityBuilder.Generation
+{
 public static class CityRoadGeometry
 {
     public const int DefaultCurveSamples = 16;
@@ -186,4 +189,6 @@ public static class CityRoadGeometry
         Vector2 projection = a + ab * t;
         return Vector2.Distance(p, projection);
     }
+}
+
 }

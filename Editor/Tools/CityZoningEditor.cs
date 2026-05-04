@@ -2,7 +2,15 @@ using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 using System.Linq;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Rendering;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Tools
+{
 /// <summary>
 /// Editor script per assegnazione zoning ai blocchi.
 /// Fornisce UI per visualizzare e modificare il zoning.
@@ -196,4 +204,6 @@ public static class CityZoningEditor
             EditorGUILayout.LabelField($"  {pair.Key}: {pair.Value}", EditorStyles.label);
         }
     }
+}
+
 }

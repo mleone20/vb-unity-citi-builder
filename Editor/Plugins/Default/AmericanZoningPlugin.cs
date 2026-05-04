@@ -1,7 +1,15 @@
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Editor.Plugins;
 
+namespace BSCCityBuilder.Editor.Plugins.Default
+{
 [CityPlugin("bsc.american.zoning", "American Zoning", CityPluginCategory.Zoning, "Assegna zoning e orientamento per distanza da P0.")]
 public class AmericanZoningPlugin : IZoningAssignmentPlugin
 {
@@ -52,4 +60,6 @@ public class AmericanZoningPlugin : IZoningAssignmentPlugin
         SceneView.RepaintAll();
         return report;
     }
+}
+
 }

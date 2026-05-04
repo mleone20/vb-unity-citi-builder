@@ -1,7 +1,14 @@
 using UnityEditor;
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Plugins
+{
 public static class CityGenerationPipelineHost
 {
     public static CityGenerationReport GenerateRoadNetwork(CityManager manager, AmericanCityConfig config)
@@ -208,4 +215,6 @@ public static class CityGenerationPipelineHost
         report.warnings.Add("Nessun plugin disponibile per categoria " + category + ".");
         return report;
     }
+}
+
 }

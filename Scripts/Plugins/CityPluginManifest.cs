@@ -1,5 +1,11 @@
 using UnityEngine;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
 
+namespace BSCCityBuilder.Plugins
+{
 /// <summary>
 /// ScriptableObject manifest per plugin esterni caricati da DLL esterne.
 ///
@@ -39,4 +45,6 @@ public class CityPluginManifest : ScriptableObject
     [Header("Stato (sola lettura)")]
     [Tooltip("Impostato a runtime da CityExternalPluginLoader. Non modificare manualmente.")]
     public bool isLoaded = false;
+}
+
 }

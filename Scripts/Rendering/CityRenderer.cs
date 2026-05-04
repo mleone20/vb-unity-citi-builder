@@ -1,6 +1,11 @@
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Components;
+using BSCCityBuilder.Generation;
 
+namespace BSCCityBuilder.Rendering
+{
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -699,4 +704,6 @@ public static class CityRenderer
         }
     }
 #endif
+}
+
 }

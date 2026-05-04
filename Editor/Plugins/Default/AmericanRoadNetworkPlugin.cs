@@ -2,7 +2,15 @@ using UnityEngine;
 using UnityEditor;
 using System;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Editor.Plugins;
 
+namespace BSCCityBuilder.Editor.Plugins.Default
+{
 [CityPlugin("bsc.american.road-network", "American Road Network", CityPluginCategory.RoadNetwork, "Generazione rete stradale in stile americano.")]
 public class AmericanRoadNetworkPlugin : IRoadNetworkGenerationPlugin
 {
@@ -324,4 +332,6 @@ public class AmericanRoadNetworkPlugin : IRoadNetworkGenerationPlugin
             }
         }
     }
+}
+
 }

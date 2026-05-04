@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using UnityEngine;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Components;
+using BSCCityBuilder.Editor.Tools;
 
 namespace BSCCityBuilder.AI
 {

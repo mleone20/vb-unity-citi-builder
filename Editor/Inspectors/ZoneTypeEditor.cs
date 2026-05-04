@@ -1,8 +1,17 @@
 using UnityEditor;
 using UnityEngine;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Components;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Editor.Tools;
+using BSCCityBuilder.AI;
 
+namespace BSCCityBuilder.Editor.Inspectors
+{
 [CustomEditor(typeof(ZoneType))]
-public class ZoneTypeEditor : Editor
+public class ZoneTypeEditor : UnityEditor.Editor
 {
     public override void OnInspectorGUI()
     {
@@ -149,4 +158,6 @@ public class ZoneTypeEditor : Editor
         EditorGUI.DrawRect(new Rect(buildingRect.x, buildingRect.y, buildingRect.width, 1f), Color.white * 0.75f);
         EditorGUI.LabelField(new Rect(rect.x + 8f, rect.y + 8f, rect.width - 16f, 18f), $"Preview height: {height:0.0}m", EditorStyles.whiteLabel);
     }
+}
+
 }

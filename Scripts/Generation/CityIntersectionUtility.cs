@@ -1,6 +1,9 @@
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
 
+namespace BSCCityBuilder.Generation
+{
 public struct CityIntersectionCandidate
 {
     public Vector3 position;
@@ -145,4 +148,6 @@ public static class CityIntersectionUtility
     {
         return a.x * b.y - a.y * b.x;
     }
+}
+
 }

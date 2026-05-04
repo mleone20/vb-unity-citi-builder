@@ -1,7 +1,14 @@
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Components;
 
+namespace BSCCityBuilder.Plugins
+{
 public enum CityPluginCategory
 {
     Process,
@@ -171,4 +178,6 @@ public interface ILotSelectionPlugin
 public interface ICityProcessPlugin
 {
     CityGenerationReport GenerateAll(CityGenerationContext context);
+}
+
 }

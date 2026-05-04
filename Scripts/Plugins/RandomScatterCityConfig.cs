@@ -1,5 +1,11 @@
 using UnityEngine;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
 
+namespace BSCCityBuilder.Plugins
+{
 [CreateAssetMenu(fileName = "RandomScatterCityConfig", menuName = "CityBuilder/Random Scatter Config", order = 203)]
 public class RandomScatterCityConfig : ScriptableObject
 {
@@ -20,4 +26,6 @@ public class RandomScatterCityConfig : ScriptableObject
     [Header("Zoning")]
     [Tooltip("Se vuoto, i blocchi resteranno senza zoning assegnato.")]
     public ZoneType[] zoneTypes = new ZoneType[0];
+}
+
 }

@@ -1,6 +1,14 @@
 using UnityEditor;
 using UnityEngine;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Rendering;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Tools
+{
 public static class PrefabHighResPreviewRenderer
 {
     public static bool TryRenderToPng(GameObject prefabAsset, int width, int height, out Texture2D previewTexture, out byte[] pngBytes, out string error)
@@ -167,4 +175,6 @@ public static class PrefabHighResPreviewRenderer
             RenderTexture.ReleaseTemporary(tempRt);
         }
     }
+}
+
 }

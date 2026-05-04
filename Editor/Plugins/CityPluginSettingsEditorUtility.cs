@@ -1,7 +1,14 @@
 using UnityEditor;
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Plugins
+{
 public static class CityPluginSettingsEditorUtility
 {
     private const string SettingsAssetPath = "Assets/BSCCityBuilder/Assets/CityPluginSettings.asset";
@@ -84,4 +91,6 @@ public static class CityPluginSettingsEditorUtility
             AssetDatabase.CreateFolder("Assets/BSCCityBuilder", "Assets");
         }
     }
+}
+
 }

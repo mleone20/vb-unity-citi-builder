@@ -1,6 +1,12 @@
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
 
+namespace BSCCityBuilder.Plugins
+{
 [CityPlugin("bsc.default.lot-selection", "Default Lot Selection", CityPluginCategory.LotSelection, "Selezione prefab con peso e tie-break deterministico opzionale.")]
 public class DefaultLotSelectionPlugin : ILotSelectionPlugin
 {
@@ -115,4 +121,6 @@ public class DefaultLotSelectionPlugin : ILotSelectionPlugin
             return (hash & 0x00FFFFFFu) / 16777216f;
         }
     }
+}
+
 }

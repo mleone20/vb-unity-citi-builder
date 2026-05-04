@@ -1,5 +1,7 @@
 using UnityEngine;
 
+namespace BSCCityBuilder.Core
+{
 public enum RoadHierarchyLevel
 {
     Alley,
@@ -27,4 +29,6 @@ public class RoadProfile : ScriptableObject
     {
         return string.IsNullOrWhiteSpace(displayName) ? name : displayName;
     }
+}
+
 }

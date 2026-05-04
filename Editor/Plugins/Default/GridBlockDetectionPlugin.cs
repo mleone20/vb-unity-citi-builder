@@ -1,6 +1,14 @@
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Editor.Plugins;
 
+namespace BSCCityBuilder.Editor.Plugins.Default
+{
 // Note: DetectBlocks returns the raw polygon list; warnings are logged directly.
 
 /// <summary>
@@ -66,4 +74,6 @@ public class GridBlockDetectionPlugin : IBlockDetectionPlugin
         Debug.Log($"[GridBlockDetectionPlugin] Rilevati {polygons.Count} blocchi su griglia {cellSize}u.");
         return polygons;
     }
+}
+
 }

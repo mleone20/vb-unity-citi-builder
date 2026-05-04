@@ -1,5 +1,11 @@
 using UnityEngine;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
 
+namespace BSCCityBuilder.Plugins
+{
 [CreateAssetMenu(fileName = "CityPluginSettings", menuName = "City Builder/Plugin Settings")]
 public class CityPluginSettings : ScriptableObject
 {
@@ -44,4 +50,6 @@ public class CityPluginSettings : ScriptableObject
             case CityPluginCategory.LotSelection: activeLotSelectionPluginId = pluginId; break;
         }
     }
+}
+
 }

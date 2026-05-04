@@ -1,7 +1,16 @@
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Editor.Plugins;
+using BSCCityBuilder.Editor.Tools;
 
+namespace BSCCityBuilder.Editor.Plugins.Default
+{
 [CityPlugin("bsc.default.planarization", "Default Road Planarization", CityPluginCategory.RoadPlanarization, "Planarizza la rete spezzando segmenti agli incroci geometrici.")]
 public class DefaultRoadPlanarizationPlugin : IRoadPlanarizationPlugin
 {
@@ -32,4 +41,6 @@ public class DefaultRoadPlanarizationPlugin : IRoadPlanarizationPlugin
         SceneView.RepaintAll();
         return report;
     }
+}
+
 }

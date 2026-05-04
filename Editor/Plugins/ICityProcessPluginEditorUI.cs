@@ -1,6 +1,13 @@
 using UnityEngine;
 using System;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Plugins
+{
 /// <summary>
 /// Contratto editor per i plugin di processo che vogliono gestire la propria UI.
 /// La tab Procedurale del CityBuilderWindow delega al plugin attivo il rendering
@@ -13,4 +20,6 @@ public interface ICityProcessPluginEditorUI
 
     ScriptableObject CreateDefaultConfigurationAsset();
     void DrawConfigurationGUI(ScriptableObject config);
+}
+
 }

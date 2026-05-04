@@ -1,6 +1,14 @@
 using System.Collections.Generic;
 using UnityEditor;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Rendering;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Tools
+{
 public static class ZoneTypeEditorUtility
 {
     public static List<ZoneType> LoadAllZoneTypes()
@@ -26,4 +34,6 @@ public static class ZoneTypeEditorUtility
     {
         return zoneType != null ? zoneType.GetDisplayName() : "None";
     }
+}
+
 }

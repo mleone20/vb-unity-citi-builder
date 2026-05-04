@@ -1,6 +1,14 @@
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Rendering;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Tools
+{
 /// <summary>
 /// Classe base astratta per tutti i generatori procedurali di città.
 /// </summary>
@@ -85,4 +93,6 @@ public abstract class CityGeneratorBase
         segment.roadProfile = profile;
         segment.width = profile.roadWidth;
     }
+}
+
 }

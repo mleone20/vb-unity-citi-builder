@@ -1,6 +1,9 @@
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
 
+namespace BSCCityBuilder.Config
+{
 /// <summary>
 /// Rappresenta una fascia di distanza da P0 con la zona e l'orientamento lotti associati.
 /// Gli anelli devono essere ordinati per maxRadius crescente; l'ultimo ring cattura
@@ -202,5 +205,7 @@ public class AmericanCityConfig : ScriptableObject
             new ZoneRing { label = "Suburban",    maxRadius = 2400f, orientation = BlockOrientation.Sparse   },
         };
     }
+
+}
 
 }

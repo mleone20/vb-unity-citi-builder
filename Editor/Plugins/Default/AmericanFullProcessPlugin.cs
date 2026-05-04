@@ -1,7 +1,15 @@
 using UnityEditor;
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Editor.Plugins;
 
+namespace BSCCityBuilder.Editor.Plugins.Default
+{
 [CityPlugin("bsc.process.american-full", "American Full Process", CityPluginCategory.Process, "Preset completo: road network + planarization + block detection + zoning + lot generation.")]
 public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginEditorUI
 {
@@ -32,7 +40,7 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
             return;
         }
 
-        Editor editor = Editor.CreateEditor(american);
+        UnityEditor.Editor editor = UnityEditor.Editor.CreateEditor(american);
         if (editor != null)
         {
             editor.OnInspectorGUI();
@@ -138,4 +146,6 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
         SceneView.RepaintAll();
         return total;
     }
+}
+
 }

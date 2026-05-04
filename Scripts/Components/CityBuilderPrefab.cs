@@ -1,7 +1,10 @@
 
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
 
+namespace BSCCityBuilder.Components
+{
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -476,4 +479,6 @@ public class CityBuilderPrefab : MonoBehaviour
 
         return new Vector2(Mathf.Max(0.1f, combined.size.x), Mathf.Max(0.1f, combined.size.z));
     }
+}
+
 }

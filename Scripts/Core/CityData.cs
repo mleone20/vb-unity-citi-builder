@@ -1,6 +1,9 @@
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Generation;
 
+namespace BSCCityBuilder.Core
+{
 /// <summary>
 /// ScriptableObject che memorizza tutti i dati della città (nodi, strade, blocchi, lotti).
 /// Questo asset è versionabile e persistente per il progetto.
@@ -291,4 +294,6 @@ public class CityData : ScriptableObject
 
         return count % 2 == 1;
     }
+}
+
 }

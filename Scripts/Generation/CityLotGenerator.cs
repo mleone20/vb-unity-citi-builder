@@ -1,6 +1,11 @@
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Components;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Generation
+{
 /// <summary>
 /// Genera lotti per un blocco usando l'approccio "Frontage" (affaccio su strada).
 /// Per ogni edge del blocco percorre il bordo e ritaglia lotti la cui larghezza
@@ -493,4 +498,6 @@ public static class CityLotGenerator
 
     private static Vector2[] ToXZ(Vector3 a, Vector3 b, Vector3 c, Vector3 d) =>
         new Vector2[] { new Vector2(a.x, a.z), new Vector2(b.x, b.z), new Vector2(c.x, c.z), new Vector2(d.x, d.z) };
+}
+
 }

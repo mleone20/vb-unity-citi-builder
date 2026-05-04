@@ -1,7 +1,16 @@
 using UnityEditor;
 using UnityEngine;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Rendering;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Components;
 
+namespace BSCCityBuilder.Editor.Tools
+{
 /// <summary>
 /// Utility editor-only per spawn e pulizia edifici prefab dai dati di zoning.
 /// </summary>
@@ -1429,4 +1438,6 @@ public static class CityBuildingSpawner
 
         return report;
     }
+}
+
 }

@@ -1,6 +1,16 @@
 using UnityEngine;
 using UnityEditor;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Components;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Rendering;
+using BSCCityBuilder.Plugins;
+using BSCCityBuilder.Editor.Plugins;
 
+namespace BSCCityBuilder.Editor.Tools
+{
 /// <summary>
 /// Menu item per creare asset CityData
 /// </summary>
@@ -573,4 +583,6 @@ public static class CityBuilderMenu
         Debug.Log($"[CityBuilder] Planarizzazione: {msg}");
         return msg;
     }
+}
+
 }

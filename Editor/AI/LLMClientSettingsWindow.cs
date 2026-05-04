@@ -1,5 +1,8 @@
 using UnityEditor;
 using UnityEngine;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Components;
+using BSCCityBuilder.Editor.Tools;
 
 namespace BSCCityBuilder.AI
 {

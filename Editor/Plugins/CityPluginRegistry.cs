@@ -2,7 +2,14 @@ using UnityEditor;
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using BSCCityBuilder.Core;
+using BSCCityBuilder.Management;
+using BSCCityBuilder.Config;
+using BSCCityBuilder.Generation;
+using BSCCityBuilder.Plugins;
 
+namespace BSCCityBuilder.Editor.Plugins
+{
 public struct CityPluginDescriptor
 {
     public string id;
@@ -152,4 +159,6 @@ public static class CityPluginRegistry
             default: return false;
         }
     }
+}
+
 }
