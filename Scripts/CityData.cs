@@ -5,6 +5,7 @@ using System.Collections.Generic;
 /// ScriptableObject che memorizza tutti i dati della città (nodi, strade, blocchi, lotti).
 /// Questo asset è versionabile e persistente per il progetto.
 /// </summary>
+[CreateAssetMenu(fileName = "CityData", menuName = "City Builder/New City Data", order = 1)]
 public class CityData : ScriptableObject
 {
     [Header("Rete Stradale")]
