@@ -4,6 +4,9 @@ using System.Net.Http;
 using System.Text;
 using UnityEngine;
 
+namespace BSCCityBuilder.AI
+{
+
 /// <summary>
 /// Client per integrazione con LLM locale tramite API OpenAI-compatible (LM Studio).
 /// Il trasporto usa esclusivamente HttpClient.
@@ -382,3 +385,5 @@ public class LLMClient
         return trimmed.Substring(start, end - start + 1);
     }
 }
+
+} // namespace BSCCityBuilder.AI

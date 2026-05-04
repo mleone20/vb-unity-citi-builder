@@ -1,6 +1,9 @@
 using UnityEditor;
 using UnityEngine;
 
+namespace BSCCityBuilder.AI
+{
+
 public class LLMClientRequestPreviewWindow : EditorWindow
 {
     private string prefabName;
@@ -73,3 +76,5 @@ public class LLMClientRequestPreviewWindow : EditorWindow
         }
     }
 }
+
+} // namespace BSCCityBuilder.AI

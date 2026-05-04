@@ -1,6 +1,9 @@
 using UnityEditor;
 using UnityEngine;
 
+namespace BSCCityBuilder.AI
+{
+
 public class LLMClientSettingsWindow : EditorWindow
 {
     private string baseUrl;
@@ -68,3 +71,5 @@ public class LLMClientSettingsWindow : EditorWindow
         ShowNotification(new GUIContent("Configurazione LLM salvata"));
     }
 }
+
+} // namespace BSCCityBuilder.AI

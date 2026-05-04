@@ -1,5 +1,8 @@
 using UnityEditor;
 
+namespace BSCCityBuilder.AI
+{
+
 public static class LLMClientEditorSettings
 {
     private const string BaseUrlKey = "BSCCityBuilder.LLM.BaseUrl";
@@ -33,3 +36,5 @@ public static class LLMClientEditorSettings
         SetValues(LLMClient.DefaultBaseUrl, LLMClient.DefaultModel, string.Empty);
     }
 }
+
+} // namespace BSCCityBuilder.AI

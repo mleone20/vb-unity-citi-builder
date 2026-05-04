@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
+namespace BSCCityBuilder.AI
+{
+
 public class LLMBulkClassifierWindow : EditorWindow
 {
     private readonly List<GameObject> prefabs = new List<GameObject>();
@@ -319,3 +322,5 @@ public class LLMBulkClassifierWindow : EditorWindow
         return null;
     }
 }
+
+} // namespace BSCCityBuilder.AI

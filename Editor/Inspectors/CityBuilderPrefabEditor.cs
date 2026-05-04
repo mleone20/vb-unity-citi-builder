@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEngine;
 using System;
 using System.Collections.Generic;
+using BSCCityBuilder.AI;
 
 [CustomEditor(typeof(CityBuilderPrefab))]
 [CanEditMultipleObjects]
