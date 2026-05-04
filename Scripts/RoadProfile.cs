@@ -17,6 +17,10 @@ public class RoadProfile : ScriptableObject
     public Color debugColor = new Color(0.55f, 0.55f, 0.55f, 1f);
     [Min(0f)] public float intersectionClearanceRadius = 2.5f;
     [Min(0f)] public float blockInset = 0f;
+
+    [Header("Road Mesh")]
+    public Material meshMaterial;
+
     [TextArea] public string description;
 
     public string GetDisplayName()

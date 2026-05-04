@@ -727,6 +727,19 @@ public class CityBuilderWindow : EditorWindow
             cityManager.LogStats();
         GUI.backgroundColor = Color.white;
 
+        DrawSubHeader("MESH STRADE");
+        EditorGUILayout.HelpBox("Genera mesh Unity reali (MeshFilter + MeshRenderer) leggendo il materiale dal RoadProfile di ciascun segmento (fallback: defaultRoadProfile su CityData).", MessageType.None);
+        if (DrawActionButton("Genera Mesh Strade", new Color(0.25f, 0.60f, 0.45f)))
+        {
+            CityRoadMeshBuilder.Build(cityManager);
+            SceneView.RepaintAll();
+        }
+        if (DrawActionButton("Cancella Mesh Strade", new Color(0.55f, 0.35f, 0.35f)))
+        {
+            CityRoadMeshBuilder.DeleteMesh();
+            SceneView.RepaintAll();
+        }
+
         EditorGUILayout.Space(8);
         DrawSubHeader("PERICOLO");
         GUI.backgroundColor = new Color(0.85f, 0.25f, 0.2f);
