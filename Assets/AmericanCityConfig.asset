@@ -22,27 +22,30 @@ MonoBehaviour:
   highwayCount: 2
   mergeThreshold: 3
   snapRadius: 20
-  blockDepthMultiplier: 2
   alleyEnabled: 1
   alleyProfile: {fileID: 11400000, guid: 9870cab19feef2e4e9cc7d80bd337b7b, type: 2}
   alleyPositionFraction: 0.5
   alleyMaxRadius: 2400
   zoneRings:
-  - label: CBD
-    maxRadius: 400
-    zoneType: {fileID: 0}
+  - label: CBD (Downtown)
+    maxRadius: 200
+    zoneType: {fileID: 11400000, guid: 63e96ec985644f24e83e34b9f360dc62, type: 2}
     orientation: 0
   - label: Inner City
-    maxRadius: 800
-    zoneType: {fileID: 0}
+    maxRadius: 500
+    zoneType: {fileID: 11400000, guid: f4c40a60b9edd4144bca630d0364f927, type: 2}
     orientation: 0
-  - label: Residential
-    maxRadius: 1600
-    zoneType: {fileID: 0}
-    orientation: 1
-  - label: Suburban
+  - label: Urban Residential
+    maxRadius: 600
+    zoneType: {fileID: 11400000, guid: eeba03b48ae74a146a5b3a56679dc2f0, type: 2}
+    orientation: 0
+  - label: Suburbs
+    maxRadius: 1200
+    zoneType: {fileID: 11400000, guid: 0fb477c24c08d4449a501d0f8ff32afc, type: 2}
+    orientation: 0
+  - label: Exurbs
     maxRadius: 2400
-    zoneType: {fileID: 0}
+    zoneType: {fileID: 11400000, guid: 741f23c696a3ab34d96fa079b8c96ee1, type: 2}
     orientation: 2
   highwayProfile: {fileID: 11400000, guid: f4358a56057e55e4ba1aa95e2dce82fb, type: 2}
   majorGridProfile: {fileID: 11400000, guid: c5ee0e2a7b9cfc0418ee5607abcea65d, type: 2}

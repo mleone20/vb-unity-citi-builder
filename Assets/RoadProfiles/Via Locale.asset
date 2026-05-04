@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RoadProfile
   displayName: Via Locale
   hierarchyLevel: 1
-  roadWidth: 4
+  roadWidth: 12
   debugColor: {r: 0.45, g: 0.65, b: 0.95, a: 1}
-  intersectionClearanceRadius: 3
+  intersectionClearanceRadius: 9
   blockInset: 0
   description: Strada urbana di quartiere.

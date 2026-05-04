@@ -16,6 +16,10 @@ MonoBehaviour:
   zoneColor: {r: 0.8, g: 0.73, b: 0.56, a: 1}
   buildingHeight: 3
   description: 'Exurbs: aree rurali e insediamenti sparsi.'
-  buildingPrefabs: []
+  buildingPrefabEntries:
+  - prefab: {fileID: 3901341782131621929, guid: d47e72cc63d49a34a8cbe585d9aad41f, type: 3}
+    spawnProbability: 1
+  buildingPrefabs:
+  - {fileID: 3901341782131621929, guid: d47e72cc63d49a34a8cbe585d9aad41f, type: 3}
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0

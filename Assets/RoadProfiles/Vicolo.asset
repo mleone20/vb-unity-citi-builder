@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RoadProfile
   displayName: Vicolo
   hierarchyLevel: 0
-  roadWidth: 2.2
+  roadWidth: 6.6
   debugColor: {r: 0.5, g: 0.8, b: 0.55, a: 1}
-  intersectionClearanceRadius: 2
+  intersectionClearanceRadius: 6
   blockInset: 0
   description: Connessione minuta o di servizio.

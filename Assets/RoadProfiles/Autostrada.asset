@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RoadProfile
   displayName: Autostrada
   hierarchyLevel: 3
-  roadWidth: 9.5
+  roadWidth: 28.5
   debugColor: {r: 0.75, g: 0.25, b: 0.2, a: 1}
-  intersectionClearanceRadius: 6
+  intersectionClearanceRadius: 18
   blockInset: 0
   description: "Asse veloce ad alta capacit\xE0."
