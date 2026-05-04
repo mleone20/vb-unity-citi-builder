@@ -13,6 +13,7 @@ public class CitySceneHandle
     public static bool IsEnabled = false;
     public static bool SnapToGridEnabled = false;
     public static float GridSize = 5f;
+    public static RoadProfile ActiveDrawingProfile = null;
 
     private static CityManager cachedCityManager;
     private static bool isInitialized = false;
@@ -378,7 +379,9 @@ public class CitySceneHandle
                 // Con Shift premuto collega il nuovo nodo con l'ultimo nodo aggiunto.
                 if (lastAddedNodeID != -1 && lastAddedNodeID != newNode.id)
                 {
-                    manager.AddSegment(lastAddedNodeID, newNode.id);
+                    CitySegment addedSeg = manager.AddSegment(lastAddedNodeID, newNode.id);
+                    if (addedSeg != null && ActiveDrawingProfile != null)
+                        manager.SetSegmentRoadProfile(addedSeg.id, ActiveDrawingProfile);
                 }
             }
 
@@ -435,6 +438,8 @@ public class CitySceneHandle
             manager.SetSelectedNodeID(-1); // Reset selezione
             if (seg != null)
             {
+                if (ActiveDrawingProfile != null)
+                    manager.SetSegmentRoadProfile(seg.id, ActiveDrawingProfile);
                 Debug.Log($"Segmento creato tra {selectedID} e {nearestNode.id}");
             }
         }

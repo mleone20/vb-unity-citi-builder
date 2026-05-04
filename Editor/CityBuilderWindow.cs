@@ -31,6 +31,8 @@ public class CityBuilderWindow : EditorWindow
     private float weldNodesDistance = 1.0f;
     private float simplifyMaxDeviationDeg = 8f;
     private bool _terrainFoldout = false;
+    private List<RoadProfile> _cachedRoadProfiles = null;
+    private string[]          _cachedProfileNames  = null;
 
     private ScriptableObject proceduralConfig;
     private string _lastProceduralReport = "";
@@ -380,6 +382,49 @@ public class CityBuilderWindow : EditorWindow
             case CityManager.BuildMode.ConnectNodes:
                 EditorGUILayout.HelpBox("Clicca due nodi in sequenza per collegarli con un segmento.", MessageType.Info);
                 break;
+        }
+
+        // ── Tipo strada attivo ──────────────────────────────────
+        if (currentMode == CityManager.BuildMode.AddNodes || currentMode == CityManager.BuildMode.ConnectNodes)
+        {
+            EditorGUILayout.Space(4);
+
+            // Ricarica la lista se necessario
+            if (_cachedRoadProfiles == null)
+            {
+                _cachedRoadProfiles = RoadProfileEditorUtility.LoadAllRoadProfiles();
+                var names = new string[_cachedRoadProfiles.Count + 1];
+                names[0] = "— Default —";
+                for (int i = 0; i < _cachedRoadProfiles.Count; i++)
+                    names[i + 1] = _cachedRoadProfiles[i].GetDisplayName();
+                _cachedProfileNames = names;
+            }
+
+            int currentIdx = CitySceneHandle.ActiveDrawingProfile == null
+                ? 0
+                : _cachedRoadProfiles.IndexOf(CitySceneHandle.ActiveDrawingProfile) + 1;
+            if (currentIdx < 0) currentIdx = 0;
+
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel("Tipo strada");
+            int newIdx = EditorGUILayout.Popup(currentIdx, _cachedProfileNames);
+            if (GUILayout.Button("↺", GUILayout.Width(22)))
+            {
+                _cachedRoadProfiles = null;
+                _cachedProfileNames = null;
+                newIdx = 0;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            CitySceneHandle.ActiveDrawingProfile = newIdx == 0 ? null : _cachedRoadProfiles[newIdx - 1];
+
+            if (CitySceneHandle.ActiveDrawingProfile != null)
+            {
+                var p = CitySceneHandle.ActiveDrawingProfile;
+                EditorGUILayout.LabelField(
+                    string.Format("{0}  |  {1} m  |  {2}", p.hierarchyLevel, p.roadWidth, p.GetDisplayName()),
+                    EditorStyles.miniLabel);
+            }
         }
 
         EditorGUILayout.Space(6);
