@@ -512,6 +512,141 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.Space(6);
+        DrawSubHeader("PROFILI STRADE");
+        AmericanCityConfig americanConfig = proceduralConfig as AmericanCityConfig;
+        if (americanConfig != null)
+        {
+            if (DrawActionButton("Aggiorna Profili Strade Esistenti", ColConfig * 0.8f))
+            {
+                if (cityData != null && cityData.segments != null)
+                {
+                    Undo.RecordObject(cityData, "Update Road Profiles");
+                    int updated = 0;
+                    foreach (CitySegment seg in cityData.segments)
+                    {
+                        if (seg == null) continue;
+                        RoadProfile profile = null;
+                        if (seg.roadProfile != null)
+                        {
+                            seg.width = seg.roadProfile.roadWidth;
+                            updated++;
+                        }
+                        else
+                        {
+                            if (americanConfig.highwayProfile != null &&
+                                seg.width >= americanConfig.highwayProfile.roadWidth * 0.75f)
+                                profile = americanConfig.highwayProfile;
+                            else if (americanConfig.majorGridProfile != null)
+                                profile = americanConfig.majorGridProfile;
+                            else if (americanConfig.localStreetProfile != null)
+                                profile = americanConfig.localStreetProfile;
+                            if (profile != null)
+                            {
+                                seg.roadProfile = profile;
+                                seg.width = profile.roadWidth;
+                                updated++;
+                            }
+                        }
+                    }
+                    EditorUtility.SetDirty(cityData);
+                    SceneView.RepaintAll();
+                    EditorUtility.DisplayDialog("Profili aggiornati", updated + " segmenti aggiornati.", "OK");
+                }
+            }
+        }
+        else
+        {
+            EditorGUILayout.HelpBox("Questa azione richiede un AmericanCityConfig attivo nel plugin process corrente.", MessageType.None);
+        }
+
+        EditorGUILayout.Space(6);
+        DrawSubHeader("PERCORSI");
+        simplifyMaxDeviationDeg = EditorGUILayout.Slider("Dev. max semplifica (gradi)", simplifyMaxDeviationDeg, 1f, 25f);
+        if (DrawActionButton("Semplifica Percorsi"))
+        {
+            string report = cityManager.SimplifyPaths(simplifyMaxDeviationDeg);
+            EditorUtility.SetDirty(cityData);
+            SceneView.RepaintAll();
+            EditorUtility.DisplayDialog("Semplifica Percorsi", report, "OK");
+        }
+        if (DrawActionButton("Ripara Collegamenti"))
+        {
+            Undo.RecordObject(cityData, "Ripara Collegamenti");
+            string report = cityManager.RepairConnections();
+            EditorUtility.SetDirty(cityData);
+            SceneView.RepaintAll();
+            EditorUtility.DisplayDialog("Ripara Collegamenti", report, "OK");
+        }
+
+        EditorGUILayout.Space(6);
+        DrawSubHeader("NODI");
+        EditorGUILayout.LabelField("Distanza massima di fusione:");
+        weldNodesDistance = EditorGUILayout.Slider(weldNodesDistance, 0.1f, 10f);
+        if (DrawActionButton("Salda Nodi Ravvicinati"))
+        {
+            Undo.RecordObject(cityData, "Salda Nodi Ravvicinati");
+            string report = cityManager.WeldCloseNodes(weldNodesDistance);
+            EditorUtility.SetDirty(cityData);
+            SceneView.RepaintAll();
+            EditorUtility.DisplayDialog("Salda Nodi", report, "OK");
+        }
+
+        EditorGUILayout.Space(6);
+        DrawSubHeader("ANALISI E MESH");
+        if (DrawActionButton("Analizza Intersezioni Geometriche"))
+        {
+            string report = cityManager.AnalyzeIntersections();
+            EditorUtility.DisplayDialog("Analisi Intersezioni", report, "OK");
+        }
+        if (!_isGenerating && DrawActionButton("Planarizza Rete Stradale", ColProc * 0.7f))
+        {
+            AmericanCityConfig planarizeConfig = proceduralConfig as AmericanCityConfig;
+            float mergeTol = planarizeConfig != null ? planarizeConfig.mergeThreshold : 2f;
+            Undo.RecordObject(cityData, "Planarizza Rete Stradale");
+
+            int nodesBefore = cityData.nodes.Count;
+            int segsBefore  = cityData.segments.Count;
+
+            StartAsyncGeneration(
+                CityRoadPlanarizer.PlanarizeAsync(
+                    cityManager,
+                    mergeTol,
+                    (p, s) => { _generationProgress = p; _generationStatus = s; },
+                    splitsDone =>
+                    {
+                        int nodesAdded = cityData.nodes.Count - nodesBefore;
+                        int segsAdded  = cityData.segments.Count - segsBefore;
+
+                        string report = $"Segmenti planarizzati: {splitsDone}\nNodi aggiunti: {nodesAdded}\nSegmenti delta: {segsAdded}";
+                        _lastProceduralReport = report;
+
+                        EditorUtility.SetDirty(cityData);
+                        SceneView.RepaintAll();
+                        Debug.Log($"[CityBuilder] Planarizzazione: {report}");
+                        EditorUtility.DisplayDialog("Planarizza Rete", report, "OK");
+                    }),
+                null);
+        }
+        if (_isGenerating)
+        {
+            EditorGUI.ProgressBar(EditorGUILayout.GetControlRect(GUILayout.Height(20)), _generationProgress, _generationStatus);
+            if (GUILayout.Button("Annulla Operazione", GUILayout.Height(24)))
+                StopAsyncGeneration();
+            EditorGUILayout.Space(4);
+        }
+        EditorGUILayout.HelpBox("Genera mesh Unity reali leggendo il materiale dal RoadProfile di ciascun segmento.", MessageType.None);
+        if (DrawActionButton("Genera Mesh Strade", new Color(0.25f, 0.60f, 0.45f)))
+        {
+            CityRoadMeshBuilder.Build(cityManager);
+            SceneView.RepaintAll();
+        }
+        if (DrawActionButton("Cancella Mesh Strade", new Color(0.55f, 0.35f, 0.35f)))
+        {
+            CityRoadMeshBuilder.DeleteMesh();
+            SceneView.RepaintAll();
+        }
+
+        EditorGUILayout.Space(6);
         DrawSubHeader("INFORMAZIONI");
         EditorGUILayout.LabelField(string.Format("Nodi: {0}   Segmenti: {1}", cityData.nodes.Count, cityData.segments.Count));
         EditorGUILayout.LabelField(string.Format("Nodo selezionato: {0}   Segmento: {1}", cityManager.GetSelectedNodeID(), cityManager.GetSelectedSegmentID()));
@@ -625,146 +760,14 @@ public class CityBuilderWindow : EditorWindow
     {
         EditorGUILayout.HelpBox("Utilita di manutenzione dati e azioni correttive sul city graph.", MessageType.Info);
 
-        if (_isGenerating)
-        {
-            EditorGUI.ProgressBar(EditorGUILayout.GetControlRect(GUILayout.Height(20)), _generationProgress, _generationStatus);
-            if (GUILayout.Button("Annulla Operazione", GUILayout.Height(24)))
-                StopAsyncGeneration();
-            EditorGUILayout.Space(6);
-        }
-
-        DrawSubHeader("PROFILI STRADE");
-        AmericanCityConfig americanConfig = proceduralConfig as AmericanCityConfig;
-        if (americanConfig != null)
-        {
-            if (DrawActionButton("Aggiorna Profili Strade Esistenti", ColConfig * 0.8f))
-            {
-                if (cityData != null && cityData.segments != null)
-                {
-                    Undo.RecordObject(cityData, "Update Road Profiles");
-                    int updated = 0;
-                    foreach (CitySegment seg in cityData.segments)
-                    {
-                        if (seg == null) continue;
-                        RoadProfile profile = null;
-                        if (seg.roadProfile != null)
-                        {
-                            seg.width = seg.roadProfile.roadWidth;
-                            updated++;
-                        }
-                        else
-                        {
-                            if (americanConfig.highwayProfile != null &&
-                                seg.width >= americanConfig.highwayProfile.roadWidth * 0.75f)
-                                profile = americanConfig.highwayProfile;
-                            else if (americanConfig.majorGridProfile != null)
-                                profile = americanConfig.majorGridProfile;
-                            else if (americanConfig.localStreetProfile != null)
-                                profile = americanConfig.localStreetProfile;
-                            if (profile != null)
-                            {
-                                seg.roadProfile = profile;
-                                seg.width = profile.roadWidth;
-                                updated++;
-                            }
-                        }
-                    }
-                    EditorUtility.SetDirty(cityData);
-                    SceneView.RepaintAll();
-                    EditorUtility.DisplayDialog("Profili aggiornati", updated + " segmenti aggiornati.", "OK");
-                }
-            }
-        }
-        else
-        {
-            EditorGUILayout.HelpBox("Questa azione richiede un AmericanCityConfig attivo nel plugin process corrente.", MessageType.None);
-        }
-
-        DrawSubHeader("PERCORSI");
-        simplifyMaxDeviationDeg = EditorGUILayout.Slider("Dev. max semplifica (gradi)", simplifyMaxDeviationDeg, 1f, 25f);
-        if (DrawActionButton("Semplifica Percorsi"))
-        {
-            string report = cityManager.SimplifyPaths(simplifyMaxDeviationDeg);
-            EditorUtility.SetDirty(cityData);
-            SceneView.RepaintAll();
-            EditorUtility.DisplayDialog("Semplifica Percorsi", report, "OK");
-        }
-        if (DrawActionButton("Ripara Collegamenti"))
-        {
-            Undo.RecordObject(cityData, "Ripara Collegamenti");
-            string report = cityManager.RepairConnections();
-            EditorUtility.SetDirty(cityData);
-            SceneView.RepaintAll();
-            EditorUtility.DisplayDialog("Ripara Collegamenti", report, "OK");
-        }
-
-        DrawSubHeader("NODI");
-        EditorGUILayout.LabelField("Distanza massima di fusione:");
-        weldNodesDistance = EditorGUILayout.Slider(weldNodesDistance, 0.1f, 10f);
-        if (DrawActionButton("Salda Nodi Ravvicinati"))
-        {
-            Undo.RecordObject(cityData, "Salda Nodi Ravvicinati");
-            string report = cityManager.WeldCloseNodes(weldNodesDistance);
-            EditorUtility.SetDirty(cityData);
-            SceneView.RepaintAll();
-            EditorUtility.DisplayDialog("Salda Nodi", report, "OK");
-        }
-
-        DrawSubHeader("ANALISI");
-        if (DrawActionButton("Analizza Intersezioni Geometriche"))
-        {
-            string report = cityManager.AnalyzeIntersections();
-            EditorUtility.DisplayDialog("Analisi Intersezioni", report, "OK");
-        }
-        if (!_isGenerating && DrawActionButton("Planarizza Rete Stradale", ColProc * 0.7f))
-        {
-            AmericanCityConfig planarizeConfig = proceduralConfig as AmericanCityConfig;
-            float mergeTol = planarizeConfig != null ? planarizeConfig.mergeThreshold : 2f;
-            Undo.RecordObject(cityData, "Planarizza Rete Stradale");
-
-            int nodesBefore = cityData.nodes.Count;
-            int segsBefore  = cityData.segments.Count;
-
-            StartAsyncGeneration(
-                CityRoadPlanarizer.PlanarizeAsync(
-                    cityManager,
-                    mergeTol,
-                    (p, s) => { _generationProgress = p; _generationStatus = s; },
-                    splitsDone =>
-                    {
-                        int nodesAdded = cityData.nodes.Count - nodesBefore;
-                        int segsAdded  = cityData.segments.Count - segsBefore;
-
-                        string report = $"Segmenti planarizzati: {splitsDone}\nNodi aggiunti: {nodesAdded}\nSegmenti delta: {segsAdded}";
-                        _lastProceduralReport = report;
-
-                        EditorUtility.SetDirty(cityData);
-                        SceneView.RepaintAll();
-                        Debug.Log($"[CityBuilder] Planarizzazione: {report}");
-                        EditorUtility.DisplayDialog("Planarizza Rete", report, "OK");
-                    }),
-                null);
-        }
-        if (DrawActionButton("Setup Zone Types di Default"))
-            CityBuilderMenu.SetupDefaultZoneTypes();
-
         GUI.backgroundColor = new Color(0.3f, 0.8f, 0.8f);
         if (GUILayout.Button("\U0001f4ca  Esporta Statistiche (Console)", actionButtonStyle, GUILayout.ExpandWidth(true)))
             cityManager.LogStats();
         GUI.backgroundColor = Color.white;
 
-        DrawSubHeader("MESH STRADE");
-        EditorGUILayout.HelpBox("Genera mesh Unity reali (MeshFilter + MeshRenderer) leggendo il materiale dal RoadProfile di ciascun segmento (fallback: defaultRoadProfile su CityData).", MessageType.None);
-        if (DrawActionButton("Genera Mesh Strade", new Color(0.25f, 0.60f, 0.45f)))
-        {
-            CityRoadMeshBuilder.Build(cityManager);
-            SceneView.RepaintAll();
-        }
-        if (DrawActionButton("Cancella Mesh Strade", new Color(0.55f, 0.35f, 0.35f)))
-        {
-            CityRoadMeshBuilder.DeleteMesh();
-            SceneView.RepaintAll();
-        }
+        EditorGUILayout.Space(4);
+        if (DrawActionButton("Setup Zone Types di Default"))
+            CityBuilderMenu.SetupDefaultZoneTypes();
 
         EditorGUILayout.Space(8);
         DrawSubHeader("PERICOLO");
