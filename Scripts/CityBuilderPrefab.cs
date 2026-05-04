@@ -7,13 +7,11 @@ using UnityEditor;
 #endif
 
 /// <summary>
-
 /// Metadati prefab edificio usati dal tool di spawn per valutare footprint e offset.
 /// Aggiungere questo componente sul prefab edificio.
 /// </summary>
-[DisallowMultipleComponent]
 public class CityBuilderPrefab : MonoBehaviour
-{
+{ 
     private const float MinFootprint = 0.1f;
 
     [Header("AI Tagging")]

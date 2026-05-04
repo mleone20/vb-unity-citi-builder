@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 
 [CustomEditor(typeof(CityBuilderPrefab))]
+[CanEditMultipleObjects]
 public class CityBuilderPrefabEditor : Editor
 {
     private const string AutoTagUndoName = "Auto Tag Building Prefab";
