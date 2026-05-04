@@ -32,7 +32,7 @@ public static class CityPluginRegistry
             _byCategory[category] = new List<CityPluginDescriptor>();
         }
 
-        List<Type> attributedTypes = TypeCache.GetTypesWithAttribute<CityPluginAttribute>();
+        var attributedTypes = TypeCache.GetTypesWithAttribute<CityPluginAttribute>();
         for (int i = 0; i < attributedTypes.Count; i++)
         {
             Type type = attributedTypes[i];

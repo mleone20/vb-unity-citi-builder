@@ -1,6 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+// Note: DetectBlocks returns the raw polygon list; warnings are logged directly.
+
 /// <summary>
 /// Esempio scheletro di un plugin di rilevamento blocchi alternativo.
 /// Implementa una strategia semplificata basata su griglia uniforme invece del
@@ -19,25 +21,20 @@ public class GridBlockDetectionPlugin : IBlockDetectionPlugin
     /// <summary>Dimensione cella griglia in unità mondo.</summary>
     public float cellSize = 80f;
 
-    public CityGenerationReport DetectBlocks(CityGenerationContext ctx)
+    public List<List<Vector3>> DetectBlocks(CityGenerationContext ctx)
     {
-        var report = new CityGenerationReport { warnings = new List<string>() };
-
         if (ctx.manager == null || ctx.cityData == null)
         {
-            report.warnings.Add("[GridBlockDetectionPlugin] Contesto non valido.");
-            return report;
+            Debug.LogWarning("[GridBlockDetectionPlugin] Contesto non valido.");
+            return new List<List<Vector3>>();
         }
-
-        // Pulisce i blocchi precedenti
-        ctx.cityData.blocks.Clear();
 
         // Determina bounds dalla rete stradale
         var nodes = ctx.cityData.nodes;
         if (nodes == null || nodes.Count == 0)
         {
-            report.warnings.Add("[GridBlockDetectionPlugin] Nessun nodo stradale. Generare prima la rete.");
-            return report;
+            Debug.LogWarning("[GridBlockDetectionPlugin] Nessun nodo stradale. Generare prima la rete.");
+            return new List<List<Vector3>>();
         }
 
         float minX = float.MaxValue, minZ = float.MaxValue;
@@ -51,29 +48,22 @@ public class GridBlockDetectionPlugin : IBlockDetectionPlugin
         }
 
         // Genera blocchi rettangolari uniformi
-        int created = 0;
+        var polygons = new List<List<Vector3>>();
         for (float x = minX; x < maxX - cellSize * 0.5f; x += cellSize)
         {
             for (float z = minZ; z < maxZ - cellSize * 0.5f; z += cellSize)
             {
-                var block = new CityBlock
+                polygons.Add(new List<Vector3>
                 {
-                    polygon = new List<Vector3>
-                    {
-                        new Vector3(x,           0f, z),
-                        new Vector3(x + cellSize, 0f, z),
-                        new Vector3(x + cellSize, 0f, z + cellSize),
-                        new Vector3(x,           0f, z + cellSize),
-                    },
-                    orientation = 0f
-                };
-                ctx.cityData.blocks.Add(block);
-                created++;
+                    new Vector3(x,           0f, z),
+                    new Vector3(x + cellSize, 0f, z),
+                    new Vector3(x + cellSize, 0f, z + cellSize),
+                    new Vector3(x,           0f, z + cellSize),
+                });
             }
         }
 
-        report.blocksDetected = created;
-        Debug.Log($"[GridBlockDetectionPlugin] Rilevati {created} blocchi su griglia {cellSize}u.");
-        return report;
+        Debug.Log($"[GridBlockDetectionPlugin] Rilevati {polygons.Count} blocchi su griglia {cellSize}u.");
+        return polygons;
     }
 }
