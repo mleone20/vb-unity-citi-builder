@@ -23,6 +23,8 @@ MonoBehaviour:
     spawnProbability: 1
   - prefab: {fileID: 3606946787892698888, guid: 11ca54fd5070e564c9063530859d3b43, type: 3}
     spawnProbability: 1
+  - prefab: {fileID: 3901341782131621929, guid: d47e72cc63d49a34a8cbe585d9aad41f, type: 3}
+    spawnProbability: 1
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0
   blockLayoutProfile: {fileID: 0}

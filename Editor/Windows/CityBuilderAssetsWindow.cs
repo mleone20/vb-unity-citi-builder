@@ -168,11 +168,26 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
             viewMode = newViewMode;
         }
 
+        if (GUILayout.Button("Tools ▾", EditorStyles.toolbarDropDown, GUILayout.Width(70f)))
+        {
+            ShowToolsMenu();
+        }
+
         if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(64f)))
         {
             RefreshDatabase();
         }
         EditorGUILayout.EndHorizontal();
+    }
+
+    private void ShowToolsMenu()
+    {
+        GenericMenu menu = new GenericMenu();
+        menu.AddItem(
+            new GUIContent("Auto zone per tutti"),
+            false,
+            () => EditorApplication.delayCall += AutoAssignAllZones);
+        menu.ShowAsContext();
     }
 
     private void DrawSummary()
@@ -182,7 +197,7 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
         for (int i = 0; i < entries.Count; i++)
         {
             if (entries[i].warnings.Count > 0) warningCount++;
-            if (!entries[i].HasZoneData) unassignedCount++;
+            if (entries[i].zones.Count == 0) unassignedCount++;
         }
 
         EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
@@ -190,15 +205,21 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
             "Prefab: " + entries.Count +
             "    Visibili: " + visibleEntries.Count +
             "    Con avvisi: " + warningCount +
-            "    Senza zona: " + unassignedCount,
+            "    Non presenti nei ZoneType: " + unassignedCount,
             EditorStyles.miniLabel);
         GUILayout.FlexibleSpace();
         EditorGUILayout.EndHorizontal();
     }
 
-    private static void DrawAssetRow(AssetEntry entry)
+    private void DrawAssetRow(AssetEntry entry)
     {
+        Color previousBackground = GUI.backgroundColor;
+        if (entry.zones.Count == 0)
+        {
+            GUI.backgroundColor = new Color(1f, 0.62f, 0.2f);
+        }
         EditorGUILayout.BeginHorizontal(EditorStyles.helpBox, GUILayout.MinHeight(96f));
+        GUI.backgroundColor = previousBackground;
 
         Texture preview = AssetPreview.GetAssetPreview(entry.prefab);
         if (preview == null)
@@ -225,6 +246,15 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
             ? string.Join(", ", entry.zones)
             : "Nessun riferimento diretto";
         EditorGUILayout.LabelField("Usato dai ZoneType: " + zoneText, EditorStyles.miniLabel);
+        if (entry.zones.Count == 0)
+        {
+            Color previous = GUI.contentColor;
+            GUI.contentColor = new Color(1f, 0.55f, 0.12f);
+            EditorGUILayout.LabelField(
+                "● Non presente in alcun ZoneType",
+                EditorStyles.miniLabel);
+            GUI.contentColor = previous;
+        }
 
         if (entry.warnings.Count > 0)
         {
@@ -250,6 +280,14 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
         if (GUILayout.Button("Apri"))
         {
             AssetDatabase.OpenAsset(entry.prefab);
+        }
+        using (new EditorGUI.DisabledScope(entry.zoneTags.Count == 0))
+        {
+            if (GUILayout.Button("Auto Zone"))
+            {
+                AssetEntry selectedEntry = entry;
+                EditorApplication.delayCall += () => AutoAssignZones(selectedEntry);
+            }
         }
         if (GUILayout.Button("Cartella"))
         {
@@ -292,9 +330,15 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
         }
     }
 
-    private static void DrawAssetCard(AssetEntry entry, float cardWidth)
+    private void DrawAssetCard(AssetEntry entry, float cardWidth)
     {
+        Color previousBackground = GUI.backgroundColor;
+        if (entry.zones.Count == 0)
+        {
+            GUI.backgroundColor = new Color(1f, 0.62f, 0.2f);
+        }
         EditorGUILayout.BeginVertical(EditorStyles.helpBox, GUILayout.Width(cardWidth));
+        GUI.backgroundColor = previousBackground;
 
         Texture preview = AssetPreview.GetAssetPreview(entry.prefab);
         if (preview == null) preview = AssetPreview.GetMiniThumbnail(entry.prefab);
@@ -330,6 +374,16 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
             EditorStyles.miniLabel);
         GUI.contentColor = previous;
 
+        if (entry.zones.Count == 0)
+        {
+            Color previousContent = GUI.contentColor;
+            GUI.contentColor = new Color(1f, 0.55f, 0.12f);
+            EditorGUILayout.LabelField(
+                "● Fuori dai ZoneType",
+                EditorStyles.miniLabel);
+            GUI.contentColor = previousContent;
+        }
+
         EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("Seleziona"))
         {
@@ -341,7 +395,141 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
             AssetDatabase.OpenAsset(entry.prefab);
         }
         EditorGUILayout.EndHorizontal();
+        using (new EditorGUI.DisabledScope(entry.zoneTags.Count == 0))
+        {
+            if (GUILayout.Button("Auto Zone"))
+            {
+                AssetEntry selectedEntry = entry;
+                EditorApplication.delayCall += () => AutoAssignZones(selectedEntry);
+            }
+        }
         EditorGUILayout.EndVertical();
+    }
+
+    private void AutoAssignZones(AssetEntry entry)
+    {
+        if (entry == null || entry.prefab == null || entry.zoneTags.Count == 0)
+        {
+            return;
+        }
+
+        List<ZoneType> zones = LoadZones();
+        int matched = 0;
+        int added = 0;
+        int alreadyPresent = 0;
+        for (int i = 0; i < zones.Count; i++)
+        {
+            ZoneType zone = zones[i];
+            if (zone == null ||
+                !ContainsTag(entry.zoneTags, zone.GetDisplayName()))
+            {
+                continue;
+            }
+
+            matched++;
+            if (zone.ContainsPrefab(entry.prefab))
+            {
+                alreadyPresent++;
+                continue;
+            }
+
+            Undo.RecordObject(zone, "Auto Zone City Builder Prefab");
+            if (zone.TryAddPrefab(entry.prefab, 1f))
+            {
+                EditorUtility.SetDirty(zone);
+                added++;
+            }
+        }
+
+        AssetDatabase.SaveAssets();
+        RefreshDatabase();
+
+        if (matched == 0)
+        {
+            EditorUtility.DisplayDialog(
+                "Auto Zone",
+                "Nessun ZoneType corrisponde ai tag: " +
+                string.Join(", ", entry.zoneTags) + ".",
+                "OK");
+        }
+        else
+        {
+            EditorUtility.DisplayDialog(
+                "Auto Zone",
+                "ZoneType corrispondenti: " + matched + "\n" +
+                "Associazioni aggiunte: " + added + "\n" +
+                "Già presenti: " + alreadyPresent,
+                "OK");
+        }
+    }
+
+    private void AutoAssignAllZones()
+    {
+        List<ZoneType> zones = LoadZones();
+        var recordedZones = new HashSet<ZoneType>();
+        int assetsWithTags = 0;
+        int assetsWithoutMatches = 0;
+        int matchedAssociations = 0;
+        int addedAssociations = 0;
+        int alreadyPresent = 0;
+
+        Undo.IncrementCurrentGroup();
+        int undoGroup = Undo.GetCurrentGroup();
+        Undo.SetCurrentGroupName("Auto Zone per tutti i City Builder Prefab");
+
+        for (int entryIndex = 0; entryIndex < entries.Count; entryIndex++)
+        {
+            AssetEntry entry = entries[entryIndex];
+            if (entry == null || entry.prefab == null || entry.zoneTags.Count == 0)
+            {
+                continue;
+            }
+
+            assetsWithTags++;
+            bool assetMatched = false;
+            for (int zoneIndex = 0; zoneIndex < zones.Count; zoneIndex++)
+            {
+                ZoneType zone = zones[zoneIndex];
+                if (zone == null ||
+                    !ContainsTag(entry.zoneTags, zone.GetDisplayName()))
+                {
+                    continue;
+                }
+
+                assetMatched = true;
+                matchedAssociations++;
+                if (zone.ContainsPrefab(entry.prefab))
+                {
+                    alreadyPresent++;
+                    continue;
+                }
+
+                if (recordedZones.Add(zone))
+                {
+                    Undo.RecordObject(zone, "Auto Zone per tutti");
+                }
+                if (zone.TryAddPrefab(entry.prefab, 1f))
+                {
+                    EditorUtility.SetDirty(zone);
+                    addedAssociations++;
+                }
+            }
+
+            if (!assetMatched) assetsWithoutMatches++;
+        }
+
+        Undo.CollapseUndoOperations(undoGroup);
+        AssetDatabase.SaveAssets();
+        RefreshDatabase();
+
+        EditorUtility.DisplayDialog(
+            "Auto zone per tutti",
+            "Prefab con tag: " + assetsWithTags + "\n" +
+            "Prefab senza ZoneType corrispondenti: " + assetsWithoutMatches + "\n" +
+            "Corrispondenze trovate: " + matchedAssociations + "\n" +
+            "Associazioni aggiunte: " + addedAssociations + "\n" +
+            "Associazioni già presenti: " + alreadyPresent,
+            "OK");
     }
 
     private void RefreshDatabase()

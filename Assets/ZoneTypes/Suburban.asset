@@ -23,6 +23,22 @@ MonoBehaviour:
     spawnProbability: 1
   - prefab: {fileID: 3606946787892698888, guid: 11ca54fd5070e564c9063530859d3b43, type: 3}
     spawnProbability: 1
+  - prefab: {fileID: 5209245008487848685, guid: 85e0fbbea8157c24885fd21261b6c898, type: 3}
+    spawnProbability: 1
+  - prefab: {fileID: 3901341782131621929, guid: d47e72cc63d49a34a8cbe585d9aad41f, type: 3}
+    spawnProbability: 1
+  - prefab: {fileID: 9182847469163662130, guid: e0b85e27613f27d4c833761e60bb91db, type: 3}
+    spawnProbability: 1
+  - prefab: {fileID: 176454623659071703, guid: 2f5ebf252a16f4041ba991b23fdc0050, type: 3}
+    spawnProbability: 1
+  - prefab: {fileID: 176454623659071703, guid: 68907e14ad09a6847b4b0b123cf5c97c, type: 3}
+    spawnProbability: 1
+  - prefab: {fileID: 303132258547285011, guid: f2920be97542817468888948ddd8305b, type: 3}
+    spawnProbability: 1
+  - prefab: {fileID: 3596093267667214938, guid: 70ba27aa3c066bc40a44353fe8f8dedd, type: 3}
+    spawnProbability: 1
+  - prefab: {fileID: 2115240554963853955, guid: 2aa57a4a2a998a84481c206316d08ac5, type: 3}
+    spawnProbability: 1
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0
   blockLayoutProfile: {fileID: 0}
