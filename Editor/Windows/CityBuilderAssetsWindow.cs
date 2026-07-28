@@ -32,7 +32,10 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
         public string searchableText;
         public Vector2 footprint;
         public List<string> zones = new List<string>();
+        public List<string> zoneTags = new List<string>();
         public List<string> warnings = new List<string>();
+
+        public bool HasZoneData => zones.Count > 0 || zoneTags.Count > 0;
     }
 
     private readonly List<AssetEntry> entries = new List<AssetEntry>();
@@ -142,7 +145,7 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
         for (int i = 0; i < entries.Count; i++)
         {
             if (entries[i].warnings.Count > 0) warningCount++;
-            if (entries[i].zones.Count == 0) unassignedCount++;
+            if (!entries[i].HasZoneData) unassignedCount++;
         }
 
         EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
@@ -176,10 +179,15 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
             FormatDirection(entry.metadata.GetFrontageDirectionLocal()),
             EditorStyles.miniLabel);
 
+        string tagText = entry.zoneTags.Count > 0
+            ? string.Join(", ", entry.zoneTags)
+            : "Nessuno";
+        EditorGUILayout.LabelField("Zone tags: " + tagText, EditorStyles.miniLabel);
+
         string zoneText = entry.zones.Count > 0
             ? string.Join(", ", entry.zones)
-            : "Nessuna zona assegnata";
-        EditorGUILayout.LabelField("Zone: " + zoneText, EditorStyles.miniLabel);
+            : "Nessun riferimento diretto";
+        EditorGUILayout.LabelField("Usato dai ZoneType: " + zoneText, EditorStyles.miniLabel);
 
         if (entry.warnings.Count > 0)
         {
@@ -253,11 +261,23 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
                 }
             }
             entry.zones.Sort(StringComparer.OrdinalIgnoreCase);
+            if (metadata.zoneTypeTags != null)
+            {
+                var seenTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (int tagIndex = 0; tagIndex < metadata.zoneTypeTags.Count; tagIndex++)
+                {
+                    string tag = metadata.zoneTypeTags[tagIndex];
+                    if (string.IsNullOrWhiteSpace(tag)) continue;
+                    string normalized = tag.Trim();
+                    if (seenTags.Add(normalized)) entry.zoneTags.Add(normalized);
+                }
+                entry.zoneTags.Sort(StringComparer.OrdinalIgnoreCase);
+            }
             ValidateEntry(entry);
             entry.searchableText = (
                 prefab.name + " " + path + " " + string.Join(" ", entry.zones) +
                 " " + (metadata.description ?? string.Empty) +
-                " " + string.Join(" ", metadata.zoneTypeTags ?? new List<string>())).ToLowerInvariant();
+                " " + string.Join(" ", entry.zoneTags)).ToLowerInvariant();
             entries.Add(entry);
         }
 
@@ -327,9 +347,9 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
         {
             entry.warnings.Add("frontage interno");
         }
-        if (entry.zones.Count == 0)
+        if (!entry.HasZoneData)
         {
-            entry.warnings.Add("nessuna zona");
+            entry.warnings.Add("nessun tag zona");
         }
     }
 
