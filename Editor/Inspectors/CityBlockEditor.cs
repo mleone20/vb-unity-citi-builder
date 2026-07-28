@@ -250,6 +250,10 @@ public class CityBlockEditor
             return;
         }
 
+        Color previousColor = Handles.color;
+        UnityEngine.Rendering.CompareFunction previousZTest = Handles.zTest;
+        Handles.zTest = UnityEngine.Rendering.CompareFunction.Always;
+
         // Nodi della catena selezionata.
         Handles.color = Color.cyan;
         for (int i = 0; i < points.Count; i++)
@@ -273,6 +277,9 @@ public class CityBlockEditor
             Handles.DrawDottedLine(points[points.Count - 1], points[0], 5f);
             Handles.Label(points[0] + Vector3.up * 0.35f, "Click per chiudere");
         }
+
+        Handles.color = previousColor;
+        Handles.zTest = previousZTest;
     }
 
     private static void TryCreateManualBlock(CityManager manager)
@@ -334,6 +341,10 @@ public class CityBlockEditor
     {
         if (!showingPreview) return;
 
+        Color previousColor = Handles.color;
+        UnityEngine.Rendering.CompareFunction previousZTest = Handles.zTest;
+        Handles.zTest = UnityEngine.Rendering.CompareFunction.Always;
+
         for (int blockIndex = 0; blockIndex < suggestedBlocks.Count; blockIndex++)
         {
             List<Vector3> blockVertices = suggestedBlocks[blockIndex];
@@ -359,7 +370,8 @@ public class CityBlockEditor
             Handles.Label(center + Vector3.up * (markerSize * 2f), $"Preview B{blockIndex + 1}");
         }
 
-        Handles.color = Color.white;
+        Handles.color = previousColor;
+        Handles.zTest = previousZTest;
     }
 }
 

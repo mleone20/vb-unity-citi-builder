@@ -60,6 +60,11 @@ public class CitySceneHandle
 
         if (cachedCityManager == null) return;
 
+        // Le anteprime sono output visivi: devono restare visibili anche quando gli
+        // input del City Builder sono disattivati (per esempio dopo "Suggerisci Blocchi").
+        CityBlockEditor.DrawManualSelectionPreview(cachedCityManager);
+        CityBlockEditor.DrawSuggestedBlocksPreview();
+
         if (!IsEnabled) return;
 
         CityManager.BuildMode mode = cachedCityManager.GetCurrentMode();
@@ -70,12 +75,6 @@ public class CitySceneHandle
         // Disegna prima l'handle: così Unity può assegnare il controllo al gizmo.
         DrawSelectedNodeMoveHandle(cachedCityManager);
         DrawSelectedSegmentHandles(cachedCityManager);
-
-        // Anteprima live della catena nodi quando si crea un blocco manualmente.
-        CityBlockEditor.DrawManualSelectionPreview(cachedCityManager);
-
-        // Anteprima blocchi auto-rilevati (non ancora confermati).
-        CityBlockEditor.DrawSuggestedBlocksPreview();
 
         IReadOnlyList<ICitySceneViewExtension> extensions = CityEditorExtensionRegistry.SceneViewExtensions;
         for (int i = 0; i < extensions.Count; i++)
