@@ -17,12 +17,12 @@ MonoBehaviour:
   buildingHeight: 30
   description: "CBD/Downtown ad alta densit\xE0. Grattacieli e commercio."
   buildingPrefabEntries:
-  - prefab: {fileID: 4044824010129294556, guid: edb244e6d6dbc9744b2dc97fa8abeec3, type: 3}
+  - prefab: {fileID: 1623034331094532499, guid: edb244e6d6dbc9744b2dc97fa8abeec3, type: 3}
     spawnProbability: 1
-  - prefab: {fileID: 5733161406554234169, guid: fc892693c3ba03e4ba10839dc765a7ef, type: 3}
+  - prefab: {fileID: 4995518262243553293, guid: fc892693c3ba03e4ba10839dc765a7ef, type: 3}
     spawnProbability: 1
-  - prefab: {fileID: 4031088603459016307, guid: 90091660ca5331c418c863fd53394431, type: 3}
+  - prefab: {fileID: 1881376581328284402, guid: 90091660ca5331c418c863fd53394431, type: 3}
     spawnProbability: 1
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0
-  blockLayoutProfile: {fileID: 11400000, guid: c42307195dd54d079b2c0e22beec3e60, type: 2}
+  blockLayoutProfile: {fileID: 0}

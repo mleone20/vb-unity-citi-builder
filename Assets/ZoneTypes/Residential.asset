@@ -17,12 +17,12 @@ MonoBehaviour:
   buildingHeight: 8
   description: "Residenziale urbano a media densit\xE0."
   buildingPrefabEntries:
-  - prefab: {fileID: 3598672583069537096, guid: 8170e62c075dc794da37720ada415e39, type: 3}
+  - prefab: {fileID: 969793846920363476, guid: 8170e62c075dc794da37720ada415e39, type: 3}
     spawnProbability: 1
-  - prefab: {fileID: 643169064733222369, guid: ad38b919ebe690c4c994f88ccbb485b9, type: 3}
+  - prefab: {fileID: 2866785566033354014, guid: ad38b919ebe690c4c994f88ccbb485b9, type: 3}
     spawnProbability: 1
-  - prefab: {fileID: 1292789659650772819, guid: 11ca54fd5070e564c9063530859d3b43, type: 3}
+  - prefab: {fileID: 3606946787892698888, guid: 11ca54fd5070e564c9063530859d3b43, type: 3}
     spawnProbability: 1
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0
-  blockLayoutProfile: {fileID: 11400000, guid: c42307195dd54d079b2c0e22beec3e60, type: 2}
+  blockLayoutProfile: {fileID: 0}

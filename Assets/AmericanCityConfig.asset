@@ -12,42 +12,37 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b914c0b8170e294e8e4c2332ecfe92c, type: 3}
   m_Name: AmericanCityConfig
   m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Config.AmericanCityConfig
-  configId: 9bb72dc48ebd4f55a5dffee6679e736f
+  configId: bda6edd1bc3e426a95775e41ce924f2e
   centerWorldPosition: {x: 0, y: 0, z: 0}
-  maxGenerationRadius: 3000
-  majorGridSpacing: 1600
-  localStreetSpacing: 300
-  localStreetMaxRadius: 5000
-  blockSizeVariation: 0.25
+  maxGenerationRadius: 1500
+  majorGridSpacing: 500
+  localStreetSpacing: 100
+  localStreetMaxRadius: 1500
+  blockSizeVariation: 0.08
   randomSeed: 42
   highwayCount: 2
-  mergeThreshold: 2
-  snapRadius: 8
+  mergeThreshold: 3
+  snapRadius: 12
   alleyEnabled: 1
-  alleyProfile: {fileID: 11400000, guid: 9870cab19feef2e4e9cc7d80bd337b7b, type: 2}
+  alleyProfile: {fileID: 0}
   alleyPositionFraction: 0.5
-  alleyMaxRadius: 2400
+  alleyMaxRadius: 1500
   zoneRings:
   - label: CBD (Downtown)
-    maxRadius: 2000
+    maxRadiusPercent: 15
     zoneType: {fileID: 11400000, guid: 63e96ec985644f24e83e34b9f360dc62, type: 2}
-    orientation: 0
   - label: Inner City
-    maxRadius: 5000
+    maxRadiusPercent: 35
     zoneType: {fileID: 11400000, guid: f4c40a60b9edd4144bca630d0364f927, type: 2}
-    orientation: 0
   - label: Urban Residential
-    maxRadius: 12000
+    maxRadiusPercent: 60
     zoneType: {fileID: 11400000, guid: eeba03b48ae74a146a5b3a56679dc2f0, type: 2}
-    orientation: 1
   - label: Suburbs
-    maxRadius: 30000
+    maxRadiusPercent: 82
     zoneType: {fileID: 11400000, guid: 0fb477c24c08d4449a501d0f8ff32afc, type: 2}
-    orientation: 2
   - label: Exurbs
-    maxRadius: 60000
+    maxRadiusPercent: 100
     zoneType: {fileID: 11400000, guid: 741f23c696a3ab34d96fa079b8c96ee1, type: 2}
-    orientation: 2
   highwayProfile: {fileID: 11400000, guid: f4358a56057e55e4ba1aa95e2dce82fb, type: 2}
   majorGridProfile: {fileID: 11400000, guid: c5ee0e2a7b9cfc0418ee5607abcea65d, type: 2}
   localStreetProfile: {fileID: 11400000, guid: 9fdc6f43ad182df498bc9961fcbd375d, type: 2}

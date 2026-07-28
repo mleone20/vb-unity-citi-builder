@@ -17,12 +17,12 @@ MonoBehaviour:
   buildingHeight: 14
   description: 'Inner city: retail, uffici e uso misto.'
   buildingPrefabEntries:
-  - prefab: {fileID: 209685801142995424, guid: 85b66b49d2432364799b232e91e220fe, type: 3}
+  - prefab: {fileID: 4543917584888021260, guid: 85b66b49d2432364799b232e91e220fe, type: 3}
     spawnProbability: 1
-  - prefab: {fileID: 8885752673446038783, guid: b879d2cf09190d74abcd42d0c95e363f, type: 3}
+  - prefab: {fileID: 4627973930126745448, guid: b879d2cf09190d74abcd42d0c95e363f, type: 3}
     spawnProbability: 1
-  - prefab: {fileID: 4031088603459016307, guid: 90091660ca5331c418c863fd53394431, type: 3}
+  - prefab: {fileID: 1881376581328284402, guid: 90091660ca5331c418c863fd53394431, type: 3}
     spawnProbability: 1
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0
-  blockLayoutProfile: {fileID: 11400000, guid: 6b85a89f65b244fbbf5ae419ac651eb0, type: 2}
+  blockLayoutProfile: {fileID: 0}

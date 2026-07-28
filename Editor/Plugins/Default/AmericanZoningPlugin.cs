@@ -48,7 +48,8 @@ public class AmericanZoningPlugin : IZoningAssignmentPlugin
             ZoneType zone = config.GetZoneTypeForDistance(dist);
             if (zone == null)
             {
-                report.warnings.Add("Block " + block.id + ": nessuna zona mappata per dist=" + dist.ToString("F0") + "m");
+                float distancePercent = dist / Mathf.Max(1f, config.maxGenerationRadius) * 100f;
+                report.warnings.Add("Block " + block.id + ": nessuna zona mappata per dist=" + distancePercent.ToString("F1") + "%");
                 continue;
             }
 

@@ -18,5 +18,5 @@ MonoBehaviour:
   debugColor: {r: 0.75, g: 0.25, b: 0.2, a: 1}
   intersectionClearanceRadius: 6
   blockInset: 0
-  meshMaterial: {fileID: 2100000, guid: 161f667f1b6a907428fae327525457a8, type: 2}
+  meshMaterial: {fileID: 2100000, guid: a7078032eef7634438c528735892ea98, type: 2}
   description: "Asse veloce ad alta capacit\xE0."

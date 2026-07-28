@@ -1,13 +1,13 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 using System.Collections.Generic;
 using BSCCityBuilder.Core;
 
 namespace BSCCityBuilder.Config
 {
 /// <summary>
-/// Rappresenta una fascia di distanza da P0 con la zona associata.
-/// Gli anelli devono essere ordinati per maxRadius crescente; l'ultimo ring cattura
-/// tutto ciò che supera il suo maxRadius.
+/// Rappresenta una fascia percentuale dal centro al bordo della città.
+/// Gli anelli devono essere ordinati per maxRadiusPercent crescente.
 /// </summary>
 [System.Serializable]
 public class ZoneRing
@@ -15,9 +15,10 @@ public class ZoneRing
     [Tooltip("Nome descrittivo (es. CBD, Inner City, Suburbs).")]
     public string label = "Zone Ring";
 
-    [Tooltip("Limite superiore della fascia in metri. I blocchi la cui distanza da P0 è ≤ maxRadius (e > maxRadius del ring precedente) ricevono questa zona.")]
-    [Min(0f)]
-    public float maxRadius = 1000f;
+    [Tooltip("Limite superiore della fascia, in percentuale del raggio totale della città.")]
+    [FormerlySerializedAs("maxRadius")]
+    [Range(0f, 100f)]
+    public float maxRadiusPercent = 100f;
 
     [Tooltip("ZoneType da assegnare ai blocchi in questa fascia.")]
     public ZoneType zoneType;
@@ -39,22 +40,22 @@ public class AmericanCityConfig : CityConfig
     public Vector3 centerWorldPosition = Vector3.zero;
 
     [Header("Cap Generazione")]
-    [Tooltip("Raggio massimo di generazione in unità world (1 u = 1 m). Ridurre per scene di gioco più piccole. Default: 3000 m.")]
+    [Tooltip("Raggio massimo di generazione in unità world (1 u = 1 m). Default: 1500 m (diametro città: 3 km).")]
     [Min(1f)]
-    public float maxGenerationRadius = 3000f;
+    public float maxGenerationRadius = 1500f;
 
     [Header("Griglia Stradale")]
-    [Tooltip("Spaziatura griglia principale (Major Grid) in metri. Default americano: 1600 m = 1 miglio.")]
+    [Tooltip("Spaziatura griglia principale (Major Grid) in metri.")]
     [Min(50f)]
-    public float majorGridSpacing = 1600f;
+    public float majorGridSpacing = 500f;
 
     [Tooltip("Spaziatura strade locali all'interno di ogni cella della griglia principale, in metri.")]
     [Min(20f)]
-    public float localStreetSpacing = 300f;
+    public float localStreetSpacing = 100f;
 
     [Tooltip("Raggio massimo entro cui vengono generate strade locali (sub-griglia). 0 = disabilita.")]
     [Min(0f)]
-    public float localStreetMaxRadius = 5000f;
+    public float localStreetMaxRadius = 1500f;
 
     [Tooltip("Variazione casuale della posizione delle strade locali interne. 0 = griglia perfetta, 0.4 = fino al 40% di spostamento per strada.")]
     [Range(0f, 0.45f)]
@@ -89,10 +90,10 @@ public class AmericanCityConfig : CityConfig
 
     [Tooltip("Raggio massimo entro cui vengono generati i vicoli (m). 0 = disabilita.")]
     [Min(0f)]
-    public float alleyMaxRadius = 2400f;
+    public float alleyMaxRadius = 1500f;
 
     [Header("Zone Rings (fascia distanza → zona)")]
-    [Tooltip("Fasce zonali ordinate per maxRadius crescente. L'ultimo ring cattura tutto ciò che supera il suo raggio.")]
+    [Tooltip("Fasce zonali ordinate per percentuale crescente (0–100% del raggio città). L'ultimo ring cattura le distanze superiori.")]
     public List<ZoneRing> zoneRings = new List<ZoneRing>();
 
     [Header("Mapping Road Profiles")]
@@ -117,22 +118,23 @@ public class AmericanCityConfig : CityConfig
 
     /// <summary>
     /// Restituisce il ZoneRing corrispondente alla distanza data.
-    /// Cerca il ring con il minimo maxRadius >= distance;
-    /// se la distanza supera tutti i ring, restituisce il ring con maxRadius maggiore.
+    /// Converte la distanza in percentuale del raggio della città e cerca la
+    /// soglia minima che la contiene.
     /// </summary>
     public ZoneRing GetRingForDistance(float distance)
     {
         if (zoneRings == null || zoneRings.Count == 0) return null;
 
+        float distancePercent = Mathf.Max(0f, distance) / Mathf.Max(1f, maxGenerationRadius) * 100f;
         ZoneRing best = null;
         float bestMax = float.MaxValue;
 
         foreach (ZoneRing ring in zoneRings)
         {
             if (ring == null) continue;
-            if (distance <= ring.maxRadius && ring.maxRadius < bestMax)
+            if (distancePercent <= ring.maxRadiusPercent && ring.maxRadiusPercent < bestMax)
             {
-                bestMax = ring.maxRadius;
+                bestMax = ring.maxRadiusPercent;
                 best = ring;
             }
         }
@@ -144,9 +146,9 @@ public class AmericanCityConfig : CityConfig
         float largestMax = -1f;
         foreach (ZoneRing ring in zoneRings)
         {
-            if (ring != null && ring.maxRadius > largestMax)
+            if (ring != null && ring.maxRadiusPercent > largestMax)
             {
-                largestMax = ring.maxRadius;
+                largestMax = ring.maxRadiusPercent;
                 outermost = ring;
             }
         }
@@ -154,18 +156,30 @@ public class AmericanCityConfig : CityConfig
     }
 
     /// <summary>
-    /// Popola zoneRings con i valori di default stile americano (5 fasce).
+    /// Ripristina un preset americano compatto (diametro 3 km) con 5 fasce.
     /// I ZoneType devono essere collegati manualmente nella UI.
     /// </summary>
     public void ResetToAmericanDefaults()
-    { 
+    {
+        maxGenerationRadius       = 1500f;
+        mergeThreshold            = 3f;
+        majorGridSpacing          = 500f;
+        localStreetSpacing        = 100f;
+        localStreetMaxRadius      = 1500f;
+        blockSizeVariation        = 0.08f;
+        randomSeed                = 42;
+        highwayCount              = 2;
+        alleyEnabled              = true;
+        alleyPositionFraction     = 0.5f;
+        alleyMaxRadius            = 1500f;
+        snapRadius                = 12f;
         zoneRings = new List<ZoneRing>
         {
-            new ZoneRing { label = "CBD (Downtown)",      maxRadius =  2000f },
-            new ZoneRing { label = "Inner City",          maxRadius =  5000f },
-            new ZoneRing { label = "Urban Residential",   maxRadius = 12000f },
-            new ZoneRing { label = "Suburbs",             maxRadius = 30000f },
-            new ZoneRing { label = "Exurbs",              maxRadius = 60000f },
+            new ZoneRing { label = "CBD (Downtown)",    maxRadiusPercent = 15f },
+            new ZoneRing { label = "Inner City",        maxRadiusPercent = 35f },
+            new ZoneRing { label = "Urban Residential", maxRadiusPercent = 60f },
+            new ZoneRing { label = "Suburbs",           maxRadiusPercent = 82f },
+            new ZoneRing { label = "Exurbs",            maxRadiusPercent = 100f },
         };
     }
 
@@ -190,11 +204,31 @@ public class AmericanCityConfig : CityConfig
         snapRadius                = 20f; 
         zoneRings = new List<ZoneRing>
         {
-            new ZoneRing { label = "CBD",         maxRadius =  400f },
-            new ZoneRing { label = "Inner City",  maxRadius =  800f },
-            new ZoneRing { label = "Residential", maxRadius = 1600f },
-            new ZoneRing { label = "Suburban",    maxRadius = 2400f },
+            new ZoneRing { label = "CBD",         maxRadiusPercent = 16.67f },
+            new ZoneRing { label = "Inner City",  maxRadiusPercent = 33.33f },
+            new ZoneRing { label = "Residential", maxRadiusPercent = 66.67f },
+            new ZoneRing { label = "Suburban",    maxRadiusPercent = 100f },
         };
+    }
+
+    protected override void OnValidate()
+    {
+        base.OnValidate();
+        maxGenerationRadius = Mathf.Max(1f, maxGenerationRadius);
+
+        if (zoneRings == null) return;
+        foreach (ZoneRing ring in zoneRings)
+        {
+            if (ring == null) continue;
+
+            // I vecchi asset serializzavano la soglia in metri. Valori > 100
+            // sono quindi convertiti una sola volta nella nuova scala percentuale.
+            if (ring.maxRadiusPercent > 100f)
+            {
+                ring.maxRadiusPercent = ring.maxRadiusPercent / maxGenerationRadius * 100f;
+            }
+            ring.maxRadiusPercent = Mathf.Clamp(ring.maxRadiusPercent, 0f, 100f);
+        }
     }
 
 }
