@@ -38,10 +38,10 @@ public static class CityZoningEditor
         EditorGUILayout.LabelField("ZONING - Assegnazione Destinazioni", EditorStyles.boldLabel);
         EditorGUILayout.Space();
 
-        List<ZoneType> zoneTypes = ZoneTypeEditorUtility.LoadAllZoneTypes();
+        List<ZoneType> zoneTypes = ZoneTypeEditorUtility.LoadZoneTypes(cityData);
         if (zoneTypes.Count == 0)
         {
-            EditorGUILayout.HelpBox("Nessun ZoneType asset trovato. Crea almeno un asset ZoneType da Assets/Create/City Builder/Zone Type.", MessageType.Warning);
+            EditorGUILayout.HelpBox("La palette della città non contiene ZoneType. Assegna o configura una City Palette.", MessageType.Warning);
             return;
         }
 

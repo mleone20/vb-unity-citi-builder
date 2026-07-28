@@ -11,6 +11,27 @@ namespace BSCCityBuilder.Editor.Tools
 {
 public static class ZoneTypeEditorUtility
 {
+    public static List<ZoneType> LoadZoneTypes(CityData cityData)
+    {
+        List<ZoneType> result = new List<ZoneType>();
+        CityPalette palette = cityData != null ? cityData.GetPalette() : null;
+        if (palette == null)
+        {
+            return result;
+        }
+
+        for (int i = 0; i < palette.ZoneTypes.Count; i++)
+        {
+            ZoneType zoneType = palette.ZoneTypes[i];
+            if (zoneType != null && !result.Contains(zoneType))
+            {
+                result.Add(zoneType);
+            }
+        }
+
+        return result;
+    }
+
     public static List<ZoneType> LoadAllZoneTypes()
     {
         string[] guids = AssetDatabase.FindAssets("t:ZoneType");

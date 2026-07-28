@@ -11,10 +11,13 @@ namespace BSCCityBuilder.Core
 [CreateAssetMenu(fileName = "CityData", menuName = "City Builder/New City Data", order = 1)]
 public class CityData : ScriptableObject
 {
+    [Header("Palette")]
+    [SerializeField] private CityPalette palette;
+
     [Header("Rete Stradale")]
     [SerializeField] public List<CityNode> nodes = new List<CityNode>();
     [SerializeField] public List<CitySegment> segments = new List<CitySegment>();
-    [SerializeField] public RoadProfile defaultRoadProfile;
+    [SerializeField, HideInInspector] private RoadProfile defaultRoadProfile;
     
     [Header("Blocchi e Zoning")]
     [SerializeField] public List<CityBlock> blocks = new List<CityBlock>();
@@ -55,6 +58,7 @@ public class CityData : ScriptableObject
     {
         CityData clone = ScriptableObject.CreateInstance<CityData>();
         
+        clone.palette = this.palette;
         clone.globalRoadWidth = this.globalRoadWidth;
         clone.defaultRoadProfile = this.defaultRoadProfile;
         
@@ -158,6 +162,27 @@ public class CityData : ScriptableObject
     public CityLot GetLot(int lotID)
     {
         return lots.Find(l => l.id == lotID);
+    }
+
+    public CityPalette GetPalette()
+    {
+        return palette;
+    }
+
+    public void SetPalette(CityPalette value)
+    {
+        palette = value;
+        if (palette != null && palette.DefaultRoadProfile == null && defaultRoadProfile != null)
+        {
+            palette.SetDefaultRoadProfile(defaultRoadProfile);
+        }
+    }
+
+    public RoadProfile GetDefaultRoadProfile()
+    {
+        return palette != null && palette.DefaultRoadProfile != null
+            ? palette.DefaultRoadProfile
+            : defaultRoadProfile;
     }
 
     public float GetZoneHeight(ZoneType zone)

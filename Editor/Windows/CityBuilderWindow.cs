@@ -26,6 +26,7 @@ public class CityBuilderWindow : EditorWindow
 {
     private enum EditorSection
     {
+        Config,
         Paths,
         Blocks,
         Zoning,
@@ -82,6 +83,7 @@ public class CityBuilderWindow : EditorWindow
     {
         switch (s)
         {
+            case EditorSection.Config:              return ColConfig;
             case EditorSection.Paths:               return ColPaths;
             case EditorSection.Blocks:              return ColBlocks;
             case EditorSection.Zoning:              return ColZoning;
@@ -340,11 +342,11 @@ public class CityBuilderWindow : EditorWindow
 
     private void DrawTabToolbar()
     {
-        string[] tabIcons   = new string[] { "\U0001f6a7", "\U0001f3d8", "\U0001f7e9", "\U0001f3db", "\U0001f916", "\U0001f527", "\U0001f4ca" };
-        string[] tabLabels  = new string[] { "STRADE",     "BLOCCHI",    "ZONE",       "EDIFICI",    "PROC",       "STRUM",      "STAT"       };
+        string[] tabIcons   = new string[] { "\u2699",      "\U0001f6a7", "\U0001f3d8", "\U0001f7e9", "\U0001f3db", "\U0001f916", "\U0001f527", "\U0001f4ca" };
+        string[] tabLabels  = new string[] { "CONFIG",      "STRADE",     "BLOCCHI",    "ZONE",       "EDIFICI",    "PROC",       "STRUM",      "STAT"       };
         EditorSection[] tabSections = new EditorSection[]
         {
-            EditorSection.Paths, EditorSection.Blocks, EditorSection.Zoning, EditorSection.Buildings,
+            EditorSection.Config, EditorSection.Paths, EditorSection.Blocks, EditorSection.Zoning, EditorSection.Buildings,
             EditorSection.ProceduralGeneration, EditorSection.Tools, EditorSection.Statistics
         };
 
@@ -388,6 +390,7 @@ public class CityBuilderWindow : EditorWindow
         string icon, title, subtitle;
         switch (currentSection)
         {
+            case EditorSection.Config:              icon="\u2699";      title="CONFIG";          subtitle="Configura la palette della città"; break;
             case EditorSection.Paths:               icon="\U0001f6a7"; title="STRADE";         subtitle="Traccia nodi e segmenti stradali"; break;
             case EditorSection.Blocks:              icon="\U0001f3d8"; title="BLOCCHI";         subtitle="Definisci i blocchi urbani"; break;
             case EditorSection.Zoning:              icon="\U0001f7e9"; title="ZONE / LOTTI";    subtitle="Assegna zone e genera lotti"; break;
@@ -412,6 +415,7 @@ public class CityBuilderWindow : EditorWindow
     {
         switch (currentSection)
         {
+            case EditorSection.Config:              DrawConfigSection();            break;
             case EditorSection.Paths:               DrawPathsSection();             break;
             case EditorSection.Blocks:              DrawBlocksSection();            break;
             case EditorSection.Zoning:              DrawZoningSection();            break;
@@ -484,7 +488,7 @@ public class CityBuilderWindow : EditorWindow
             // Ricarica la lista se necessario
             if (_cachedRoadProfiles == null)
             {
-                _cachedRoadProfiles = RoadProfileEditorUtility.LoadAllRoadProfiles();
+                _cachedRoadProfiles = RoadProfileEditorUtility.LoadRoadProfiles(cityData);
                 var names = new string[_cachedRoadProfiles.Count + 1];
                 names[0] = "— Default —";
                 for (int i = 0; i < _cachedRoadProfiles.Count; i++)
@@ -580,16 +584,9 @@ public class CityBuilderWindow : EditorWindow
 
         EditorGUILayout.Space(6);
         DrawSubHeader("PROFILI STRADALI");
-        EditorGUILayout.HelpBox("La larghezza globale e un fallback per segmenti senza RoadProfile assegnato.", MessageType.Info);
-
-        RoadProfile defaultRoadProfile = (RoadProfile)EditorGUILayout.ObjectField(
-            "Road Profile di default", cityData.defaultRoadProfile, typeof(RoadProfile), false);
-        if (defaultRoadProfile != cityData.defaultRoadProfile)
-        {
-            Undo.RecordObject(cityData, "Set Default Road Profile");
-            cityData.defaultRoadProfile = defaultRoadProfile;
-            EditorUtility.SetDirty(cityData);
-        }
+        EditorGUILayout.HelpBox(
+            "I profili disponibili e quello predefinito si personalizzano nella tab CONFIG.",
+            MessageType.Info);
 
         float globalWidth = EditorGUILayout.Slider("Larghezza Globale (fallback)", cityData.globalRoadWidth, 1f, 10f);
         if (globalWidth != cityData.globalRoadWidth)
@@ -1088,7 +1085,7 @@ public class CityBuilderWindow : EditorWindow
 
             EditorGUILayout.Space(4);
             EditorGUILayout.LabelField("Profilo:", EditorStyles.boldLabel);
-            List<RoadProfile> roadProfiles = RoadProfileEditorUtility.LoadAllRoadProfiles();
+            List<RoadProfile> roadProfiles = RoadProfileEditorUtility.LoadRoadProfiles(cityData);
             string[] profileLabels = new string[roadProfiles.Count + 1];
             profileLabels[0] = "None";
             int selectedProfileIndex = 0;
@@ -1165,6 +1162,14 @@ public class CityBuilderWindow : EditorWindow
         cityManager = manager;
         cityData = manager != null ? manager.GetCityData() : null;
         proceduralConfig = manager != null ? manager.GetCityConfig() : null;
+        _cachedRoadProfiles = null;
+        _cachedProfileNames = null;
+        CityPalette palette = cityData != null ? cityData.GetPalette() : null;
+        if (CitySceneHandle.ActiveDrawingProfile != null &&
+            (palette == null || !palette.Contains(CitySceneHandle.ActiveDrawingProfile)))
+        {
+            CitySceneHandle.ActiveDrawingProfile = null;
+        }
         CitySceneHandle.SetActiveManager(manager);
         Repaint();
     }
@@ -1178,6 +1183,98 @@ public class CityBuilderWindow : EditorWindow
             DrawSubHeader(panels[i].Title);
             panels[i].DrawPanel(cityManager);
         }
+    }
+
+    private void DrawConfigSection()
+    {
+        DrawSubHeader("PALETTE DELLA CITTÀ");
+        CityPalette currentPalette = cityData.GetPalette();
+        EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+        EditorGUI.BeginChangeCheck();
+        CityPalette newPalette = (CityPalette)EditorGUILayout.ObjectField(
+            "Palette città", currentPalette, typeof(CityPalette), false);
+        if (EditorGUI.EndChangeCheck())
+        {
+            Undo.RecordObject(cityData, "Set City Palette");
+            cityData.SetPalette(newPalette);
+            EditorUtility.SetDirty(cityData);
+            InvalidatePaletteCache();
+            currentPalette = newPalette;
+        }
+
+        if (currentPalette == null)
+        {
+            if (GUILayout.Button("Crea", GUILayout.Width(54f)))
+            {
+                CityPalette created = CityManagerSceneUtility.CreatePaletteForData(cityData, cityManager.name);
+                AssetDatabase.SaveAssets();
+                InvalidatePaletteCache();
+                EditorGUIUtility.PingObject(created);
+            }
+        }
+        else if (GUILayout.Button("Modifica", GUILayout.Width(64f)))
+        {
+            Selection.activeObject = currentPalette;
+            EditorGUIUtility.PingObject(currentPalette);
+        }
+        EditorGUILayout.EndHorizontal();
+
+        if (cityData.GetPalette() == null)
+        {
+            EditorGUILayout.HelpBox(
+                "Crea o assegna una City Palette per definire quali zone e profili stradali appartengono a questa città.",
+                MessageType.Warning);
+            return;
+        }
+
+        currentPalette = cityData.GetPalette();
+        EditorGUILayout.HelpBox(
+            "Gli strumenti del City Builder mostreranno esclusivamente gli elementi configurati qui.",
+            MessageType.Info);
+
+        SerializedObject paletteObject = new SerializedObject(currentPalette);
+        paletteObject.Update();
+        SerializedProperty zonesProperty = paletteObject.FindProperty("zoneTypes");
+        SerializedProperty profilesProperty = paletteObject.FindProperty("roadProfiles");
+        SerializedProperty defaultProfileProperty = paletteObject.FindProperty("defaultRoadProfile");
+
+        EditorGUI.BeginChangeCheck();
+        DrawSubHeader("ZONE DISPONIBILI");
+        EditorGUILayout.PropertyField(zonesProperty, new GUIContent("Zone"), true);
+
+        DrawSubHeader("PROFILI STRADALI");
+        EditorGUILayout.PropertyField(defaultProfileProperty, new GUIContent("Profilo predefinito"));
+        EditorGUILayout.PropertyField(profilesProperty, new GUIContent("Profili disponibili"), true);
+
+        if (EditorGUI.EndChangeCheck())
+        {
+            paletteObject.ApplyModifiedProperties();
+            EditorUtility.SetDirty(currentPalette);
+            InvalidatePaletteCache();
+        }
+        else
+        {
+            paletteObject.ApplyModifiedProperties();
+        }
+
+        EditorGUILayout.Space(6);
+        EditorGUILayout.LabelField(
+            $"Contenuto palette: {currentPalette.ZoneTypes.Count} zone, {currentPalette.RoadProfiles.Count} profili stradali",
+            EditorStyles.miniLabel);
+    }
+
+    private void InvalidatePaletteCache()
+    {
+        _cachedRoadProfiles = null;
+        _cachedProfileNames = null;
+        CityPalette palette = cityData != null ? cityData.GetPalette() : null;
+        if (CitySceneHandle.ActiveDrawingProfile != null &&
+            (palette == null || !palette.Contains(CitySceneHandle.ActiveDrawingProfile)))
+        {
+            CitySceneHandle.ActiveDrawingProfile = null;
+        }
+        Repaint();
+        SceneView.RepaintAll();
     }
 
     private void CreateCityManager()

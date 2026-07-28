@@ -497,10 +497,11 @@ public class CitySceneHandle
     {
         GenericMenu menu = new GenericMenu();
 
-        var zoneTypes = ZoneTypeEditorUtility.LoadAllZoneTypes();
+        CityData cityData = manager != null ? manager.GetCityData() : null;
+        var zoneTypes = ZoneTypeEditorUtility.LoadZoneTypes(cityData);
         if (zoneTypes.Count == 0)
         {
-            menu.AddDisabledItem(new GUIContent("Nessun ZoneType asset disponibile"));
+            menu.AddDisabledItem(new GUIContent("Nessuna zona nella palette della città"));
         }
         else
         {

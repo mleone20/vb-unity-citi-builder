@@ -176,12 +176,13 @@ public class CityManager : MonoBehaviour
     #endif
 
         int segmentID = cityData.GetNextSegmentID();
-        float width = cityData.defaultRoadProfile != null
-            ? Mathf.Max(0.5f, cityData.defaultRoadProfile.roadWidth)
+        RoadProfile defaultProfile = cityData.GetDefaultRoadProfile();
+        float width = defaultProfile != null
+            ? Mathf.Max(0.5f, defaultProfile.roadWidth)
             : cityData.globalRoadWidth;
         CitySegment newSegment = new CitySegment(segmentID, nodeA_ID, nodeB_ID, width)
         {
-            roadProfile = cityData.defaultRoadProfile
+            roadProfile = defaultProfile
         };
         CityRoadGeometry.ResetBezierHandles(cityData, newSegment);
         

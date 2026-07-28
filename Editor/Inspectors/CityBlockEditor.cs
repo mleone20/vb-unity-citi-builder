@@ -169,7 +169,7 @@ public class CityBlockEditor
 
     private static void ConfirmSuggestedBlocks(CityManager manager)
     {
-        List<ZoneType> availableZoneTypes = ZoneTypeEditorUtility.LoadAllZoneTypes();
+        List<ZoneType> availableZoneTypes = ZoneTypeEditorUtility.LoadZoneTypes(manager.GetCityData());
         ZoneType defaultZoneType = availableZoneTypes.Count > 0 ? availableZoneTypes[0] : null;
 
         if (!manager.GetCityData().blocks.Count.Equals(0))

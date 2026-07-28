@@ -12,6 +12,27 @@ namespace BSCCityBuilder.Editor.Tools
 {
 public static class RoadProfileEditorUtility
 {
+    public static List<RoadProfile> LoadRoadProfiles(CityData cityData)
+    {
+        List<RoadProfile> result = new List<RoadProfile>();
+        CityPalette palette = cityData != null ? cityData.GetPalette() : null;
+        if (palette == null)
+        {
+            return result;
+        }
+
+        for (int i = 0; i < palette.RoadProfiles.Count; i++)
+        {
+            RoadProfile profile = palette.RoadProfiles[i];
+            if (profile != null && !result.Contains(profile))
+            {
+                result.Add(profile);
+            }
+        }
+
+        return result;
+    }
+
     public static List<RoadProfile> LoadAllRoadProfiles()
     {
         List<RoadProfile> profiles = new List<RoadProfile>();

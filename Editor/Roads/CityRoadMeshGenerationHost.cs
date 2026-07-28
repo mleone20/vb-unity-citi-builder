@@ -80,7 +80,7 @@ public static class CityRoadMeshGenerationHost
 
             RoadProfile profile = segment.roadProfile != null
                 ? segment.roadProfile
-                : data.defaultRoadProfile;
+                : data.GetDefaultRoadProfile();
             paths.Add(new RoadPathBuildData
             {
                 segmentId = segment.id,
