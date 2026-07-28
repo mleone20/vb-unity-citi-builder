@@ -5,7 +5,7 @@ using BSCCityBuilder.Core;
 namespace BSCCityBuilder.Config
 {
 /// <summary>
-/// Rappresenta una fascia di distanza da P0 con la zona e l'orientamento lotti associati.
+/// Rappresenta una fascia di distanza da P0 con la zona associata.
 /// Gli anelli devono essere ordinati per maxRadius crescente; l'ultimo ring cattura
 /// tutto ciò che supera il suo maxRadius.
 /// </summary>
@@ -22,8 +22,6 @@ public class ZoneRing
     [Tooltip("ZoneType da assegnare ai blocchi in questa fascia.")]
     public ZoneType zoneType;
 
-    [Tooltip("Orientamento lotti per i blocchi in questa fascia.")]
-    public BlockOrientation orientation = BlockOrientation.Interior;
 }
 
 /// <summary>
@@ -118,15 +116,6 @@ public class AmericanCityConfig : CityConfig
     }
 
     /// <summary>
-    /// Restituisce l'orientamento lotti del ring corrispondente alla distanza da P0.
-    /// </summary>
-    public BlockOrientation GetOrientationForDistance(float distance)
-    {
-        ZoneRing ring = GetRingForDistance(distance);
-        return ring != null ? ring.orientation : BlockOrientation.Interior;
-    }
-
-    /// <summary>
     /// Restituisce il ZoneRing corrispondente alla distanza data.
     /// Cerca il ring con il minimo maxRadius >= distance;
     /// se la distanza supera tutti i ring, restituisce il ring con maxRadius maggiore.
@@ -172,11 +161,11 @@ public class AmericanCityConfig : CityConfig
     { 
         zoneRings = new List<ZoneRing>
         {
-            new ZoneRing { label = "CBD (Downtown)",      maxRadius =  2000f, orientation = BlockOrientation.Interior },
-            new ZoneRing { label = "Inner City",          maxRadius =  5000f, orientation = BlockOrientation.Interior },
-            new ZoneRing { label = "Urban Residential",   maxRadius = 12000f, orientation = BlockOrientation.Exterior },
-            new ZoneRing { label = "Suburbs",             maxRadius = 30000f, orientation = BlockOrientation.Sparse   },
-            new ZoneRing { label = "Exurbs",              maxRadius = 60000f, orientation = BlockOrientation.Sparse   },
+            new ZoneRing { label = "CBD (Downtown)",      maxRadius =  2000f },
+            new ZoneRing { label = "Inner City",          maxRadius =  5000f },
+            new ZoneRing { label = "Urban Residential",   maxRadius = 12000f },
+            new ZoneRing { label = "Suburbs",             maxRadius = 30000f },
+            new ZoneRing { label = "Exurbs",              maxRadius = 60000f },
         };
     }
 
@@ -201,10 +190,10 @@ public class AmericanCityConfig : CityConfig
         snapRadius                = 20f; 
         zoneRings = new List<ZoneRing>
         {
-            new ZoneRing { label = "CBD",         maxRadius =  400f, orientation = BlockOrientation.Interior },
-            new ZoneRing { label = "Inner City",  maxRadius =  800f, orientation = BlockOrientation.Interior },
-            new ZoneRing { label = "Residential", maxRadius = 1600f, orientation = BlockOrientation.Exterior },
-            new ZoneRing { label = "Suburban",    maxRadius = 2400f, orientation = BlockOrientation.Sparse   },
+            new ZoneRing { label = "CBD",         maxRadius =  400f },
+            new ZoneRing { label = "Inner City",  maxRadius =  800f },
+            new ZoneRing { label = "Residential", maxRadius = 1600f },
+            new ZoneRing { label = "Suburban",    maxRadius = 2400f },
         };
     }
 

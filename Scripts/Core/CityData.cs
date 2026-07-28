@@ -100,7 +100,6 @@ public class CityData : ScriptableObject
                 zoning = block.zoning,
                 vertices = new List<Vector3>(block.vertices),
                 lotIDs = new List<int>(block.lotIDs),
-                orientation = block.orientation,
                 lotGapOverride = block.lotGapOverride,
                 layoutProfileOverride = block.layoutProfileOverride,
                 generatedLayoutAreas = CloneLayoutAreas(block.generatedLayoutAreas)

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b914c0b8170e294e8e4c2332ecfe92c, type: 3}
   m_Name: AmericanCityConfig
   m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Config.AmericanCityConfig
-  configId: 
+  configId: 9bb72dc48ebd4f55a5dffee6679e736f
   centerWorldPosition: {x: 0, y: 0, z: 0}
   maxGenerationRadius: 3000
   majorGridSpacing: 1600
@@ -24,7 +24,7 @@ MonoBehaviour:
   mergeThreshold: 2
   snapRadius: 8
   alleyEnabled: 1
-  alleyProfile: {fileID: 0}
+  alleyProfile: {fileID: 11400000, guid: 9870cab19feef2e4e9cc7d80bd337b7b, type: 2}
   alleyPositionFraction: 0.5
   alleyMaxRadius: 2400
   zoneRings:
@@ -48,6 +48,6 @@ MonoBehaviour:
     maxRadius: 60000
     zoneType: {fileID: 11400000, guid: 741f23c696a3ab34d96fa079b8c96ee1, type: 2}
     orientation: 2
-  highwayProfile: {fileID: 0}
-  majorGridProfile: {fileID: 0}
-  localStreetProfile: {fileID: 0}
+  highwayProfile: {fileID: 11400000, guid: f4358a56057e55e4ba1aa95e2dce82fb, type: 2}
+  majorGridProfile: {fileID: 11400000, guid: c5ee0e2a7b9cfc0418ee5607abcea65d, type: 2}
+  localStreetProfile: {fileID: 11400000, guid: 9fdc6f43ad182df498bc9961fcbd375d, type: 2}

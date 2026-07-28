@@ -21,7 +21,6 @@ public class DefaultLotLayoutPlugin : ILotLayoutPlugin
             block.zoning,
             blockIndex,
             context.cityData,
-            block.orientation,
             context.lotSelectionPlugin,
             block.layoutProfileOverride != null
                 ? block.layoutProfileOverride

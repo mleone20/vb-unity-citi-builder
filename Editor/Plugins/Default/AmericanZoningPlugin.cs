@@ -53,7 +53,6 @@ public class AmericanZoningPlugin : IZoningAssignmentPlugin
             }
 
             context.manager.SetBlockZoning(block.id, zone);
-            block.orientation = config.GetOrientationForDistance(dist);
             report.blocksZoned++;
         }
 

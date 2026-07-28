@@ -155,13 +155,6 @@ public enum CitySegmentGeometryType
 /// <summary>
 /// Orientamento del blocco: interno (edifici dentro il blocco), esterno (fuori dalla strada) o sparso (random nel blocco)
 /// </summary>
-public enum BlockOrientation
-{
-    Interior,
-    Exterior,
-    Sparse
-}
-
 /// <summary>
 /// Nodo di una strada (vertice del grafo stradale)
 /// </summary>
@@ -235,7 +228,6 @@ public class CityBlock
     public List<Vector3> vertices = new List<Vector3>();
     public ZoneType zoning;
     public List<int> lotIDs = new List<int>();
-    public BlockOrientation orientation = BlockOrientation.Interior;
     /// <summary>Gap fisso tra lotti per questo blocco. Se negativo usa i valori globali di CityData.</summary>
     public float lotGapOverride = -1f;
     [Tooltip("Se assegnato sostituisce il profilo definito dallo ZoneType.")]

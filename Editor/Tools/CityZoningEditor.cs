@@ -95,16 +95,6 @@ public static class CityZoningEditor
 
                 EditorGUILayout.Space();
 
-                // Modalità spawn lotti
-                EditorGUILayout.LabelField("Modalità Lotti:", EditorStyles.label);
-                BlockOrientation newOrientation = (BlockOrientation)EditorGUILayout.EnumPopup(selectedBlock.orientation);
-                if (newOrientation != selectedBlock.orientation)
-                {
-                    Undo.RecordObject(cityData, "Set Block Orientation");
-                    selectedBlock.orientation = newOrientation;
-                    EditorUtility.SetDirty(cityData);
-                }
-
                 EditorGUI.BeginChangeCheck();
                 BlockLayoutProfile layoutOverride = (BlockLayoutProfile)EditorGUILayout.ObjectField(
                     "Override Layout Profile",
@@ -123,7 +113,7 @@ public static class CityZoningEditor
                 EditorGUILayout.LabelField(
                     effectiveProfile != null
                         ? "Profilo effettivo: " + effectiveProfile.name
-                        : "Profilo effettivo: layout legacy",
+                        : "Profilo effettivo: Frontage fallback",
                     EditorStyles.miniLabel);
 
                 EditorGUILayout.Space();

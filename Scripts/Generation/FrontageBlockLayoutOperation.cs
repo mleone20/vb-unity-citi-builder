@@ -11,10 +11,9 @@ public class FrontageBlockLayoutOperation : BlockLayoutOperation
 
     public override void Execute(BlockLayoutOperationContext context)
     {
-        List<CityLot> generated = CityLotGenerator.GenerateLotsForBlock(
+        List<CityLot> generated = CityLotGenerator.GenerateFrontageLotsForBlock(
             context.block, context.zoneType, context.blockIndex, context.cityData,
-            placeOutsideBlock ? BlockOrientation.Exterior : BlockOrientation.Interior,
-            context.lotSelectionPlugin, null, true);
+            placeOutsideBlock, context.lotSelectionPlugin);
         CityLotGenerator.AppendNonOverlappingLots(context, generated);
     }
 }

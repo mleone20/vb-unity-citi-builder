@@ -23,17 +23,14 @@ public static class CityLotGenerator
         ZoneType zoning,
         int blockIndex,
         CityData cityData,
-        BlockOrientation orientation = BlockOrientation.Interior,
         ILotSelectionPlugin lotSelectionPlugin = null,
-        BlockLayoutProfile layoutProfile = null,
-        bool preserveGeneratedAreas = false)
+        BlockLayoutProfile layoutProfile = null)
     {
         if (block == null || cityData == null)
             return new List<CityLot>();
         if (block.generatedLayoutAreas == null)
             block.generatedLayoutAreas = new List<CityBlockLayoutArea>();
-        if (!preserveGeneratedAreas)
-            block.generatedLayoutAreas.Clear();
+        block.generatedLayoutAreas.Clear();
 
         if (layoutProfile != null)
         {
@@ -58,13 +55,22 @@ public static class CityLotGenerator
             return operationContext.lots;
         }
 
-        if (orientation == BlockOrientation.Sparse)
-            return GenerateSparseLotsForBlock(block, zoning, blockIndex, cityData, lotSelectionPlugin);
+        // Compatibilità per città senza profilo: semplice frontage interno.
+        return GenerateFrontageLotsForBlock(
+            block, zoning, blockIndex, cityData, false, lotSelectionPlugin);
+    }
 
-        bool isExterior = orientation == BlockOrientation.Exterior;
-
+    public static List<CityLot> GenerateFrontageLotsForBlock(
+        CityBlock block,
+        ZoneType zoning,
+        int blockIndex,
+        CityData cityData,
+        bool placeOutsideBlock,
+        ILotSelectionPlugin lotSelectionPlugin = null)
+    {
+        bool isExterior = placeOutsideBlock;
         List<CityLot> lots = new List<CityLot>();
-        if (block.vertices.Count < 3) return lots;
+        if (block == null || cityData == null || block.vertices.Count < 3) return lots;
 
         float buildingHeight  = cityData.GetZoneHeight(zoning);
         List<Vector3> verts   = block.vertices;

@@ -117,16 +117,6 @@ public class CityBlockEditor
                 "Layout: " + (effectiveLayout != null ? effectiveLayout.name : "Legacy"),
                 EditorStyles.miniLabel);
             
-            // Orientamento del blocco
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Orientamento:", GUILayout.Width(100));
-            BlockOrientation newOrientation = (BlockOrientation)EditorGUILayout.EnumPopup(block.orientation);
-            if (newOrientation != block.orientation)
-            {
-                block.orientation = newOrientation;
-            }
-            EditorGUILayout.EndHorizontal();
-            
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("Rimuovi", GUILayout.Width(80)))
             {
