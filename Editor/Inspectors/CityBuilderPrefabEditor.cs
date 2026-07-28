@@ -53,22 +53,42 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
         serializedObject.ApplyModifiedProperties();
 
         EditorGUILayout.Space();
+        DrawValidationSummary();
 
         if (GUILayout.Button("Reset Frontage", GUILayout.Height(24)))
         {
-            CityBuilderPrefab comp = (CityBuilderPrefab)target;
-
-            Undo.RecordObject(comp, "Reset Frontage");
-            comp.ResetFrontageToAutoDetectedDefault();
-            EditorUtility.SetDirty(comp);
+            foreach (UnityEngine.Object selected in targets)
+            {
+                CityBuilderPrefab comp = selected as CityBuilderPrefab;
+                if (comp == null) continue;
+                Undo.RecordObject(comp, "Reset Frontage");
+                comp.ResetFrontageToAutoDetectedDefault();
+                EditorUtility.SetDirty(comp);
+            }
         }
 
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("Utilità Pivot", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Utilità Geometria", EditorStyles.boldLabel);
 
         if (GUILayout.Button("Auto ground pivot", GUILayout.Height(28)))
         {
-            ApplyAutoGroundPivot((CityBuilderPrefab)target);
+            foreach (UnityEngine.Object selected in targets)
+            {
+                CityBuilderPrefab comp = selected as CityBuilderPrefab;
+                if (comp == null) continue;
+                Undo.RecordObject(comp, "Auto ground pivot");
+                comp.ApplyAutoGroundPivotInEditor();
+            }
+        }
+        if (GUILayout.Button("Ricalcola metadati geometrici", GUILayout.Height(28)))
+        {
+            foreach (UnityEngine.Object selected in targets)
+            {
+                CityBuilderPrefab comp = selected as CityBuilderPrefab;
+                if (comp == null) continue;
+                Undo.RecordObject(comp, "Ricalcola metadati geometrici");
+                comp.RefreshGeometryMetadataInEditor(comp.autoComputeFromRenderers);
+            }
         }
 
         EditorGUILayout.Space();
@@ -88,6 +108,64 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
         {
             TryAutoTagWithLlm((CityBuilderPrefab)target);
             serializedObject.Update();
+        }
+    }
+
+    private void DrawValidationSummary()
+    {
+        if (targets.Length != 1)
+        {
+            EditorGUILayout.HelpBox(
+                targets.Length + " prefab selezionati. Le utilità verranno applicate a tutti.",
+                MessageType.Info);
+            return;
+        }
+
+        CityBuilderPrefab comp = target as CityBuilderPrefab;
+        if (comp == null) return;
+
+        if (!comp.TryCalculateLocalRendererBounds(out Bounds bounds))
+        {
+            EditorGUILayout.HelpBox(
+                "Nessun Renderer geometrico valido trovato. Footprint e pivot automatici non sono disponibili.",
+                MessageType.Error);
+            return;
+        }
+
+        Vector2 footprint = comp.GetLayoutFootprintSize();
+        if (footprint.x <= 0.1f || footprint.y <= 0.1f)
+        {
+            EditorGUILayout.HelpBox("Footprint non valido.", MessageType.Error);
+        }
+
+        float groundDelta = Mathf.Abs(comp.pivotOffset.y - bounds.min.y);
+        if (groundDelta > 0.05f)
+        {
+            EditorGUILayout.HelpBox(
+                "Il pivot configurato non coincide con la base dei Renderer (scarto " +
+                groundDelta.ToString("F2") + " m).",
+                MessageType.Warning);
+        }
+
+        Vector3 frontDirection = comp.GetFrontageDirectionLocal();
+        Vector3 boundsExtents = bounds.extents;
+        Vector3 fromCenter = comp.frontageOffset - bounds.center;
+        float projectedExtent =
+            Mathf.Abs(frontDirection.x) * boundsExtents.x +
+            Mathf.Abs(frontDirection.z) * boundsExtents.z;
+        float distanceAlongNormal = Mathf.Abs(Vector3.Dot(fromCenter, frontDirection));
+        if (distanceAlongNormal + 0.1f < projectedExtent)
+        {
+            EditorGUILayout.HelpBox(
+                "Il piano Frontage sembra interno al volume del prefab. Usa Reset Frontage o correggilo nella Scene View.",
+                MessageType.Warning);
+        }
+        else
+        {
+            EditorGUILayout.HelpBox(
+                "Geometria valida — footprint " + footprint.x.ToString("F1") + " × " +
+                footprint.y.ToString("F1") + " m.",
+                MessageType.Info);
         }
     }
 
@@ -486,55 +564,6 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
         Handles.Label(frontageWorld + Vector3.up * (comp.frontageDisplayHeight + 0.3f), "Frontage");
     }
 
-    private static void ApplyAutoGroundPivot(CityBuilderPrefab component)
-    {
-        // Calcola bounds in spazio LOCALE trasformando i corner world di ciascun renderer.
-        // L'uso diretto di renderer.bounds (world-space) causava la scrittura di coordinate
-        // assolute in pivotOffset, portando allo spawn sottoterra quando OnValidate scattava
-        // su istanze già posizionate in scena a Y != 0.
-        Renderer[] renderers = component.GetComponentsInChildren<Renderer>(true);
-        if (renderers == null || renderers.Length == 0)
-        {
-            EditorUtility.DisplayDialog("Auto ground pivot", "Nessun Renderer trovato nel prefab.", "OK");
-            return;
-        }
-
-        bool initialized = false;
-        Vector3 min = Vector3.zero;
-        Vector3 max = Vector3.zero;
-
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            if (renderers[i] == null) continue;
-            Bounds wb = renderers[i].bounds;
-            Vector3 ext = wb.extents;
-            Vector3 ctr = wb.center;
-            Vector3[] corners =
-            {
-                ctr + new Vector3(-ext.x, -ext.y, -ext.z),
-                ctr + new Vector3(-ext.x, -ext.y,  ext.z),
-                ctr + new Vector3(-ext.x,  ext.y, -ext.z),
-                ctr + new Vector3(-ext.x,  ext.y,  ext.z),
-                ctr + new Vector3( ext.x, -ext.y, -ext.z),
-                ctr + new Vector3( ext.x, -ext.y,  ext.z),
-                ctr + new Vector3( ext.x,  ext.y, -ext.z),
-                ctr + new Vector3( ext.x,  ext.y,  ext.z),
-            };
-            foreach (Vector3 corner in corners)
-            {
-                Vector3 lc = component.transform.InverseTransformPoint(corner);
-                if (!initialized) { min = lc; max = lc; initialized = true; }
-                else { min = Vector3.Min(min, lc); max = Vector3.Max(max, lc); }
-            }
-        }
-
-        if (!initialized) return;
-
-        Vector3 bottomCenterLocal = new Vector3((min.x + max.x) * 0.5f, min.y, (min.z + max.z) * 0.5f);
-        Undo.RecordObject(component, "Auto ground pivot");
-        component.pivotOffset = bottomCenterLocal;
-        EditorUtility.SetDirty(component);
-    }
 }
 
 }

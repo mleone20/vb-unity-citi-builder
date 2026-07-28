@@ -31,6 +31,9 @@ public class CityBuilderPrefab : MonoBehaviour
     [Tooltip("Se attivo, tenta di calcolare automaticamente l'ingombro dai Renderer del prefab.")]
     public bool autoComputeFromRenderers = true;
 
+    [SerializeField, HideInInspector]
+    private Vector2 cachedRendererFootprint;
+
     [Tooltip("Offset locale dal centro lotto applicato alla posizione finale.")]
     public Vector3 pivotOffset = Vector3.zero;
 
@@ -59,7 +62,13 @@ public class CityBuilderPrefab : MonoBehaviour
     public Vector2 GetLayoutFootprintSize()
     {
         Vector2 configured = GetFootprintSize();
-        Vector2 rendered = CalculateRendererFootprint();
+        Vector2 rendered = cachedRendererFootprint;
+#if UNITY_EDITOR
+        if (rendered.x <= 0f || rendered.y <= 0f)
+        {
+            rendered = CalculateRendererFootprint();
+        }
+#endif
         if (rendered.x <= 0f || rendered.y <= 0f)
         {
             return configured;
@@ -105,10 +114,11 @@ public class CityBuilderPrefab : MonoBehaviour
         footprintSize = GetFootprintSize();
 
 #if UNITY_EDITOR
-        if (!Application.isPlaying && autoComputeFromRenderers)
+        if (!Application.isPlaying)
         {
-            AutoComputeFootprintInEditor();
-            AutoComputePivotOffsetInEditor();
+            // La cache serve anche ai prefab con footprint manuale: evita di
+            // scandire tutti i Renderer per ogni lotto durante la generazione.
+            RefreshGeometryMetadataInEditor(autoComputeFromRenderers);
         }
 
         if (!frontageOffsetInitialized)
@@ -135,6 +145,34 @@ public class CityBuilderPrefab : MonoBehaviour
         EditorUtility.SetDirty(this);
     }
 
+    public bool RefreshGeometryMetadataInEditor(bool applyAutomaticValues)
+    {
+        Vector2 rendererFootprint = CalculateRendererFootprint();
+        if (rendererFootprint.x <= 0f || rendererFootprint.y <= 0f)
+        {
+            if (cachedRendererFootprint != Vector2.zero)
+            {
+                cachedRendererFootprint = Vector2.zero;
+                EditorUtility.SetDirty(this);
+            }
+            return false;
+        }
+
+        bool changed = (cachedRendererFootprint - rendererFootprint).sqrMagnitude > 0.0001f;
+        cachedRendererFootprint = rendererFootprint;
+        if (applyAutomaticValues)
+        {
+            if ((footprintSize - rendererFootprint).sqrMagnitude > 0.0001f)
+            {
+                footprintSize = rendererFootprint;
+                changed = true;
+            }
+            changed |= ApplyAutoGroundPivotInEditor();
+        }
+        if (changed) EditorUtility.SetDirty(this);
+        return true;
+    }
+
     private void AutoComputeFootprintInEditor()
     {
         Vector2 autoSize = CalculateRendererFootprint();
@@ -156,7 +194,7 @@ public class CityBuilderPrefab : MonoBehaviour
 
     private void AutoComputePivotOffsetInEditor()
     {
-        ApplyAutoGroundPivot(this);
+        ApplyAutoGroundPivotInEditor();
     }
 
     private void AutoConfigureFrontageInEditor(bool force)
@@ -289,7 +327,6 @@ public class CityBuilderPrefab : MonoBehaviour
             // Priorita': vicinanza al pivot (soprattutto in quota) >> posizione esterna sul bordo.
             float score = normalizedPivot3D * 0.9f + normalizedEdgeDistance * 0.1f;
 
-            Debug.Log($"Valutando candidate '{candidate.name}': pivotPlanar={pivotAlongLongSide:F2} (norm {normalizedPivotDistance:F2}), pivotY={pivotVerticalDistance:F2} (norm {normalizedVerticalDistance:F2}), edgeDist={edgeDistance:F2} (norm {normalizedEdgeDistance:F2}), score={score:F3}");
             if (score < bestScore)
             {
                 bestScore = score;
@@ -301,8 +338,6 @@ public class CityBuilderPrefab : MonoBehaviour
         {
             best = GetFurthestDoorAncestor(best);
         }
-
-        Debug.Log($"Auto frontage: best entry candidate is '{best?.name}' with score {bestScore:F3}");
 
         return best;
     }
@@ -336,7 +371,7 @@ public class CityBuilderPrefab : MonoBehaviour
         return furthestDoorNode;
     }
 
-    private bool TryCalculateLocalRendererBounds(out Bounds localBounds)
+    public bool TryCalculateLocalRendererBounds(out Bounds localBounds)
     {
         Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
         if (renderers == null || renderers.Length == 0)
@@ -356,6 +391,7 @@ public class CityBuilderPrefab : MonoBehaviour
             {
                 continue;
             }
+            if (!IsGeometryRenderer(renderer)) continue;
 
             Bounds worldBounds = renderer.bounds;
             Vector3 extents = worldBounds.extents;
@@ -399,19 +435,24 @@ public class CityBuilderPrefab : MonoBehaviour
         return true;
     }
 
-    private static void ApplyAutoGroundPivot(CityBuilderPrefab component)
+    public bool ApplyAutoGroundPivotInEditor()
     {
         // Usare bounds in spazio LOCALE per evitare che OnValidate eseguito su un'istanza
         // posizionata in scena (Y != 0) scriva coordinate world in pivotOffset, causando
         // il posizionamento sottoterra durante lo spawn.
-        if (!component.TryCalculateLocalRendererBounds(out Bounds localBounds))
+        if (!TryCalculateLocalRendererBounds(out Bounds localBounds))
         {
-            return;
+            return false;
         }
 
         Vector3 bottomCenterLocal = new Vector3(localBounds.center.x, localBounds.min.y, localBounds.center.z);
-        component.pivotOffset = bottomCenterLocal;
-        EditorUtility.SetDirty(component);
+        if ((pivotOffset - bottomCenterLocal).sqrMagnitude <= 0.0001f)
+        {
+            return false;
+        }
+        pivotOffset = bottomCenterLocal;
+        EditorUtility.SetDirty(this);
+        return true;
     }
 
     private void Reset()
@@ -430,7 +471,7 @@ public class CityBuilderPrefab : MonoBehaviour
     private void OnDrawGizmosSelected()
     {
         Vector2 size = GetLayoutFootprintSize();
-        Vector3 pivotWorld = pivotOffset;
+        Vector3 pivotWorld = transform.TransformPoint(pivotOffset);
 
         Matrix4x4 previousMatrix = Gizmos.matrix;
         Color previousColor = Gizmos.color;
@@ -497,6 +538,7 @@ public class CityBuilderPrefab : MonoBehaviour
             {
                 continue;
             }
+            if (!IsGeometryRenderer(renderer)) continue;
 
             Bounds rendererBounds = renderer.localBounds;
             Matrix4x4 rendererToRoot = worldToRoot * renderer.localToWorldMatrix;
@@ -533,6 +575,14 @@ public class CityBuilderPrefab : MonoBehaviour
         return new Vector2(
             Mathf.Max(MinFootprint, localSize.x * Mathf.Abs(worldScale.x)),
             Mathf.Max(MinFootprint, localSize.z * Mathf.Abs(worldScale.z)));
+    }
+
+    private static bool IsGeometryRenderer(Renderer renderer)
+    {
+        return renderer != null &&
+               !(renderer is ParticleSystemRenderer) &&
+               !(renderer is TrailRenderer) &&
+               !(renderer is LineRenderer);
     }
 }
 

@@ -249,7 +249,9 @@ public static class CityBuildingSpawner
                     }
 
                     spawnRotation = lot.assignedSpawnRotation;
-                    spawnPosition = ComputeLotMatchedSpawnPosition(metadata, lotCenter, spawnRotation);
+                    Vector3 lotFrontCenter = (lot.vertices[0] + lot.vertices[1]) * 0.5f;
+                    spawnPosition = ComputeLotMatchedSpawnPosition(
+                        metadata, lotCenter, lotFrontCenter, spawnRotation);
                 }
                 else
                 {
@@ -816,11 +818,30 @@ public static class CityBuildingSpawner
     }
 
     private static Vector3 ComputeLotMatchedSpawnPosition(
-        CityBuilderPrefab metadata, Vector3 lotCenter, Quaternion spawnRotation)
+        CityBuilderPrefab metadata,
+        Vector3 lotCenter,
+        Vector3 lotFrontCenter,
+        Quaternion spawnRotation)
     {
         Vector3 pivotOffsetXZ = new Vector3(metadata.pivotOffset.x, 0f, metadata.pivotOffset.z);
         Vector3 worldPivotOffsetXZ = spawnRotation * pivotOffsetXZ;
         Vector3 spawnPosition = lotCenter - worldPivotOffsetXZ;
+
+        // Mantiene il prefab centrato lateralmente nel lotto, ma sposta il suo
+        // piano di facciata lungo la normale fino al fronte effettivo del lotto.
+        Vector3 frontDirection = spawnRotation * metadata.GetFrontageDirectionLocal();
+        frontDirection.y = 0f;
+        if (frontDirection.sqrMagnitude > 0.0001f)
+        {
+            frontDirection.Normalize();
+            Vector3 frontageOffsetXZ = new Vector3(
+                metadata.frontageOffset.x, 0f, metadata.frontageOffset.z);
+            Vector3 currentFrontage = spawnPosition + spawnRotation * frontageOffsetXZ;
+            float normalCorrection = Vector3.Dot(
+                lotFrontCenter - currentFrontage, frontDirection);
+            spawnPosition += frontDirection * normalCorrection;
+        }
+
         spawnPosition.y = lotCenter.y - metadata.pivotOffset.y;
         return spawnPosition;
     }
