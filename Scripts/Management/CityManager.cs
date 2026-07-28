@@ -17,6 +17,7 @@ public class CityManager : MonoBehaviour
     [Header("Dati Persistenti")]
     [SerializeField] private CityData cityData;
     [SerializeField] private CityConfig cityConfig;
+    [SerializeField] private string roadMeshEngineId = "bsc.default-road-mesh";
 
     [Header("Stato Editor")]
     [SerializeField] private BuildMode currentMode = BuildMode.Idle;
@@ -443,6 +444,8 @@ public class CityManager : MonoBehaviour
     public void SetCityData(CityData data) => cityData = data;
     public CityConfig GetCityConfig() => cityConfig;
     public void SetCityConfig(CityConfig config) => cityConfig = config;
+    public string GetRoadMeshEngineId() => roadMeshEngineId;
+    public void SetRoadMeshEngineId(string engineId) => roadMeshEngineId = engineId;
 
     public void SetSegmentRoadProfile(int segmentID, RoadProfile roadProfile)
     {

@@ -217,6 +217,36 @@ Le DLL vengono importate normalmente da Unity e accompagnate da un `CityPluginMa
 Il loader verifica API, versione semantica, dipendenze, assembly e whitelist delle categorie.
 Usare **Tools → City Builder → Refresh External Plugins** dopo una modifica.
 
+### Motori di generazione stradale
+
+La generazione visuale delle strade è separata dai dati della città. Il City Builder converte la rete
+in una `RoadNetworkBuildRequest` contenente polilinee campionate, larghezze, profili, materiali e
+giunzioni. Un motore esterno deve implementare `IRoadMeshGenerationEngine`:
+
+```csharp
+[RoadMeshEngine("acme.external-roads", "External Roads")]
+public sealed class ExternalRoadEngine : IRoadMeshGenerationEngine
+{
+    public RoadMeshBuildResult Build(RoadNetworkBuildRequest request)
+    {
+        foreach (RoadPathBuildData road in request.paths)
+        {
+            // Passa road.points, road.width e road.profile all'asset esterno.
+        }
+        return new RoadMeshBuildResult { succeeded = true };
+    }
+
+    public bool Clear(RoadNetworkBuildRequest request)
+    {
+        // Rimuove solo l'output prodotto da questo motore.
+        return true;
+    }
+}
+```
+
+L'engine viene scoperto automaticamente e appare nel menu **Motore strade**. Un'integrazione Editor
+può implementare anche `IRoadMeshGenerationEngineEditorUI` per mostrare impostazioni proprie.
+
 Plugin built-in disponibili:
 
 | Plugin | Classe |

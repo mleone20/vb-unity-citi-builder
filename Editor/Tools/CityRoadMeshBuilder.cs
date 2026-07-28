@@ -40,7 +40,18 @@ public static class CityRoadMeshBuilder
     //  Entry point pubblico
     // ─────────────────────────────────────────────────────────────────────────
 
+    [System.Obsolete("Usare CityRoadMeshGenerationHost con un IRoadMeshGenerationEngine.")]
     public static void Build(CityManager manager)
+    {
+        Build(manager, RootName);
+    }
+
+    public static void Build(CityManager manager, string rootName)
+    {
+        Build(manager, rootName, true);
+    }
+
+    public static void Build(CityManager manager, string rootName, bool showDialog)
     {
         if (manager == null)
         {
@@ -57,16 +68,20 @@ public static class CityRoadMeshBuilder
 
         if (cityData.segments == null || cityData.segments.Count == 0)
         {
-            EditorUtility.DisplayDialog("Genera Mesh Strade", "Nessun segmento stradale trovato in CityData.", "OK");
+            if (showDialog)
+                EditorUtility.DisplayDialog("Genera Mesh Strade", "Nessun segmento stradale trovato in CityData.", "OK");
             return;
         }
 
         // Rimuove l'eventuale root precedente
-        GameObject existingRoot = GameObject.Find(RootName);
+        string safeRootName = string.IsNullOrWhiteSpace(rootName) ? RootName : rootName;
+        Transform existingTransform = manager.transform.Find(safeRootName);
+        GameObject existingRoot = existingTransform != null ? existingTransform.gameObject : null;
         if (existingRoot != null)
             Undo.DestroyObjectImmediate(existingRoot);
 
-        GameObject root = new GameObject(RootName);
+        GameObject root = new GameObject(safeRootName);
+        root.transform.SetParent(manager.transform, true);
         Undo.RegisterCreatedObjectUndo(root, "Genera Mesh Strade");
 
         // nodeID → lista dei bordi strip usati per costruire la giunzione.
@@ -100,14 +115,16 @@ public static class CityRoadMeshBuilder
             }
         }
 
-        EditorUtility.DisplayDialog("Genera Mesh Strade",
-            $"Generazione completata.\nSegmenti: {segmentCount}\nGiunzioni: {junctionCount}", "OK");
+        if (showDialog)
+            EditorUtility.DisplayDialog("Genera Mesh Strade",
+                $"Generazione completata.\nSegmenti: {segmentCount}\nGiunzioni: {junctionCount}", "OK");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     //  Cleanup
     // ─────────────────────────────────────────────────────────────────────────
 
+    [System.Obsolete("Usare CityRoadMeshGenerationHost.Clear.")]
     public static void DeleteMesh()
     {
         GameObject existing = GameObject.Find(RootName);
@@ -118,6 +135,24 @@ public static class CityRoadMeshBuilder
             return;
         }
         Undo.DestroyObjectImmediate(existing);
+    }
+
+    public static bool DeleteMesh(CityManager manager, string rootName)
+    {
+        if (manager == null)
+        {
+            return false;
+        }
+
+        string safeRootName = string.IsNullOrWhiteSpace(rootName) ? RootName : rootName;
+        Transform existing = manager.transform.Find(safeRootName);
+        if (existing == null)
+        {
+            return false;
+        }
+
+        Undo.DestroyObjectImmediate(existing.gameObject);
+        return true;
     }
 
     // ─────────────────────────────────────────────────────────────────────────

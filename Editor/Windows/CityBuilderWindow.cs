@@ -13,6 +13,7 @@ using BSCCityBuilder.Plugins;
 using BSCCityBuilder.Editor.Tools;
 using BSCCityBuilder.Editor.Inspectors;
 using BSCCityBuilder.Editor.Plugins;
+using BSCCityBuilder.Editor.Roads;
 using BSCCityBuilder.AI;
 
 namespace BSCCityBuilder.Editor.Windows
@@ -670,16 +671,62 @@ public class CityBuilderWindow : EditorWindow
                 StopAsyncGeneration();
             EditorGUILayout.Space(4);
         }
-        EditorGUILayout.HelpBox("Genera mesh Unity reali leggendo il materiale dal RoadProfile di ciascun segmento.", MessageType.None);
+        IReadOnlyList<RoadMeshEngineDescriptor> roadEngines = CityRoadMeshEngineRegistry.GetEngines();
+        if (roadEngines.Count == 0)
+        {
+            EditorGUILayout.HelpBox("Nessun motore di generazione stradale disponibile.", MessageType.Warning);
+        }
+        else
+        {
+            int engineIndex = 0;
+            string[] engineNames = new string[roadEngines.Count];
+            for (int i = 0; i < roadEngines.Count; i++)
+            {
+                engineNames[i] = roadEngines[i].displayName;
+                if (string.Equals(
+                    roadEngines[i].id,
+                    CityRoadMeshGenerationHost.GetActiveEngineId(cityManager),
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    engineIndex = i;
+                }
+            }
+
+            int selectedEngine = EditorGUILayout.Popup("Motore strade", engineIndex, engineNames);
+            if (!string.Equals(
+                CityRoadMeshGenerationHost.GetActiveEngineId(cityManager),
+                roadEngines[selectedEngine].id,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                CityRoadMeshGenerationHost.SetActiveEngineId(cityManager, roadEngines[selectedEngine].id);
+            }
+            if (!string.IsNullOrWhiteSpace(roadEngines[selectedEngine].description))
+            {
+                EditorGUILayout.HelpBox(roadEngines[selectedEngine].description, MessageType.None);
+            }
+
+            IRoadMeshGenerationEngine selectedEngineInstance =
+                CityRoadMeshEngineRegistry.Create(roadEngines[selectedEngine].id);
+            IRoadMeshGenerationEngineEditorUI engineUi =
+                selectedEngineInstance as IRoadMeshGenerationEngineEditorUI;
+            engineUi?.DrawSettings(cityManager);
+        }
+
+        using (new EditorGUI.DisabledScope(roadEngines.Count == 0))
+        {
         if (DrawActionButton("Genera Mesh Strade", new Color(0.25f, 0.60f, 0.45f)))
         {
-            CityRoadMeshBuilder.Build(cityManager);
+            RoadMeshBuildResult result = CityRoadMeshGenerationHost.Build(cityManager);
+            EditorUtility.DisplayDialog("Genera Strade", result.ToMultilineString(), "OK");
             SceneView.RepaintAll();
         }
         if (DrawActionButton("Cancella Mesh Strade", new Color(0.55f, 0.35f, 0.35f)))
         {
-            CityRoadMeshBuilder.DeleteMesh();
+            bool removed = CityRoadMeshGenerationHost.Clear(cityManager);
+            if (!removed)
+                EditorUtility.DisplayDialog("Cancella Strade", "Nessun output del motore attivo trovato.", "OK");
             SceneView.RepaintAll();
+        }
         }
 
         EditorGUILayout.Space(6);
