@@ -37,11 +37,17 @@ public class CityBuilderPrefab : MonoBehaviour
     [Tooltip("Offset locale dal centro lotto applicato alla posizione finale.")]
     public Vector3 pivotOffset = Vector3.zero;
 
+    [Tooltip("Anchor opzionale che identifica esplicitamente il piano terra. Utile per edifici con piani interrati.")]
+    public Transform groundLevelAnchor;
+
     [Tooltip("Posizione del piano di affaccio (fronte edificio) in spazio locale. Indica la direzione frontale verso la strada.")]
     public Vector3 frontageOffset = new Vector3(0f, 0f, -4f);
 
     [Tooltip("Direzione locale della normale del piano Frontage. Permette di ruotare l'affaccio senza vincolarlo all'asse Z.")]
     public Vector3 frontageDirection = Vector3.back;
+
+    [Tooltip("Anchor opzionale dell'ingresso principale. Il suo asse Forward deve puntare verso la strada.")]
+    public Transform frontageAnchor;
 
     [Tooltip("Altezza di visualizzazione del piano Frontage nel gizmo (non influenza la logica).")]
     public float frontageDisplayHeight = 4f;
@@ -211,51 +217,41 @@ public class CityBuilderPrefab : MonoBehaviour
             localBounds = new Bounds(Vector3.zero, new Vector3(footprint.x, 0.1f, footprint.y));
         }
 
-        Vector3 boundsCenter = localBounds.center;
-        Vector3 boundsMin = localBounds.min;
-        Vector3 boundsMax = localBounds.max;
-        float sizeX = Mathf.Max(MinFootprint, localBounds.size.x);
-        float sizeZ = Mathf.Max(MinFootprint, localBounds.size.z);
-        bool longestSideIsX = sizeX >= sizeZ;
+        float groundY = TryCalculateWallBaseInEditor(out float detectedGround)
+            ? detectedGround
+            : localBounds.min.y;
+        Vector3 defaultDirection;
+        Vector3 defaultOffset;
 
-        Vector3 defaultDirection = longestSideIsX ? Vector3.back : Vector3.left;
-        Vector3 defaultOffset = longestSideIsX
-            ? new Vector3(boundsCenter.x, 0f, boundsMin.z)
-            : new Vector3(boundsMin.x, 0f, boundsCenter.z);
-
-        Transform bestEntry = FindOutermostEntryTransform(longestSideIsX, boundsMin, boundsMax);
-        if (bestEntry != null)
+        if (frontageAnchor != null && frontageAnchor != transform &&
+            frontageAnchor.IsChildOf(transform))
         {
-            Vector3 localEntry = transform.InverseTransformPoint(bestEntry.position);
-            Vector3 doorForwardLocal = transform.InverseTransformDirection(bestEntry.forward);
-            Vector3 inverseDoorForward = new Vector3(-doorForwardLocal.x, 0f, -doorForwardLocal.z);
-            bool hasDoorDirection = inverseDoorForward.sqrMagnitude > 0.0001f;
-
-            if (longestSideIsX)
+            Vector3 anchorPosition = transform.InverseTransformPoint(frontageAnchor.position);
+            Vector3 anchorDirection = transform.InverseTransformDirection(frontageAnchor.forward);
+            anchorDirection.y = 0f;
+            defaultDirection = anchorDirection.sqrMagnitude > 0.0001f
+                ? SnapToCardinalFacade(anchorDirection)
+                : GetNearestFacadeDirection(anchorPosition, localBounds);
+            defaultOffset = ProjectToFacade(
+                anchorPosition, defaultDirection, localBounds, groundY);
+        }
+        else
+        {
+            Transform bestEntry = FindBestEntryTransform(
+                localBounds, groundY, out Vector3 facadeDirection);
+            if (bestEntry != null)
             {
-                float distToMinZ = Mathf.Abs(localEntry.z - boundsMin.z);
-                float distToMaxZ = Mathf.Abs(boundsMax.z - localEntry.z);
-                bool useMaxSide = distToMaxZ < distToMinZ;
-                defaultDirection = hasDoorDirection
-                    ? inverseDoorForward.normalized
-                    : (useMaxSide ? Vector3.forward : Vector3.back);
-                defaultOffset = new Vector3(
-                    Mathf.Clamp(localEntry.x, boundsMin.x, boundsMax.x),
-                    0f,
-                    useMaxSide ? boundsMax.z : boundsMin.z);
+                Vector3 entryPosition = transform.InverseTransformPoint(bestEntry.position);
+                defaultDirection = facadeDirection;
+                defaultOffset = ProjectToFacade(
+                    entryPosition, defaultDirection, localBounds, groundY);
             }
             else
             {
-                float distToMinX = Mathf.Abs(localEntry.x - boundsMin.x);
-                float distToMaxX = Mathf.Abs(boundsMax.x - localEntry.x);
-                bool useMaxSide = distToMaxX < distToMinX;
-                defaultDirection = hasDoorDirection
-                    ? inverseDoorForward.normalized
-                    : (useMaxSide ? Vector3.right : Vector3.left);
-                defaultOffset = new Vector3(
-                    useMaxSide ? boundsMax.x : boundsMin.x,
-                    0f,
-                    Mathf.Clamp(localEntry.z, boundsMin.z, boundsMax.z));
+                bool frontageAlongX = localBounds.size.x >= localBounds.size.z;
+                defaultDirection = frontageAlongX ? Vector3.back : Vector3.left;
+                defaultOffset = ProjectToFacade(
+                    localBounds.center, defaultDirection, localBounds, groundY);
             }
         }
 
@@ -266,109 +262,265 @@ public class CityBuilderPrefab : MonoBehaviour
         EditorUtility.SetDirty(this);
     }
 
-    private Transform FindOutermostEntryTransform(bool longestSideIsX, Vector3 boundsMin, Vector3 boundsMax)
+    private Transform FindBestEntryTransform(
+        Bounds bounds,
+        float groundY,
+        out Vector3 bestFacadeDirection)
     {
         Transform[] transforms = GetComponentsInChildren<Transform>(true);
         Transform best = null;
         float bestScore = float.MaxValue;
-        Vector3 pivotLocal = pivotOffset;
-
-        float heightSpan = 1f;
-        if (TryCalculateLocalRendererBounds(out Bounds localBounds))
-        {
-            heightSpan = Mathf.Max(MinFootprint, localBounds.size.y);
-        }
-
-        float sideSpan = longestSideIsX
-            ? Mathf.Max(MinFootprint, boundsMax.x - boundsMin.x)
-            : Mathf.Max(MinFootprint, boundsMax.z - boundsMin.z);
-
-        float depthSpan = longestSideIsX
-            ? Mathf.Max(MinFootprint, boundsMax.z - boundsMin.z)
-            : Mathf.Max(MinFootprint, boundsMax.x - boundsMin.x);
+        bestFacadeDirection = Vector3.zero;
+        float planarSpan = Mathf.Max(
+            MinFootprint, Mathf.Max(bounds.size.x, bounds.size.z));
+        float heightSpan = Mathf.Max(MinFootprint, bounds.size.y);
 
         for (int i = 0; i < transforms.Length; i++)
         {
             Transform candidate = transforms[i];
-            if (candidate == null)
-            {
-                continue;
-            }
+            if (candidate == null || candidate == transform ||
+                !IsEntryName(candidate.name)) continue;
 
-            string lowerName = candidate.name.ToLowerInvariant();
-            if (!lowerName.Contains("door") && !lowerName.Contains("entry"))
-            {
-                continue;
-            }
-
-            
             Vector3 localPos = transform.InverseTransformPoint(candidate.position);
-            float edgeDistance = longestSideIsX
-                ? Mathf.Min(Mathf.Abs(localPos.z - boundsMin.z), Mathf.Abs(boundsMax.z - localPos.z))
-                : Mathf.Min(Mathf.Abs(localPos.x - boundsMin.x), Mathf.Abs(boundsMax.x - localPos.x));
+            Vector3 facadeDirection = GetNearestFacadeDirection(localPos, bounds);
+            Vector3 projected = ProjectToFacade(
+                localPos, facadeDirection, bounds, groundY);
+            float edgeDistance = Vector2.Distance(
+                new Vector2(localPos.x, localPos.z),
+                new Vector2(projected.x, projected.z));
+            float verticalDistance = Mathf.Abs(localPos.y - groundY);
 
-            // Peso prioritario: vicinanza al pivot lungo il lato lungo dell'edificio.
-            float pivotAlongLongSide = longestSideIsX
-                ? Mathf.Abs(localPos.x - pivotLocal.x)
-                : Mathf.Abs(localPos.z - pivotLocal.z);
+            Vector3 candidateForward =
+                transform.InverseTransformDirection(candidate.forward);
+            candidateForward.y = 0f;
+            float orientationPenalty = 0.5f;
+            if (candidateForward.sqrMagnitude > 0.0001f)
+            {
+                candidateForward.Normalize();
+                orientationPenalty = 1f - Mathf.Abs(
+                    Vector3.Dot(candidateForward, facadeDirection));
+            }
 
-            // Penalizza fortemente candidate lontane in altezza dal pivot (es. porte su tetto).
-            float pivotVerticalDistance = Mathf.Abs(localPos.y - pivotLocal.y);
-
-            float normalizedPivotDistance = pivotAlongLongSide / sideSpan;
-            float normalizedVerticalDistance = pivotVerticalDistance / heightSpan;
-            float normalizedEdgeDistance = edgeDistance / depthSpan;
-
-            // Distanza 3D dal pivot sui due assi davvero rilevanti per l'ingresso: lato lungo + quota.
-            float normalizedPivot3D = Mathf.Sqrt(
-                normalizedPivotDistance * normalizedPivotDistance +
-                normalizedVerticalDistance * normalizedVerticalDistance);
-
-            // Priorita': vicinanza al pivot (soprattutto in quota) >> posizione esterna sul bordo.
-            float score = normalizedPivot3D * 0.9f + normalizedEdgeDistance * 0.1f;
+            float score =
+                edgeDistance / planarSpan * 0.5f +
+                verticalDistance / heightSpan * 0.4f +
+                orientationPenalty * 0.1f;
 
             if (score < bestScore)
             {
                 bestScore = score;
                 best = candidate;
+                bestFacadeDirection = facadeDirection;
             }
-        }
-
-        if (best != null)
-        {
-            best = GetFurthestDoorAncestor(best);
         }
 
         return best;
     }
 
-    private Transform GetFurthestDoorAncestor(Transform start)
+    private static Vector3 GetNearestFacadeDirection(Vector3 point, Bounds bounds)
     {
-        if (start == null)
+        float minX = Mathf.Abs(point.x - bounds.min.x);
+        float maxX = Mathf.Abs(bounds.max.x - point.x);
+        float minZ = Mathf.Abs(point.z - bounds.min.z);
+        float maxZ = Mathf.Abs(bounds.max.z - point.z);
+        float nearest = Mathf.Min(Mathf.Min(minX, maxX), Mathf.Min(minZ, maxZ));
+        if (nearest == minX) return Vector3.left;
+        if (nearest == maxX) return Vector3.right;
+        if (nearest == minZ) return Vector3.back;
+        return Vector3.forward;
+    }
+
+    private static Vector3 SnapToCardinalFacade(Vector3 direction)
+    {
+        if (Mathf.Abs(direction.x) >= Mathf.Abs(direction.z))
         {
-            return null;
+            return direction.x >= 0f ? Vector3.right : Vector3.left;
+        }
+        return direction.z >= 0f ? Vector3.forward : Vector3.back;
+    }
+
+    private static Vector3 ProjectToFacade(
+        Vector3 point,
+        Vector3 direction,
+        Bounds bounds,
+        float groundY)
+    {
+        Vector3 result = point;
+        result.y = groundY;
+        if (direction == Vector3.left) result.x = bounds.min.x;
+        else if (direction == Vector3.right) result.x = bounds.max.x;
+        else if (direction == Vector3.back) result.z = bounds.min.z;
+        else result.z = bounds.max.z;
+        result.x = Mathf.Clamp(result.x, bounds.min.x, bounds.max.x);
+        result.z = Mathf.Clamp(result.z, bounds.min.z, bounds.max.z);
+        return result;
+    }
+
+    public bool TryCalculateWallBaseInEditor(out float groundY)
+    {
+        if (groundLevelAnchor != null && groundLevelAnchor != transform &&
+            groundLevelAnchor.IsChildOf(transform))
+        {
+            groundY = transform.InverseTransformPoint(
+                groundLevelAnchor.position).y;
+            return true;
         }
 
-        Transform furthestDoorNode = start;
-        Transform current = start.parent;
-
-        while (current != null && current != transform.parent)
+        float entryY = 0f;
+        bool hasEntry = false;
+        Transform[] childTransforms = GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < childTransforms.Length; i++)
         {
-            string lowerName = current.name.ToLowerInvariant();
-            if (lowerName.Contains("door") || lowerName.Contains("entry"))
+            Transform child = childTransforms[i];
+            if (child == null || !IsEntryName(child.name)) continue;
+            float candidateY = transform.InverseTransformPoint(child.position).y;
+            if (!hasEntry || Mathf.Abs(candidateY) < Mathf.Abs(entryY))
             {
-                furthestDoorNode = current;
+                entryY = candidateY;
+                hasEntry = true;
+            }
+        }
+
+        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+        bool foundWall = false;
+        float bestScore = float.MaxValue;
+        float bestY = 0f;
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (!IsGeometryRenderer(renderer) ||
+                !IsAboveGroundWallRenderer(renderer) ||
+                !TryGetRendererLocalBounds(renderer, out Bounds rendererBounds))
+            {
+                continue;
             }
 
-            if (current == transform)
+            float candidateY = rendererBounds.min.y;
+            float verticalSpan = Mathf.Max(MinFootprint, rendererBounds.size.y);
+            float referenceDistance = hasEntry
+                ? Mathf.Abs(candidateY - entryY)
+                : Mathf.Abs(candidateY);
+            // Preferisce una base vicina all'ingresso/root e una geometria
+            // sufficientemente verticale rispetto a semplici pavimenti.
+            float horizontalMin = Mathf.Max(
+                MinFootprint,
+                Mathf.Min(rendererBounds.size.x, rendererBounds.size.z));
+            float verticalPenalty = verticalSpan < horizontalMin * 0.25f ? 1f : 0f;
+            float score = referenceDistance + verticalPenalty * verticalSpan;
+            if (score < bestScore)
             {
-                break;
+                bestScore = score;
+                bestY = candidateY;
+                foundWall = true;
             }
+        }
 
+        if (foundWall)
+        {
+            groundY = bestY;
+            return true;
+        }
+
+        if (hasEntry)
+        {
+            groundY = entryY;
+            return true;
+        }
+
+        groundY = 0f;
+        return false;
+    }
+
+    private static bool IsEntryName(string objectName)
+    {
+        string value = (objectName ?? string.Empty).ToLowerInvariant();
+        return value.Contains("door") ||
+               value.Contains("entry") ||
+               value.Contains("entrance") ||
+               value.Contains("doorway") ||
+               value.Contains("portal") ||
+               value.Contains("gate") ||
+               value.Contains("porta") ||
+               value.Contains("ingresso");
+    }
+
+    private static bool IsAboveGroundWallRenderer(Renderer renderer)
+    {
+        string descriptor = GetRendererDescriptor(renderer);
+        if (ContainsAny(
+            descriptor,
+            "basement", "foundation", "underground", "cellar",
+            "seminterr", "interrato", "interrati", "piano-1", "floor-1"))
+        {
+            return false;
+        }
+
+        return ContainsAny(
+            descriptor,
+            "wall", "walls", "facade", "façade", "exterior", "shell",
+            "structure", "building", "body", "house", "parete", "muro");
+    }
+
+    private static string GetRendererDescriptor(Renderer renderer)
+    {
+        string descriptor = renderer != null ? renderer.name : string.Empty;
+        if (renderer == null) return descriptor.ToLowerInvariant();
+
+        Transform current = renderer.transform.parent;
+        while (current != null)
+        {
+            descriptor += " " + current.name;
             current = current.parent;
         }
+        Material[] materials = renderer.sharedMaterials;
+        for (int i = 0; i < materials.Length; i++)
+        {
+            if (materials[i] != null) descriptor += " " + materials[i].name;
+        }
+        return descriptor.ToLowerInvariant();
+    }
 
-        return furthestDoorNode;
+    private static bool ContainsAny(string value, params string[] tokens)
+    {
+        for (int i = 0; i < tokens.Length; i++)
+        {
+            if (value.Contains(tokens[i])) return true;
+        }
+        return false;
+    }
+
+    private bool TryGetRendererLocalBounds(Renderer renderer, out Bounds localBounds)
+    {
+        if (renderer == null)
+        {
+            localBounds = default;
+            return false;
+        }
+
+        Bounds rendererBounds = renderer.localBounds;
+        Matrix4x4 rendererToRoot =
+            transform.worldToLocalMatrix * renderer.localToWorldMatrix;
+        Vector3 min = Vector3.zero;
+        Vector3 max = Vector3.zero;
+        for (int corner = 0; corner < 8; corner++)
+        {
+            Vector3 point = rendererToRoot.MultiplyPoint3x4(new Vector3(
+                (corner & 1) == 0 ? rendererBounds.min.x : rendererBounds.max.x,
+                (corner & 2) == 0 ? rendererBounds.min.y : rendererBounds.max.y,
+                (corner & 4) == 0 ? rendererBounds.min.z : rendererBounds.max.z));
+            if (corner == 0)
+            {
+                min = point;
+                max = point;
+            }
+            else
+            {
+                min = Vector3.Min(min, point);
+                max = Vector3.Max(max, point);
+            }
+        }
+        localBounds = new Bounds((min + max) * 0.5f, max - min);
+        return true;
     }
 
     public bool TryCalculateLocalRendererBounds(out Bounds localBounds)
@@ -437,15 +589,16 @@ public class CityBuilderPrefab : MonoBehaviour
 
     public bool ApplyAutoGroundPivotInEditor()
     {
-        // Usare bounds in spazio LOCALE per evitare che OnValidate eseguito su un'istanza
-        // posizionata in scena (Y != 0) scriva coordinate world in pivotOffset, causando
-        // il posizionamento sottoterra durante lo spawn.
         if (!TryCalculateLocalRendererBounds(out Bounds localBounds))
         {
             return false;
         }
 
-        Vector3 bottomCenterLocal = new Vector3(localBounds.center.x, localBounds.min.y, localBounds.center.z);
+        float groundY = TryCalculateWallBaseInEditor(out float detectedGround)
+            ? detectedGround
+            : localBounds.min.y;
+        Vector3 bottomCenterLocal = new Vector3(
+            localBounds.center.x, groundY, localBounds.center.z);
         if ((pivotOffset - bottomCenterLocal).sqrMagnitude <= 0.0001f)
         {
             return false;

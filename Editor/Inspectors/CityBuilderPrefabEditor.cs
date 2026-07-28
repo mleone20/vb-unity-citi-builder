@@ -25,8 +25,10 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
         SerializedProperty footprintSize = serializedObject.FindProperty("footprintSize");
         SerializedProperty autoCompute = serializedObject.FindProperty("autoComputeFromRenderers");
         SerializedProperty pivotOffset = serializedObject.FindProperty("pivotOffset");
+        SerializedProperty groundLevelAnchor = serializedObject.FindProperty("groundLevelAnchor");
         SerializedProperty frontageOffset = serializedObject.FindProperty("frontageOffset");
         SerializedProperty frontageDirection = serializedObject.FindProperty("frontageDirection");
+        SerializedProperty frontageAnchor = serializedObject.FindProperty("frontageAnchor");
         SerializedProperty frontageDisplayHeight = serializedObject.FindProperty("frontageDisplayHeight");
         SerializedProperty aiDescription = serializedObject.FindProperty("aiDescription");
         SerializedProperty aiSuggestedZoneDisplayNames = serializedObject.FindProperty("aiSuggestedZoneDisplayNames");
@@ -38,11 +40,21 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
 
         EditorGUILayout.PropertyField(autoCompute);
         EditorGUILayout.PropertyField(pivotOffset);
+        EditorGUILayout.PropertyField(
+            groundLevelAnchor,
+            new GUIContent(
+                "Ground Level Anchor",
+                "Opzionale. Identifica il piano terra quando il prefab contiene piani interrati."));
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Affaccio (Frontage)", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(frontageOffset, new GUIContent("Frontage Offset", "Posizione del piano di affaccio in spazio locale. Indica la direzione frontale verso la strada."));
         EditorGUILayout.PropertyField(frontageDirection, new GUIContent("Frontage Direction", "Normale locale del piano di affaccio. Permette di ruotare l'affaccio."));
+        EditorGUILayout.PropertyField(
+            frontageAnchor,
+            new GUIContent(
+                "Frontage Anchor",
+                "Opzionale. Indica l'ingresso principale; Forward deve puntare verso la strada."));
         EditorGUILayout.PropertyField(frontageDisplayHeight, new GUIContent("Altezza Gizmo", "Altezza visiva del piano arancio (solo estetica)."));
 
         EditorGUILayout.Space();
@@ -138,11 +150,14 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
             EditorGUILayout.HelpBox("Footprint non valido.", MessageType.Error);
         }
 
-        float groundDelta = Mathf.Abs(comp.pivotOffset.y - bounds.min.y);
+        float expectedGround = comp.TryCalculateWallBaseInEditor(out float wallBase)
+            ? wallBase
+            : bounds.min.y;
+        float groundDelta = Mathf.Abs(comp.pivotOffset.y - expectedGround);
         if (groundDelta > 0.05f)
         {
             EditorGUILayout.HelpBox(
-                "Il pivot configurato non coincide con la base dei Renderer (scarto " +
+                "Il pivot configurato non coincide con la base delle pareti/piano terra (scarto " +
                 groundDelta.ToString("F2") + " m).",
                 MessageType.Warning);
         }

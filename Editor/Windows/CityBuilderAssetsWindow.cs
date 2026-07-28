@@ -309,9 +309,12 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
             entry.warnings.Add("Renderer mancanti");
             return;
         }
-        if (Mathf.Abs(entry.metadata.pivotOffset.y - bounds.min.y) > 0.05f)
+        float expectedGround = entry.metadata.TryCalculateWallBaseInEditor(out float wallBase)
+            ? wallBase
+            : bounds.min.y;
+        if (Mathf.Abs(entry.metadata.pivotOffset.y - expectedGround) > 0.05f)
         {
-            entry.warnings.Add("pivot non a terra");
+            entry.warnings.Add("pivot non alla base pareti");
         }
 
         Vector3 direction = entry.metadata.GetFrontageDirectionLocal();
