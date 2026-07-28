@@ -24,6 +24,12 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
         Footprint
     }
 
+    private enum ViewMode
+    {
+        List,
+        Grid
+    }
+
     private sealed class AssetEntry
     {
         public GameObject prefab;
@@ -40,10 +46,14 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
 
     private readonly List<AssetEntry> entries = new List<AssetEntry>();
     private readonly List<AssetEntry> visibleEntries = new List<AssetEntry>();
+    private readonly List<string> tagFilterOptions = new List<string>();
     private Vector2 scrollPosition;
     private string searchText = string.Empty;
     private StatusFilter statusFilter;
     private SortMode sortMode;
+    private ViewMode viewMode;
+    private int selectedTagFilter;
+    private string selectedTag = string.Empty;
     private bool needsRefresh;
 
     [MenuItem("Window/City Builder/City Builder Assets")]
@@ -94,9 +104,16 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
         }
 
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-        for (int i = 0; i < visibleEntries.Count; i++)
+        if (viewMode == ViewMode.Grid)
         {
-            DrawAssetRow(visibleEntries[i]);
+            DrawAssetGrid();
+        }
+        else
+        {
+            for (int i = 0; i < visibleEntries.Count; i++)
+            {
+                DrawAssetRow(visibleEntries[i]);
+            }
         }
         EditorGUILayout.EndScrollView();
     }
@@ -129,6 +146,26 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
         {
             sortMode = newSort;
             RebuildVisibleEntries();
+        }
+
+        int newTagFilter = EditorGUILayout.Popup(
+            selectedTagFilter,
+            tagFilterOptions.ToArray(),
+            EditorStyles.toolbarPopup,
+            GUILayout.Width(130f));
+        if (newTagFilter != selectedTagFilter &&
+            newTagFilter >= 0 && newTagFilter < tagFilterOptions.Count)
+        {
+            selectedTagFilter = newTagFilter;
+            selectedTag = tagFilterOptions[selectedTagFilter];
+            RebuildVisibleEntries();
+        }
+
+        ViewMode newViewMode = (ViewMode)EditorGUILayout.EnumPopup(
+            viewMode, EditorStyles.toolbarPopup, GUILayout.Width(70f));
+        if (newViewMode != viewMode)
+        {
+            viewMode = newViewMode;
         }
 
         if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(64f)))
@@ -229,6 +266,84 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
         EditorGUILayout.EndHorizontal();
     }
 
+    private void DrawAssetGrid()
+    {
+        const float cardWidth = 220f;
+        float availableWidth = Mathf.Max(cardWidth, position.width - 28f);
+        int columns = Mathf.Max(1, Mathf.FloorToInt(availableWidth / cardWidth));
+
+        for (int start = 0; start < visibleEntries.Count; start += columns)
+        {
+            EditorGUILayout.BeginHorizontal();
+            for (int column = 0; column < columns; column++)
+            {
+                int index = start + column;
+                if (index < visibleEntries.Count)
+                {
+                    DrawAssetCard(visibleEntries[index], cardWidth - 8f);
+                }
+                else
+                {
+                    GUILayout.Space(cardWidth - 8f);
+                }
+            }
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+        }
+    }
+
+    private static void DrawAssetCard(AssetEntry entry, float cardWidth)
+    {
+        EditorGUILayout.BeginVertical(EditorStyles.helpBox, GUILayout.Width(cardWidth));
+
+        Texture preview = AssetPreview.GetAssetPreview(entry.prefab);
+        if (preview == null) preview = AssetPreview.GetMiniThumbnail(entry.prefab);
+        Rect previewRect = GUILayoutUtility.GetRect(
+            cardWidth - 12f, 128f, GUILayout.ExpandWidth(true));
+        if (preview != null)
+        {
+            GUI.DrawTexture(previewRect, preview, ScaleMode.ScaleToFit);
+        }
+
+        EditorGUILayout.LabelField(entry.prefab.name, EditorStyles.boldLabel);
+        EditorGUILayout.LabelField(
+            entry.footprint.x.ToString("F1") + " × " +
+            entry.footprint.y.ToString("F1") + " m",
+            EditorStyles.miniLabel);
+
+        string tags = entry.zoneTags.Count > 0
+            ? string.Join(", ", entry.zoneTags)
+            : "Nessun tag";
+        EditorGUILayout.LabelField(
+            new GUIContent("Tags: " + tags, tags),
+            EditorStyles.miniLabel,
+            GUILayout.Height(18f));
+
+        Color previous = GUI.contentColor;
+        GUI.contentColor = entry.warnings.Count > 0
+            ? new Color(1f, 0.65f, 0.2f)
+            : new Color(0.45f, 0.85f, 0.5f);
+        EditorGUILayout.LabelField(
+            entry.warnings.Count > 0
+                ? "⚠ " + entry.warnings.Count + " avvisi"
+                : "✓ Valido",
+            EditorStyles.miniLabel);
+        GUI.contentColor = previous;
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("Seleziona"))
+        {
+            Selection.activeObject = entry.prefab;
+            EditorGUIUtility.PingObject(entry.prefab);
+        }
+        if (GUILayout.Button("Apri"))
+        {
+            AssetDatabase.OpenAsset(entry.prefab);
+        }
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.EndVertical();
+    }
+
     private void RefreshDatabase()
     {
         needsRefresh = false;
@@ -282,7 +397,35 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
         }
 
         RebuildVisibleEntries();
+        RebuildTagFilterOptions();
         Repaint();
+    }
+
+    private void RebuildTagFilterOptions()
+    {
+        string previousSelection = selectedTag;
+        var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < entries.Count; i++)
+        {
+            for (int t = 0; t < entries[i].zoneTags.Count; t++)
+            {
+                tags.Add(entries[i].zoneTags[t]);
+            }
+        }
+
+        var sortedTags = new List<string>(tags);
+        sortedTags.Sort(StringComparer.OrdinalIgnoreCase);
+        tagFilterOptions.Clear();
+        tagFilterOptions.Add("Tutti i tag");
+        tagFilterOptions.Add("Senza tag");
+        tagFilterOptions.AddRange(sortedTags);
+
+        selectedTagFilter = tagFilterOptions.FindIndex(
+            option => string.Equals(
+                option, previousSelection, StringComparison.OrdinalIgnoreCase));
+        if (selectedTagFilter < 0) selectedTagFilter = 0;
+        selectedTag = tagFilterOptions[selectedTagFilter];
+        RebuildVisibleEntries();
     }
 
     private void RebuildVisibleEntries()
@@ -295,10 +438,24 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
             if (query.Length > 0 && !entry.searchableText.Contains(query)) continue;
             if (statusFilter == StatusFilter.Valid && entry.warnings.Count > 0) continue;
             if (statusFilter == StatusFilter.Warnings && entry.warnings.Count == 0) continue;
+            if (selectedTagFilter == 1 && entry.zoneTags.Count > 0) continue;
+            if (selectedTagFilter >= 2 && !ContainsTag(entry.zoneTags, selectedTag)) continue;
             visibleEntries.Add(entry);
         }
 
         visibleEntries.Sort(CompareEntries);
+    }
+
+    private static bool ContainsTag(List<string> tags, string expected)
+    {
+        for (int i = 0; i < tags.Count; i++)
+        {
+            if (string.Equals(tags[i], expected, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private int CompareEntries(AssetEntry left, AssetEntry right)
