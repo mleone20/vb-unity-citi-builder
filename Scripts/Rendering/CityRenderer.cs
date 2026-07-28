@@ -594,17 +594,23 @@ public static class CityRenderer
             float lotWidth = Vector3.Distance(frontL, frontR);
             float lotDepth = Vector3.Distance(frontL, backL);
 
-            // Margine interno per non coprire l'intero lotto
-            float mW = Mathf.Min(0.6f, lotWidth * 0.08f);
-            float mD = Mathf.Min(0.6f, lotDepth * 0.08f);
-            float buildingW = Mathf.Max(1f, lotWidth - mW * 2f);
-            float buildingD = Mathf.Max(1f, lotDepth - mD * 2f);
-
             // Direzione forward = dall'asse frontale verso il retro
             Vector3 lotForward = ((backL + backR) * 0.5f - (frontL + frontR) * 0.5f).normalized;
             if (lotForward.sqrMagnitude < 0.001f) lotForward = Vector3.forward;
 
             Quaternion rotation = Quaternion.LookRotation(lotForward, Vector3.up);
+            float buildingW = lotWidth;
+            float buildingD = lotDepth;
+            if (TryGetLotPrefabMetadata(block.zoning, lot, out CityBuilderPrefab metadata))
+            {
+                Vector2 footprint = metadata.GetLayoutFootprintSize();
+                buildingW = footprint.x;
+                buildingD = footprint.y;
+                if (lot.hasAssignedSpawnRotation)
+                {
+                    rotation = lot.assignedSpawnRotation;
+                }
+            }
             Vector3 buildingCenter3D = lot.buildingCenter + Vector3.up * (height * 0.5f);
 
             Matrix4x4 oldMatrix = Gizmos.matrix;
@@ -616,6 +622,41 @@ public static class CityRenderer
 
             Gizmos.matrix = oldMatrix;
         }
+    }
+
+    private static bool TryGetLotPrefabMetadata(
+        ZoneType zone,
+        CityLot lot,
+        out CityBuilderPrefab metadata)
+    {
+        metadata = null;
+        if (zone == null || lot == null || lot.assignedPrefabIndex < 0)
+        {
+            return false;
+        }
+
+        List<ZonePrefabSpawnEntry> entries = zone.GetValidPrefabEntries();
+        int metadataIndex = 0;
+        for (int i = 0; i < entries.Count; i++)
+        {
+            GameObject prefab = entries[i] != null ? entries[i].prefab : null;
+            CityBuilderPrefab candidate = prefab != null
+                ? prefab.GetComponent<CityBuilderPrefab>()
+                : null;
+            if (candidate == null)
+            {
+                continue;
+            }
+
+            if (metadataIndex == lot.assignedPrefabIndex)
+            {
+                metadata = candidate;
+                return true;
+            }
+            metadataIndex++;
+        }
+
+        return false;
     }
 
 #if UNITY_EDITOR

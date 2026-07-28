@@ -52,6 +52,24 @@ public class CityBuilderPrefab : MonoBehaviour
         return new Vector2(Mathf.Max(MinFootprint, footprintSize.x), Mathf.Max(MinFootprint, footprintSize.y));
     }
 
+    /// <summary>
+    /// Ingombro usato dal layout. Non può essere più piccolo dei Renderer reali:
+    /// un footprint manuale maggiore resta valido come spazio di rispetto.
+    /// </summary>
+    public Vector2 GetLayoutFootprintSize()
+    {
+        Vector2 configured = GetFootprintSize();
+        Vector2 rendered = CalculateRendererFootprint();
+        if (rendered.x <= 0f || rendered.y <= 0f)
+        {
+            return configured;
+        }
+
+        return new Vector2(
+            Mathf.Max(configured.x, rendered.x),
+            Mathf.Max(configured.y, rendered.y));
+    }
+
     public Vector3 GetFrontageDirectionLocal()
     {
         Vector3 direction = new Vector3(frontageDirection.x, 0f, frontageDirection.z);
@@ -70,7 +88,7 @@ public class CityBuilderPrefab : MonoBehaviour
 
     public Vector2 GetAlignedFootprintSize()
     {
-        Vector2 size = GetFootprintSize();
+        Vector2 size = GetLayoutFootprintSize();
         Vector3 front = GetFrontageDirectionLocal();
         Vector3 inward = -front;
         Vector3 tangent = new Vector3(-front.z, 0f, front.x).normalized;
@@ -411,7 +429,7 @@ public class CityBuilderPrefab : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
-        Vector2 size = GetFootprintSize();
+        Vector2 size = GetLayoutFootprintSize();
         Vector3 pivotWorld = pivotOffset;
 
         Matrix4x4 previousMatrix = Gizmos.matrix;
@@ -468,16 +486,53 @@ public class CityBuilderPrefab : MonoBehaviour
             return Vector2.zero;
         }
 
-        Bounds combined = renderers[0].bounds;
-        for (int i = 1; i < renderers.Length; i++)
+        bool initialized = false;
+        Vector3 min = Vector3.zero;
+        Vector3 max = Vector3.zero;
+        Matrix4x4 worldToRoot = transform.worldToLocalMatrix;
+        for (int i = 0; i < renderers.Length; i++)
         {
-            if (renderers[i] != null)
+            Renderer renderer = renderers[i];
+            if (renderer == null)
             {
-                combined.Encapsulate(renderers[i].bounds);
+                continue;
+            }
+
+            Bounds rendererBounds = renderer.localBounds;
+            Matrix4x4 rendererToRoot = worldToRoot * renderer.localToWorldMatrix;
+            Vector3 boundsMin = rendererBounds.min;
+            Vector3 boundsMax = rendererBounds.max;
+            for (int corner = 0; corner < 8; corner++)
+            {
+                Vector3 localCorner = new Vector3(
+                    (corner & 1) == 0 ? boundsMin.x : boundsMax.x,
+                    (corner & 2) == 0 ? boundsMin.y : boundsMax.y,
+                    (corner & 4) == 0 ? boundsMin.z : boundsMax.z);
+                Vector3 rootPoint = rendererToRoot.MultiplyPoint3x4(localCorner);
+                if (!initialized)
+                {
+                    min = rootPoint;
+                    max = rootPoint;
+                    initialized = true;
+                }
+                else
+                {
+                    min = Vector3.Min(min, rootPoint);
+                    max = Vector3.Max(max, rootPoint);
+                }
             }
         }
 
-        return new Vector2(Mathf.Max(0.1f, combined.size.x), Mathf.Max(0.1f, combined.size.z));
+        if (!initialized)
+        {
+            return Vector2.zero;
+        }
+
+        Vector3 localSize = max - min;
+        Vector3 worldScale = transform.lossyScale;
+        return new Vector2(
+            Mathf.Max(MinFootprint, localSize.x * Mathf.Abs(worldScale.x)),
+            Mathf.Max(MinFootprint, localSize.z * Mathf.Abs(worldScale.z)));
     }
 }
 
