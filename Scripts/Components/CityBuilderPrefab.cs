@@ -151,6 +151,137 @@ public class CityBuilderPrefab : MonoBehaviour
         EditorUtility.SetDirty(this);
     }
 
+    public bool SelectNextFrontageInEditor()
+    {
+        if (!TryCalculateLocalRendererBounds(out Bounds bounds))
+        {
+            return false;
+        }
+
+        float groundY = TryCalculateWallBaseInEditor(out float detectedGround)
+            ? detectedGround
+            : bounds.min.y;
+        List<FrontageCandidate> candidates = BuildFrontageCandidates(bounds, groundY);
+        if (candidates.Count == 0)
+        {
+            return false;
+        }
+
+        int currentIndex = 0;
+        float bestMatch = float.MaxValue;
+        Vector3 currentDirection = GetFrontageDirectionLocal();
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            float positionDistance =
+                (candidates[i].offset - frontageOffset).sqrMagnitude;
+            float directionDistance =
+                1f - Mathf.Clamp01(Vector3.Dot(
+                    candidates[i].direction, currentDirection));
+            float match = positionDistance + directionDistance;
+            if (match < bestMatch)
+            {
+                bestMatch = match;
+                currentIndex = i;
+            }
+        }
+
+        FrontageCandidate next = candidates[(currentIndex + 1) % candidates.Count];
+        frontageOffset = next.offset;
+        frontageDirection = next.direction;
+        frontageOffsetInitialized = true;
+        frontageDirectionInitialized = true;
+        EditorUtility.SetDirty(this);
+        return true;
+    }
+
+    private struct FrontageCandidate
+    {
+        public Vector3 offset;
+        public Vector3 direction;
+    }
+
+    private List<FrontageCandidate> BuildFrontageCandidates(
+        Bounds bounds,
+        float groundY)
+    {
+        var candidates = new List<FrontageCandidate>();
+
+        if (frontageAnchor != null && frontageAnchor != transform &&
+            frontageAnchor.IsChildOf(transform))
+        {
+            Vector3 position = transform.InverseTransformPoint(frontageAnchor.position);
+            Vector3 direction = transform.InverseTransformDirection(frontageAnchor.forward);
+            direction.y = 0f;
+            direction = direction.sqrMagnitude > 0.0001f
+                ? SnapToCardinalFacade(direction)
+                : GetNearestFacadeDirection(position, bounds);
+            AddFrontageCandidate(
+                candidates,
+                ProjectToFacade(position, direction, bounds, groundY),
+                direction);
+        }
+
+        Transform[] childTransforms = GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < childTransforms.Length; i++)
+        {
+            Transform candidate = childTransforms[i];
+            if (candidate == null || candidate == transform ||
+                !IsEntryName(candidate.name))
+            {
+                continue;
+            }
+
+            Vector3 position = transform.InverseTransformPoint(candidate.position);
+            Vector3 direction = GetNearestFacadeDirection(position, bounds);
+            AddFrontageCandidate(
+                candidates,
+                ProjectToFacade(position, direction, bounds, groundY),
+                direction);
+        }
+
+        // Le quattro facciate restano sempre disponibili, anche per prefab
+        // privi di oggetti Door/Entry o con nomenclatura non standard.
+        AddFrontageCandidate(
+            candidates,
+            new Vector3(bounds.center.x, groundY, bounds.min.z),
+            Vector3.back);
+        AddFrontageCandidate(
+            candidates,
+            new Vector3(bounds.max.x, groundY, bounds.center.z),
+            Vector3.right);
+        AddFrontageCandidate(
+            candidates,
+            new Vector3(bounds.center.x, groundY, bounds.max.z),
+            Vector3.forward);
+        AddFrontageCandidate(
+            candidates,
+            new Vector3(bounds.min.x, groundY, bounds.center.z),
+            Vector3.left);
+
+        return candidates;
+    }
+
+    private static void AddFrontageCandidate(
+        List<FrontageCandidate> candidates,
+        Vector3 offset,
+        Vector3 direction)
+    {
+        direction = SnapToCardinalFacade(direction);
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            if ((candidates[i].offset - offset).sqrMagnitude < 0.01f &&
+                Vector3.Dot(candidates[i].direction, direction) > 0.999f)
+            {
+                return;
+            }
+        }
+        candidates.Add(new FrontageCandidate
+        {
+            offset = offset,
+            direction = direction
+        });
+    }
+
     public bool RefreshGeometryMetadataInEditor(bool applyAutomaticValues)
     {
         Vector2 rendererFootprint = CalculateRendererFootprint();

@@ -67,6 +67,7 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
         EditorGUILayout.Space();
         DrawValidationSummary();
 
+        EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("Reset Frontage", GUILayout.Height(24)))
         {
             foreach (UnityEngine.Object selected in targets)
@@ -78,6 +79,17 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
                 EditorUtility.SetDirty(comp);
             }
         }
+        if (GUILayout.Button("Prossimo Frontage", GUILayout.Height(24)))
+        {
+            foreach (UnityEngine.Object selected in targets)
+            {
+                CityBuilderPrefab comp = selected as CityBuilderPrefab;
+                if (comp == null) continue;
+                Undo.RecordObject(comp, "Prossimo Frontage");
+                comp.SelectNextFrontageInEditor();
+            }
+        }
+        EditorGUILayout.EndHorizontal();
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Utilità Geometria", EditorStyles.boldLabel);
