@@ -31,6 +31,7 @@ public class AmericanRoadNetworkPlugin : IRoadNetworkGenerationPlugin
             return report;
         }
 
+        CityGenerationProgress.Report(0.08f, "Creazione del centro città...");
         GenerateRoadNetworkGrid(context.manager, config, ref report);
 
         EditorUtility.SetDirty(cityData);
@@ -78,7 +79,9 @@ public class AmericanRoadNetworkPlugin : IRoadNetworkGenerationPlugin
             return;
         }
 
+        CityGenerationProgress.Report(0.15f, "Generazione delle autostrade...");
         GenerateHighways(manager, config, centerNode, p0, capRadius, merge, ref report);
+        CityGenerationProgress.Report(0.4f, "Generazione della griglia principale...");
         GenerateMajorGrid(manager, config, p0, capRadius, merge, ref report);
 
         float localCap = Mathf.Min(capRadius, config.localStreetMaxRadius);
@@ -88,8 +91,10 @@ public class AmericanRoadNetworkPlugin : IRoadNetworkGenerationPlugin
 
         if (localEnabled)
         {
+            CityGenerationProgress.Report(0.68f, "Generazione delle strade locali...");
             GenerateLocalStreets(manager, config, p0, localCap, merge, ref report);
         }
+        CityGenerationProgress.Report(0.95f, "Finalizzazione della rete stradale...");
     }
 
     private static void GenerateHighways(CityManager manager, AmericanCityConfig config, CityNode centerNode, Vector3 p0, float capRadius, float merge, ref CityGenerationReport report)

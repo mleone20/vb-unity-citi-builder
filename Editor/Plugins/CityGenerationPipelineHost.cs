@@ -13,6 +13,14 @@ public static class CityGenerationPipelineHost
 {
     public static CityGenerationReport GenerateRoadNetwork(CityManager manager, CityConfig config)
     {
+        return CityGenerationProgress.Run(
+            "Generazione rete stradale",
+            "Preparazione della rete...",
+            () => GenerateRoadNetworkCore(manager, config));
+    }
+
+    private static CityGenerationReport GenerateRoadNetworkCore(CityManager manager, CityConfig config)
+    {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
         IRoadNetworkGenerationPlugin roadPlugin = CityPluginRegistry.Create<IRoadNetworkGenerationPlugin>(CityPluginCategory.RoadNetwork, settings.GetActivePluginId(CityPluginCategory.RoadNetwork));
@@ -32,6 +40,14 @@ public static class CityGenerationPipelineHost
 
     public static CityGenerationReport PlanarizeRoads(CityManager manager, CityConfig config)
     {
+        return CityGenerationProgress.Run(
+            "Planarizzazione rete stradale",
+            "Analisi delle intersezioni...",
+            () => PlanarizeRoadsCore(manager, config));
+    }
+
+    private static CityGenerationReport PlanarizeRoadsCore(CityManager manager, CityConfig config)
+    {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
 
@@ -45,6 +61,14 @@ public static class CityGenerationPipelineHost
     }
 
     public static List<List<Vector3>> DetectBlocks(CityManager manager, CityConfig config)
+    {
+        return CityGenerationProgress.Run(
+            "Rilevamento blocchi",
+            "Ricerca dei perimetri chiusi...",
+            () => DetectBlocksCore(manager, config));
+    }
+
+    private static List<List<Vector3>> DetectBlocksCore(CityManager manager, CityConfig config)
     {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
@@ -60,6 +84,14 @@ public static class CityGenerationPipelineHost
 
     public static CityGenerationReport AssignZoning(CityManager manager, CityConfig config)
     {
+        return CityGenerationProgress.Run(
+            "Assegnazione zoning",
+            "Classificazione dei blocchi...",
+            () => AssignZoningCore(manager, config));
+    }
+
+    private static CityGenerationReport AssignZoningCore(CityManager manager, CityConfig config)
+    {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
 
@@ -73,6 +105,14 @@ public static class CityGenerationPipelineHost
     }
 
     public static int GenerateLots(CityManager manager, CityConfig config)
+    {
+        return CityGenerationProgress.Run(
+            "Generazione lotti",
+            "Preparazione dei blocchi...",
+            () => GenerateLotsCore(manager, config));
+    }
+
+    private static int GenerateLotsCore(CityManager manager, CityConfig config)
     {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
@@ -95,6 +135,9 @@ public static class CityGenerationPipelineHost
         int lotCount = 0;
         for (int i = 0; i < context.cityData.blocks.Count; i++)
         {
+            CityGenerationProgress.Report(
+                context.cityData.blocks.Count > 0 ? (float)i / context.cityData.blocks.Count : 1f,
+                "Generazione lotti: blocco " + (i + 1) + " di " + context.cityData.blocks.Count);
             CityBlock block = context.cityData.blocks[i];
             if (block == null)
             {
@@ -118,6 +161,14 @@ public static class CityGenerationPipelineHost
     }
 
     public static CityGenerationReport GenerateAll(CityManager manager, CityConfig processConfig)
+    {
+        return CityGenerationProgress.Run(
+            "Generazione completa della città",
+            "Preparazione della pipeline...",
+            () => GenerateAllCore(manager, processConfig));
+    }
+
+    private static CityGenerationReport GenerateAllCore(CityManager manager, CityConfig processConfig)
     {
         CityGenerationContext context = BuildContext(manager, processConfig);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
@@ -229,6 +280,9 @@ public static class CityGenerationPipelineHost
         for (int i = 0; i < ordered.Count; i++)
         {
             ICityPipelineStep step = ordered[i];
+            CityGenerationProgress.Report(
+                ordered.Count > 0 ? (float)i / ordered.Count : 1f,
+                "Step " + (i + 1) + " di " + ordered.Count + ": " + step.DisplayName);
             if (!step.CanExecute(context))
             {
                 total.warnings.Add("Step saltato: " + step.DisplayName + ".");

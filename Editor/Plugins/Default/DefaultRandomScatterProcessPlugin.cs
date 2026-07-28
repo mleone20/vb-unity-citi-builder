@@ -90,6 +90,12 @@ public class DefaultRandomScatterProcessPlugin : ICityProcessPlugin, ICityProces
 
         for (int i = 0; i < cfg.nodeCount; i++)
         {
+            if ((i & 31) == 0)
+            {
+                CityGenerationProgress.Report(
+                    Mathf.Lerp(0.03f, 0.25f, cfg.nodeCount > 0 ? (float)i / cfg.nodeCount : 1f),
+                    "Creazione nodi: " + (i + 1) + " di " + cfg.nodeCount);
+            }
             Vector2 p = UnityEngine.Random.insideUnitCircle;
             // Usa RNG deterministico locale invece dello stato globale di UnityEngine.Random.
             float angle = (float)(rng.NextDouble() * Math.PI * 2.0);
@@ -107,6 +113,12 @@ public class DefaultRandomScatterProcessPlugin : ICityProcessPlugin, ICityProces
 
         for (int i = 0; i < nodeIds.Count; i++)
         {
+            if ((i & 15) == 0)
+            {
+                CityGenerationProgress.Report(
+                    Mathf.Lerp(0.25f, 0.55f, nodeIds.Count > 0 ? (float)i / nodeIds.Count : 1f),
+                    "Collegamento rete: nodo " + (i + 1) + " di " + nodeIds.Count);
+            }
             CityNode from = cityData.GetNode(nodeIds[i]);
             if (from == null) continue;
 
@@ -133,6 +145,12 @@ public class DefaultRandomScatterProcessPlugin : ICityProcessPlugin, ICityProces
         ZoneType[] zones = cfg.zoneTypes != null ? cfg.zoneTypes : Array.Empty<ZoneType>();
         for (int b = 0; b < cfg.blockCount; b++)
         {
+            if ((b & 15) == 0)
+            {
+                CityGenerationProgress.Report(
+                    Mathf.Lerp(0.55f, 0.72f, cfg.blockCount > 0 ? (float)b / cfg.blockCount : 1f),
+                    "Creazione blocchi: " + (b + 1) + " di " + cfg.blockCount);
+            }
             float a = (float)(rng.NextDouble() * Math.PI * 2.0);
             float d = Mathf.Sqrt((float)rng.NextDouble()) * cfg.radius;
             Vector3 c = cfg.centerWorldPosition + new Vector3(Mathf.Cos(a) * d, 0f, Mathf.Sin(a) * d);
@@ -172,6 +190,9 @@ public class DefaultRandomScatterProcessPlugin : ICityProcessPlugin, ICityProces
             int lotsGenerated = 0;
             for (int i = 0; i < cityData.blocks.Count; i++)
             {
+                CityGenerationProgress.Report(
+                    Mathf.Lerp(0.72f, 0.98f, cityData.blocks.Count > 0 ? (float)i / cityData.blocks.Count : 1f),
+                    "Generazione lotti: blocco " + (i + 1) + " di " + cityData.blocks.Count);
                 CityBlock block = cityData.blocks[i];
                 if (block == null) continue;
 

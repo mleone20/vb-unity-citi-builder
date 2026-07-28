@@ -713,7 +713,10 @@ public class CityBuilderWindow : EditorWindow
         {
         if (DrawActionButton("Genera Mesh Strade", new Color(0.25f, 0.60f, 0.45f)))
         {
-            RoadMeshBuildResult result = CityRoadMeshGenerationHost.Build(cityManager);
+            RoadMeshBuildResult result = CityGenerationProgress.Run(
+                "Generazione mesh stradali",
+                "Costruzione delle superfici stradali e delle intersezioni...",
+                () => CityRoadMeshGenerationHost.Build(cityManager));
             ShowResultDialog("Genera Strade", result.ToMultilineString());
             SceneView.RepaintAll();
         }
@@ -1354,7 +1357,10 @@ public class CityBuilderWindow : EditorWindow
             choice == 0
                 ? CityBuildingSpawner.ExistingBuildingsHandling.ClearExisting
                 : CityBuildingSpawner.ExistingBuildingsHandling.KeepExisting;
-        CityBuildingSpawner.SpawnReport report = CityBuildingSpawner.SpawnBuildings(cityManager, handling);
+        CityBuildingSpawner.SpawnReport report = CityGenerationProgress.Run(
+            "Generazione edifici",
+            "Posizionamento degli edifici sui lotti...",
+            () => CityBuildingSpawner.SpawnBuildings(cityManager, handling));
         SceneView.RepaintAll();
         ShowResultDialog("Spawn Edifici", report.ToMultilineString());
     }

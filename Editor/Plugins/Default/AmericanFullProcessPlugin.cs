@@ -72,11 +72,13 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
 
         context.config = cfg;
 
+        CityGenerationProgress.Report(0.04f, "Generazione della rete stradale...");
         IRoadNetworkGenerationPlugin road = new AmericanRoadNetworkPlugin();
         total.Merge(road.GenerateRoadNetwork(context));
 
         if (settings.runPlanarizationInFullGeneration)
         {
+            CityGenerationProgress.Report(0.28f, "Planarizzazione delle intersezioni...");
             IRoadPlanarizationPlugin planarization = CityPluginRegistry.Create<IRoadPlanarizationPlugin>(CityPluginCategory.RoadPlanarization, settings.GetActivePluginId(CityPluginCategory.RoadPlanarization));
             if (planarization != null)
             {
@@ -84,6 +86,7 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
             }
         }
 
+        CityGenerationProgress.Report(0.43f, "Preparazione del rilevamento blocchi...");
         Undo.RecordObject(cityData, "Generate All: Clear Blocks");
         foreach (CityBlock block in cityData.blocks)
         {
@@ -96,6 +99,7 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
         cityData.lots.Clear();
         EditorUtility.SetDirty(cityData);
 
+        CityGenerationProgress.Report(0.5f, "Rilevamento dei blocchi...");
         IBlockDetectionPlugin blockDetection = CityPluginRegistry.Create<IBlockDetectionPlugin>(CityPluginCategory.BlockDetection, settings.GetActivePluginId(CityPluginCategory.BlockDetection));
         List<List<Vector3>> detected = blockDetection != null ? blockDetection.DetectBlocks(context) : new List<List<Vector3>>();
         for (int i = 0; i < detected.Count; i++)
@@ -104,6 +108,7 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
         }
         total.blocksDetected += detected.Count;
 
+        CityGenerationProgress.Report(0.66f, "Assegnazione dello zoning...");
         IZoningAssignmentPlugin zoning = new AmericanZoningPlugin();
         total.Merge(zoning.AssignZoning(context));
 
@@ -114,6 +119,10 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
             cityData.lots.Clear();
             for (int i = 0; i < cityData.blocks.Count; i++)
             {
+                float blockProgress = cityData.blocks.Count > 0 ? (float)i / cityData.blocks.Count : 1f;
+                CityGenerationProgress.Report(
+                    Mathf.Lerp(0.76f, 0.98f, blockProgress),
+                    "Generazione lotti: blocco " + (i + 1) + " di " + cityData.blocks.Count);
                 CityBlock block = cityData.blocks[i];
                 if (block == null)
                 {
