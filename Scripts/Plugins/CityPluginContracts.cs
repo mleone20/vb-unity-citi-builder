@@ -174,7 +174,9 @@ public struct CityGenerationReport
             }
         }
 
-        return string.Join("\n", lines.ToArray());
+        return lines.Count > 0
+            ? string.Join("\n", lines.ToArray())
+            : "Operazione completata: nessuna modifica generata.";
     }
 }
 

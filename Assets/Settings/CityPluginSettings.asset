@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Plugins.CityPluginSettings
   selections:
   - category: 0
-    pluginId: bsc.process.default-random
+    pluginId: bsc.process.american-full
   - category: 1
     pluginId: bsc.american.road-network
   - category: 2

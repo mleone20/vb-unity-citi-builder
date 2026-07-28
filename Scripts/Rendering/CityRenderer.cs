@@ -25,6 +25,7 @@ public static class CityRenderer
     // ── LOD thresholds ─────────────────────────────────────────────────────
     // Oltre queste distanze dalla camera alcuni elementi vengono nascosti.
     private const float SEG_DETAIL_MAX_DIST  = 400f;   // outline doppio + curve sampling
+    private const float SEG_LABEL_MAX_DIST   = 120f;   // ID e RoadProfile del segmento
     private const float NODE_DRAW_MAX_DIST   = 600f;   // nodi visibili
     private const float NODE_LABEL_MAX_DIST  = 80f;    // label ID visibili
     private const float BLOCK_LABEL_MAX_DIST = 200f;   // label blocco visibili
@@ -87,7 +88,7 @@ public static class CityRenderer
             if (isSelected || midDist < SEG_DETAIL_MAX_DIST)
             {
                 // Modalità dettaglio: sample curva + outline doppio
-                DrawRoadSegmentDetail(cityData, segment, isSelected);
+                DrawRoadSegmentDetail(cityData, segment, isSelected, isSelected || midDist < SEG_LABEL_MAX_DIST);
             }
             else
             {
@@ -117,12 +118,16 @@ public static class CityRenderer
             CityNode nodeB = cityData.GetNode(segment.nodeB_ID);
             if (nodeA == null || nodeB == null) continue;
             bool isSelected = segment.id == selectedSegmentID;
-            DrawRoadSegmentDetail(cityData, segment, isSelected);
+            DrawRoadSegmentDetail(cityData, segment, isSelected, isSelected);
         }
 #endif
     }
 
-    private static void DrawRoadSegmentDetail(CityData cityData, CitySegment segment, bool isSelected)
+    private static void DrawRoadSegmentDetail(
+        CityData cityData,
+        CitySegment segment,
+        bool isSelected,
+        bool showLabel)
     {
         List<Vector3> sampledPoints = CityRoadGeometry.SampleSegment(cityData, segment, CityRoadGeometry.DefaultCurveSamples);
         if (sampledPoints.Count < 2)
@@ -168,6 +173,31 @@ public static class CityRenderer
             Gizmos.color = Color.Lerp(roadColor, Color.black, 0.35f);
             Gizmos.DrawLine(posA, posB);
         }
+
+#if UNITY_EDITOR
+        if (showLabel)
+        {
+            RoadProfile effectiveProfile = segment.roadProfile != null
+                ? segment.roadProfile
+                : cityData.GetDefaultRoadProfile();
+            string profileName = effectiveProfile != null
+                ? effectiveProfile.GetDisplayName()
+                : "Nessun profilo";
+            string defaultSuffix = segment.roadProfile == null && effectiveProfile != null
+                ? " (default)"
+                : string.Empty;
+            Vector3 labelPosition = sampledPoints[sampledPoints.Count / 2];
+            labelPosition += Vector3.up * (HandleUtility.GetHandleSize(labelPosition) * 0.12f);
+
+            Color previousColor = Handles.color;
+            UnityEngine.Rendering.CompareFunction previousZTest = Handles.zTest;
+            Handles.color = isSelected ? Color.yellow : Color.white;
+            Handles.zTest = UnityEngine.Rendering.CompareFunction.Always;
+            Handles.Label(labelPosition, $"ID {segment.id}  |  {profileName}{defaultSuffix}");
+            Handles.color = previousColor;
+            Handles.zTest = previousZTest;
+        }
+#endif
     }
 
     private static void DrawNodes(CityData cityData, int selectedNodeID)

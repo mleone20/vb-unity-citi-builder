@@ -600,7 +600,7 @@ public class CityBuilderWindow : EditorWindow
             string report = cityManager.SimplifyPaths(simplifyMaxDeviationDeg);
             EditorUtility.SetDirty(cityData);
             SceneView.RepaintAll();
-            EditorUtility.DisplayDialog("Semplifica Percorsi", report, "OK");
+            ShowResultDialog("Semplifica Percorsi", report);
         }
         if (DrawActionButton("Ripara Collegamenti"))
         {
@@ -608,7 +608,7 @@ public class CityBuilderWindow : EditorWindow
             string report = cityManager.RepairConnections();
             EditorUtility.SetDirty(cityData);
             SceneView.RepaintAll();
-            EditorUtility.DisplayDialog("Ripara Collegamenti", report, "OK");
+            ShowResultDialog("Ripara Collegamenti", report);
         }
 
         EditorGUILayout.Space(6);
@@ -621,7 +621,7 @@ public class CityBuilderWindow : EditorWindow
             string report = cityManager.WeldCloseNodes(weldNodesDistance);
             EditorUtility.SetDirty(cityData);
             SceneView.RepaintAll();
-            EditorUtility.DisplayDialog("Salda Nodi", report, "OK");
+            ShowResultDialog("Salda Nodi", report);
         }
 
         EditorGUILayout.Space(6);
@@ -629,7 +629,7 @@ public class CityBuilderWindow : EditorWindow
         if (DrawActionButton("Analizza Intersezioni Geometriche"))
         {
             string report = cityManager.AnalyzeIntersections();
-            EditorUtility.DisplayDialog("Analisi Intersezioni", report, "OK");
+            ShowResultDialog("Analisi Intersezioni", report);
         }
         if (!_isGenerating && DrawActionButton("Planarizza Rete Stradale", ColProc * 0.7f))
         {
@@ -657,7 +657,7 @@ public class CityBuilderWindow : EditorWindow
                         EditorUtility.SetDirty(cityData);
                         SceneView.RepaintAll();
                         Debug.Log($"[CityBuilder] Planarizzazione: {report}");
-                        EditorUtility.DisplayDialog("Planarizza Rete", report, "OK");
+                        ShowResultDialog("Planarizza Rete", report);
                     }),
                 null);
         }
@@ -714,7 +714,7 @@ public class CityBuilderWindow : EditorWindow
         if (DrawActionButton("Genera Mesh Strade", new Color(0.25f, 0.60f, 0.45f)))
         {
             RoadMeshBuildResult result = CityRoadMeshGenerationHost.Build(cityManager);
-            EditorUtility.DisplayDialog("Genera Strade", result.ToMultilineString(), "OK");
+            ShowResultDialog("Genera Strade", result.ToMultilineString());
             SceneView.RepaintAll();
         }
         if (DrawActionButton("Cancella Mesh Strade", new Color(0.55f, 0.35f, 0.35f)))
@@ -1001,7 +1001,7 @@ public class CityBuilderWindow : EditorWindow
                     {
                         CityGenerationReport report = CityGenerationPipelineHost.GenerateRoadNetwork(cityManager, proceduralConfig);
                         _lastProceduralReport = report.ToMultilineString();
-                        EditorUtility.DisplayDialog("Rete Stradale Generata", _lastProceduralReport, "OK");
+                        ShowResultDialog("Rete Stradale Generata", _lastProceduralReport);
                     }
                 }
 
@@ -1015,7 +1015,7 @@ public class CityBuilderWindow : EditorWindow
                 {
                     CityGenerationReport report = CityGenerationPipelineHost.AssignZoning(cityManager, proceduralConfig);
                     _lastProceduralReport = report.ToMultilineString();
-                    EditorUtility.DisplayDialog("Zoning Assegnato", _lastProceduralReport, "OK");
+                    ShowResultDialog("Zoning Assegnato", _lastProceduralReport);
                 }
             }
 
@@ -1040,7 +1040,7 @@ public class CityBuilderWindow : EditorWindow
             {
                 CityGenerationReport report = CityGenerationPipelineHost.GenerateAll(cityManager, proceduralConfig);
                 _lastProceduralReport = report.ToMultilineString();
-                EditorUtility.DisplayDialog("Generazione Completata", _lastProceduralReport, "OK");
+                ShowResultDialog("Generazione Completata", _lastProceduralReport);
             }
         }
         GUI.enabled = true;
@@ -1356,7 +1356,7 @@ public class CityBuilderWindow : EditorWindow
                 : CityBuildingSpawner.ExistingBuildingsHandling.KeepExisting;
         CityBuildingSpawner.SpawnReport report = CityBuildingSpawner.SpawnBuildings(cityManager, handling);
         SceneView.RepaintAll();
-        EditorUtility.DisplayDialog("Spawn Edifici", report.ToMultilineString(), "OK");
+        ShowResultDialog("Spawn Edifici", report.ToMultilineString());
     }
 
     private void ClearSpawnedBuildings()
@@ -1370,21 +1370,30 @@ public class CityBuilderWindow : EditorWindow
     {
         CityBuildingSpawner.TerrainFlattenReport report = CityBuildingSpawner.FlattenTerrainUnderLots(cityManager);
         SceneView.RepaintAll();
-        EditorUtility.DisplayDialog("Flatten Terrain Under Lots", report.ToMultilineString(), "OK");
+        ShowResultDialog("Flatten Terrain Under Lots", report.ToMultilineString());
     }
 
     private void FlattenTerrainUnderRoads()
     {
         CityBuildingSpawner.RoadFlattenReport report = CityBuildingSpawner.FlattenTerrainUnderRoads(cityManager);
         SceneView.RepaintAll();
-        EditorUtility.DisplayDialog("Flatten Terrain Under Roads", report.ToMultilineString(), "OK");
+        ShowResultDialog("Flatten Terrain Under Roads", report.ToMultilineString());
     }
 
     private void FlattenTerrainUnderBlocks()
     {
         CityBuildingSpawner.BlockFlattenReport report = CityBuildingSpawner.FlattenTerrainUnderBlocksConsolidated(cityManager);
         SceneView.RepaintAll();
-        EditorUtility.DisplayDialog("Flatten Terrain - Blocchi & Lotti (Consolidato)", report.ToMultilineString(), "OK");
+        ShowResultDialog("Flatten Terrain - Blocchi & Lotti (Consolidato)", report.ToMultilineString());
+    }
+
+    private static void ShowResultDialog(string title, string message)
+    {
+        string safeTitle = string.IsNullOrWhiteSpace(title) ? "City Builder" : title;
+        string safeMessage = string.IsNullOrWhiteSpace(message)
+            ? "Operazione completata. Nessun dettaglio aggiuntivo disponibile."
+            : message;
+        EditorUtility.DisplayDialog(safeTitle, safeMessage, "OK");
     }
 }
 
