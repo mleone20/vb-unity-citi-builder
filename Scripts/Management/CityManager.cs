@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using BSCCityBuilder.Core;
 using BSCCityBuilder.Generation;
 using BSCCityBuilder.Rendering;
+using BSCCityBuilder.Config;
 
 namespace BSCCityBuilder.Management
 {
@@ -15,6 +16,7 @@ public class CityManager : MonoBehaviour
 {
     [Header("Dati Persistenti")]
     [SerializeField] private CityData cityData;
+    [SerializeField] private CityConfig cityConfig;
 
     [Header("Stato Editor")]
     [SerializeField] private BuildMode currentMode = BuildMode.Idle;
@@ -439,6 +441,8 @@ public class CityManager : MonoBehaviour
 
     public CityData GetCityData() => cityData;
     public void SetCityData(CityData data) => cityData = data;
+    public CityConfig GetCityConfig() => cityConfig;
+    public void SetCityConfig(CityConfig config) => cityConfig = config;
 
     public void SetSegmentRoadProfile(int segmentID, RoadProfile roadProfile)
     {

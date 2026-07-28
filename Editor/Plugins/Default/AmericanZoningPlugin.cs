@@ -16,7 +16,8 @@ public class AmericanZoningPlugin : IZoningAssignmentPlugin
     public CityGenerationReport AssignZoning(CityGenerationContext context)
     {
         CityGenerationReport report = new CityGenerationReport { warnings = new List<string>() };
-        if (context.manager == null || context.config == null)
+        AmericanCityConfig config = context.GetConfig<AmericanCityConfig>();
+        if (context.manager == null || config == null)
         {
             report.warnings.Add("CityManager o AmericanCityConfig non assegnati.");
             return report;
@@ -30,7 +31,7 @@ public class AmericanZoningPlugin : IZoningAssignmentPlugin
         }
 
         Undo.RecordObject(cityData, "Assign Zoning By Distance (Plugin)");
-        Vector3 p0 = context.config.centerWorldPosition;
+        Vector3 p0 = config.centerWorldPosition;
 
         foreach (CityBlock block in cityData.blocks)
         {
@@ -44,7 +45,7 @@ public class AmericanZoningPlugin : IZoningAssignmentPlugin
                 (center.x - p0.x) * (center.x - p0.x) +
                 (center.z - p0.z) * (center.z - p0.z));
 
-            ZoneType zone = context.config.GetZoneTypeForDistance(dist);
+            ZoneType zone = config.GetZoneTypeForDistance(dist);
             if (zone == null)
             {
                 report.warnings.Add("Block " + block.id + ": nessuna zona mappata per dist=" + dist.ToString("F0") + "m");
@@ -52,7 +53,7 @@ public class AmericanZoningPlugin : IZoningAssignmentPlugin
             }
 
             context.manager.SetBlockZoning(block.id, zone);
-            block.orientation = context.config.GetOrientationForDistance(dist);
+            block.orientation = config.GetOrientationForDistance(dist);
             report.blocksZoned++;
         }
 

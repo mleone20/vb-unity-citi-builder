@@ -29,6 +29,13 @@ public class CitySceneHandle
     private static bool isInitialized = false;
     private static int lastAddedNodeID = -1;
 
+    public static void SetActiveManager(CityManager manager)
+    {
+        cachedCityManager = manager;
+        lastAddedNodeID = -1;
+        SceneView.RepaintAll();
+    }
+
     [InitializeOnLoadMethod]
     private static void Initialize()
     {

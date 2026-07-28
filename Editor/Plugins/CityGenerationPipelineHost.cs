@@ -11,7 +11,7 @@ namespace BSCCityBuilder.Editor.Plugins
 {
 public static class CityGenerationPipelineHost
 {
-    public static CityGenerationReport GenerateRoadNetwork(CityManager manager, ScriptableObject config)
+    public static CityGenerationReport GenerateRoadNetwork(CityManager manager, CityConfig config)
     {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
@@ -30,7 +30,7 @@ public static class CityGenerationPipelineHost
         return report;
     }
 
-    public static CityGenerationReport PlanarizeRoads(CityManager manager, ScriptableObject config)
+    public static CityGenerationReport PlanarizeRoads(CityManager manager, CityConfig config)
     {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
@@ -44,7 +44,7 @@ public static class CityGenerationPipelineHost
         return planarizer.PlanarizeRoads(context);
     }
 
-    public static List<List<Vector3>> DetectBlocks(CityManager manager, ScriptableObject config)
+    public static List<List<Vector3>> DetectBlocks(CityManager manager, CityConfig config)
     {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
@@ -58,7 +58,7 @@ public static class CityGenerationPipelineHost
         return detector.DetectBlocks(context);
     }
 
-    public static CityGenerationReport AssignZoning(CityManager manager, ScriptableObject config)
+    public static CityGenerationReport AssignZoning(CityManager manager, CityConfig config)
     {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
@@ -72,7 +72,7 @@ public static class CityGenerationPipelineHost
         return zoningPlugin.AssignZoning(context);
     }
 
-    public static int GenerateLots(CityManager manager, ScriptableObject config)
+    public static int GenerateLots(CityManager manager, CityConfig config)
     {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
@@ -117,7 +117,7 @@ public static class CityGenerationPipelineHost
         return lotCount;
     }
 
-    public static CityGenerationReport GenerateAll(CityManager manager, ScriptableObject processConfig)
+    public static CityGenerationReport GenerateAll(CityManager manager, CityConfig processConfig)
     {
         CityGenerationContext context = BuildContext(manager, processConfig);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
@@ -143,12 +143,12 @@ public static class CityGenerationPipelineHost
     {
         CityGenerationReport total = new CityGenerationReport { warnings = new List<string>() };
 
-        CityGenerationReport road = GenerateRoadNetwork(context.manager, context.processConfig);
+        CityGenerationReport road = GenerateRoadNetwork(context.manager, context.config);
         total.Merge(road);
 
         if (!settings.runPlanarizationAfterRoadNetwork && settings.runPlanarizationInFullGeneration)
         {
-            CityGenerationReport planarize = PlanarizeRoads(context.manager, context.processConfig);
+            CityGenerationReport planarize = PlanarizeRoads(context.manager, context.config);
             total.Merge(planarize);
         }
 
@@ -172,36 +172,34 @@ public static class CityGenerationPipelineHost
         context.cityData.lots.Clear();
         EditorUtility.SetDirty(context.cityData);
 
-        List<List<Vector3>> detected = DetectBlocks(context.manager, context.processConfig);
+        List<List<Vector3>> detected = DetectBlocks(context.manager, context.config);
         for (int i = 0; i < detected.Count; i++)
         {
             context.manager.AddBlock(detected[i]);
         }
         total.blocksDetected += detected.Count;
 
-        CityGenerationReport zoning = AssignZoning(context.manager, context.processConfig);
+        CityGenerationReport zoning = AssignZoning(context.manager, context.config);
         total.Merge(zoning);
 
-        int lots = GenerateLots(context.manager, context.processConfig);
+        int lots = GenerateLots(context.manager, context.config);
         total.lotsGenerated += lots;
 
         return total;
     }
 
-    private static CityGenerationContext BuildContext(CityManager manager, ScriptableObject processConfig)
+    private static CityGenerationContext BuildContext(CityManager manager, CityConfig processConfig)
     {
         CityData data = manager != null ? manager.GetCityData() : null;
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
         ILotSelectionPlugin lotSelection = CityPluginRegistry.Create<ILotSelectionPlugin>(
             CityPluginCategory.LotSelection,
             settings.GetActivePluginId(CityPluginCategory.LotSelection));
-        AmericanCityConfig americanConfig = processConfig as AmericanCityConfig;
         return new CityGenerationContext
         {
             manager = manager,
             cityData = data,
-            processConfig = processConfig,
-            config = americanConfig,
+            config = processConfig,
             lotSelectionPlugin = lotSelection
         };
     }

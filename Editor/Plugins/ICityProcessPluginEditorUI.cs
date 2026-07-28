@@ -18,8 +18,8 @@ public interface ICityProcessPluginEditorUI
     string ConfigurationLabel { get; }
     Type ConfigurationType { get; }
 
-    ScriptableObject CreateDefaultConfigurationAsset();
-    void DrawConfigurationGUI(ScriptableObject config);
+    CityConfig CreateDefaultConfigurationAsset();
+    void DrawConfigurationGUI(CityConfig config);
 }
 
 }

@@ -11,12 +11,13 @@ using BSCCityBuilder.Editor.Plugins;
 namespace BSCCityBuilder.Editor.Plugins.Default
 {
 [CityPlugin("bsc.process.american-full", "American Full Process", CityPluginCategory.Process, "Preset completo: road network + planarization + block detection + zoning + lot generation.")]
-public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginEditorUI
+public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginEditorUI, ICityProcessCapabilities
 {
+    public CityProcessCapabilities Capabilities => CityProcessCapabilities.All;
     public string ConfigurationLabel => "American City Config";
     public System.Type ConfigurationType => typeof(AmericanCityConfig);
 
-    public ScriptableObject CreateDefaultConfigurationAsset()
+    public CityConfig CreateDefaultConfigurationAsset()
     {
         AmericanCityConfig config = ScriptableObject.CreateInstance<AmericanCityConfig>();
         config.ResetToAmericanDefaults();
@@ -25,7 +26,7 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
         return config;
     }
 
-    public void DrawConfigurationGUI(ScriptableObject config)
+    public void DrawConfigurationGUI(CityConfig config)
     {
         AmericanCityConfig american = config as AmericanCityConfig;
         if (american == null)
@@ -44,7 +45,7 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
     public CityGenerationReport GenerateAll(CityGenerationContext context)
     {
         CityGenerationReport total = new CityGenerationReport { warnings = new List<string>() };
-        AmericanCityConfig cfg = context.GetProcessConfig<AmericanCityConfig>();
+        AmericanCityConfig cfg = context.GetConfig<AmericanCityConfig>();
         if (cfg == null)
         {
             total.warnings.Add("AmericanCityConfig non assegnato o non compatibile con American Full Process.");
@@ -69,8 +70,6 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
         ILotSelectionPlugin lotSelection = CityPluginRegistry.Create<ILotSelectionPlugin>(CityPluginCategory.LotSelection, settings.GetActivePluginId(CityPluginCategory.LotSelection));
         context.lotSelectionPlugin = lotSelection;
 
-        // Garantisce che i plugin step legacy che leggono context.config ricevano il config americano.
-        context.processConfig = cfg;
         context.config = cfg;
 
         IRoadNetworkGenerationPlugin road = new AmericanRoadNetworkPlugin();

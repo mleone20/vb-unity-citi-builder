@@ -26,9 +26,7 @@ public class DefaultRoadPlanarizationPlugin : IRoadPlanarizationPlugin
 
         float merge = 1f;
         if (context.config != null)
-        {
-            merge = Mathf.Max(0.1f, context.config.mergeThreshold);
-        }
+            merge = Mathf.Max(0.1f, context.config.PlanarizationMergeTolerance);
 
         int splits = CityRoadPlanarizer.Planarize(context.manager, merge);
         report.planarizationSplits = splits;

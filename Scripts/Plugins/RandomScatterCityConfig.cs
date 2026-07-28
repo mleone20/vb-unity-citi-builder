@@ -7,8 +7,9 @@ using BSCCityBuilder.Generation;
 namespace BSCCityBuilder.Plugins
 {
 [CreateAssetMenu(fileName = "RandomScatterCityConfig", menuName = "CityBuilder/Random Scatter Config", order = 203)]
-public class RandomScatterCityConfig : ScriptableObject
+public class RandomScatterCityConfig : CityConfig
 {
+    public override string DisplayName => "Random Scatter City";
     [Header("Distribuzione")]
     public Vector3 centerWorldPosition = Vector3.zero;
     [Range(50f, 5000f)] public float radius = 500f;

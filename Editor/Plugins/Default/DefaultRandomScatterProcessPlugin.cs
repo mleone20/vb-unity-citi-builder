@@ -12,12 +12,14 @@ using BSCCityBuilder.Editor.Plugins;
 namespace BSCCityBuilder.Editor.Plugins.Default
 {
 [CityPlugin("bsc.process.default-random", "Default Random Scatter", CityPluginCategory.Process, "Generazione base non tematica con scattering casuale e opzioni minime.")]
-public class DefaultRandomScatterProcessPlugin : ICityProcessPlugin, ICityProcessPluginEditorUI
+public class DefaultRandomScatterProcessPlugin : ICityProcessPlugin, ICityProcessPluginEditorUI, ICityProcessCapabilities
 {
+    public CityProcessCapabilities Capabilities =>
+        CityProcessCapabilities.LotGeneration | CityProcessCapabilities.FullGeneration;
     public string ConfigurationLabel => "Random Scatter Config";
     public Type ConfigurationType => typeof(RandomScatterCityConfig);
 
-    public ScriptableObject CreateDefaultConfigurationAsset()
+    public CityConfig CreateDefaultConfigurationAsset()
     {
         var cfg = ScriptableObject.CreateInstance<RandomScatterCityConfig>();
         CityBuilderAssetPaths.CreateUniqueAsset(cfg, "RandomScatterCityConfig.asset");
@@ -25,7 +27,7 @@ public class DefaultRandomScatterProcessPlugin : ICityProcessPlugin, ICityProces
         return cfg;
     }
 
-    public void DrawConfigurationGUI(ScriptableObject config)
+    public void DrawConfigurationGUI(CityConfig config)
     {
         var cfg = config as RandomScatterCityConfig;
         if (cfg == null)
@@ -63,7 +65,7 @@ public class DefaultRandomScatterProcessPlugin : ICityProcessPlugin, ICityProces
     public CityGenerationReport GenerateAll(CityGenerationContext context)
     {
         var report = new CityGenerationReport { warnings = new List<string>() };
-        var cfg = context.GetProcessConfig<RandomScatterCityConfig>();
+        var cfg = context.GetConfig<RandomScatterCityConfig>();
 
         if (context.manager == null || context.cityData == null)
         {

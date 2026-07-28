@@ -11,8 +11,9 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e94e178d4b5e86a4d8318500ab64fd51, type: 3}
   m_Name: CityPluginSettings
-  m_EditorClassIdentifier: Assembly-CSharp::CityPluginSettings
-  activeProcessPluginId: bsc.process.american-full
+  m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Plugins.CityPluginSettings
+  selections: []
+  activeProcessPluginId: bsc.process.default-random
   activeRoadNetworkPluginId: bsc.american.road-network
   activeRoadPlanarizationPluginId: bsc.default.planarization
   activeBlockDetectionPluginId: bsc.default.block-detection

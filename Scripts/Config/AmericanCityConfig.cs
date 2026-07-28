@@ -32,8 +32,10 @@ public class ZoneRing
 /// aggiungi, rimuovi o modifica i ring senza limiti predefiniti.
 /// </summary>
 [CreateAssetMenu(fileName = "AmericanCityConfig", menuName = "City Builder/American City Config")]
-public class AmericanCityConfig : ScriptableObject
+public class AmericanCityConfig : CityConfig
 {
+    public override string DisplayName => "American City";
+    public override float PlanarizationMergeTolerance => Mathf.Max(0.1f, mergeThreshold);
     [Header("Centro Città (P0)")]
     [Tooltip("Punto di massima densità (CBD). Tutte le distanze zonali sono misurate da qui.")]
     public Vector3 centerWorldPosition = Vector3.zero;

@@ -31,7 +31,6 @@ public static class CityBuilderMenu
     }
 
 
-    [MenuItem("Tools/City Builder/Setup Default Zone Types")]
     public static void SetupDefaultZoneTypes()
     {
         string baseFolder = CityBuilderAssetPaths.DataFolder + "/ZoneTypes";
@@ -156,7 +155,6 @@ public static class CityBuilderMenu
         EditorUtility.SetDirty(config);
     }
 
-    [MenuItem("Tools/City Builder/Setup Default Road Profiles")]
     public static void SetupDefaultRoadProfiles()
     {
         string baseFolder = CityBuilderAssetPaths.DataFolder + "/RoadProfiles";
@@ -229,7 +227,6 @@ public static class CityBuilderMenu
         return 1;
     }
 
-    [MenuItem("Tools/City Builder/Create American City Config")]
     public static void CreateAmericanCityConfig()
     {
         string folder = CityBuilderAssetPaths.DataFolder;
@@ -268,7 +265,6 @@ public static class CityBuilderMenu
     // CREATE EXAMPLE PREFABS AND ZONE DATA
     // ─────────────────────────────────────────────────────────────────────────
 
-    [MenuItem("Tools/City Builder/Create Example Prefabs and Zone Data")]
     public static void CreateExamplePrefabsAndZoneData()
     {
         string examplesRoot  = CityBuilderAssetPaths.DataFolder + "/Examples";
@@ -341,7 +337,6 @@ public static class CityBuilderMenu
     // PLUGIN SYSTEM
     // ─────────────────────────────────────────────────────────────────────────
 
-    [MenuItem("Tools/City Builder/Setup Plugin Settings")]
     public static void SetupPluginSettings()
     {
         var settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();

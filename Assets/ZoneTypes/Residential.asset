@@ -11,129 +11,21 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f3569f30dd792144f8b31d92716026dd, type: 3}
   m_Name: Residential
-  m_EditorClassIdentifier: Assembly-CSharp::ZoneType
+  m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Core.ZoneType
   displayName: Residential
   zoneColor: {r: 0.3, g: 0.68, b: 0.31, a: 1}
   buildingHeight: 8
   description: "Residenziale urbano a media densit\xE0."
   buildingPrefabEntries:
-  - prefab: {fileID: 2804827413872334409, guid: dd290927e61522240926097671c24d9c, type: 3}
+  - prefab: {fileID: 3598672583069537096, guid: 8170e62c075dc794da37720ada415e39, type: 3}
     spawnProbability: 1
-  - prefab: {fileID: 7490327612024775528, guid: 93036c8aa3ced6a458784873cf3b481d, type: 3}
+  - prefab: {fileID: 643169064733222369, guid: ad38b919ebe690c4c994f88ccbb485b9, type: 3}
     spawnProbability: 1
-  - prefab: {fileID: 5274786991993665156, guid: ef48f34364d33af4793af434cd64af32, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 4282501170665901216, guid: f4160e94f7de4bd4cafe4a8c13604274, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 4589199313181260631, guid: e60ba22418cf01e4a937f00071d723c3, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 6929597799462886803, guid: de1bd7c48c6d3c044a00114523041479, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 24629733450903356, guid: a55276e6de90f374083469b844dd70df, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 5992047990947181195, guid: 327523f30b43ad74398f5b1b25ccc44f, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 3062490886834757857, guid: 6b951abf3ef79454a89279d0b97e5779, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 4706458245139266963, guid: 18b2979ed4e28eb41a045e7ce898d3da, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 6912909251038975785, guid: 5d26e3cb5d8a0d5449a091b7808ae8a5, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 8912626760250559656, guid: 997c69234e031344c8804be3e668b184, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 1255429469330614224, guid: d7144ec91775f6243b7887cc0d253102, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 2010134388247716082, guid: 83b631d5258ffa543a319945c3ada3fa, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 6136566942466135755, guid: c051f73ba812a914ba124b642b8988c7, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 6271865233989988866, guid: c40141b2337517648a216391f050e52b, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 8372226947028340099, guid: 90c239080533d6f40a7e6025bfdd7eb6, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 5815838039266699333, guid: 0e6353a8d88e1ab4db2663c0c230b7e3, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 3626740431148270386, guid: dd2a725008a786e4cba4a364d054ccf9, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 1474855883481834716, guid: ce3bbce28726f9749b57b3e66f816bf7, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 8647884693277076254, guid: f52619339cefe454088535736a7c96ba, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 271909292723900361, guid: da05fcefbc0491e4b95e5e0c8b9c420a, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 5583789312877095878, guid: 38958a0b57104ce46a5851d030d41646, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 662821738113316265, guid: daa4f342e57440a488ee1a5d374f28b6, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 8996255594911595990, guid: c4cf98956e4440744a851740fef580c5, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 3331377499847750201, guid: 62fe1c5ef7ae8734e8e157ed542093c0, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 8483147470875874169, guid: 5a77fb27870773b478aae0a1bede783a, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 5968835366010379922, guid: de91b3f34200e6b4698ee19b2e38137c, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 4367631207137987459, guid: 428844d60002b004dad8caf0f102423b, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 4473504092527535292, guid: 30cce4a1aa48b2a48baebd20a78a38c6, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 3802694171331630187, guid: a73a704d9fd95664eaccaf94c9104188, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 4613005610400489051, guid: 303cb7e39433e1f43aaeb2a40da1a50d, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 4454854944609010895, guid: e00c3827f67149442ab808f404b33ba8, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 7278819391782392618, guid: 684851c99a9062f4ab3b9d2360fc028f, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 6879152376484085785, guid: bb41902da4806f74fab863ed0212bcb3, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 8682216378573493023, guid: 5a3cd796716117841a5c6cbee4c0e84b, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 2438017711016675399, guid: d17c1852d33a6504aa352093f3e9958a, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 5209245008487848685, guid: 85e0fbbea8157c24885fd21261b6c898, type: 3}
-    spawnProbability: 1
-  - prefab: {fileID: 3952673392968371367, guid: f73216a7491d84d44bdb16a130423461, type: 3}
+  - prefab: {fileID: 1292789659650772819, guid: 11ca54fd5070e564c9063530859d3b43, type: 3}
     spawnProbability: 1
   buildingPrefabs:
-  - {fileID: 2804827413872334409, guid: dd290927e61522240926097671c24d9c, type: 3}
-  - {fileID: 7490327612024775528, guid: 93036c8aa3ced6a458784873cf3b481d, type: 3}
-  - {fileID: 5274786991993665156, guid: ef48f34364d33af4793af434cd64af32, type: 3}
-  - {fileID: 4282501170665901216, guid: f4160e94f7de4bd4cafe4a8c13604274, type: 3}
-  - {fileID: 4589199313181260631, guid: e60ba22418cf01e4a937f00071d723c3, type: 3}
-  - {fileID: 6929597799462886803, guid: de1bd7c48c6d3c044a00114523041479, type: 3}
-  - {fileID: 24629733450903356, guid: a55276e6de90f374083469b844dd70df, type: 3}
-  - {fileID: 5992047990947181195, guid: 327523f30b43ad74398f5b1b25ccc44f, type: 3}
-  - {fileID: 3062490886834757857, guid: 6b951abf3ef79454a89279d0b97e5779, type: 3}
-  - {fileID: 4706458245139266963, guid: 18b2979ed4e28eb41a045e7ce898d3da, type: 3}
-  - {fileID: 6912909251038975785, guid: 5d26e3cb5d8a0d5449a091b7808ae8a5, type: 3}
-  - {fileID: 8912626760250559656, guid: 997c69234e031344c8804be3e668b184, type: 3}
-  - {fileID: 1255429469330614224, guid: d7144ec91775f6243b7887cc0d253102, type: 3}
-  - {fileID: 2010134388247716082, guid: 83b631d5258ffa543a319945c3ada3fa, type: 3}
-  - {fileID: 6136566942466135755, guid: c051f73ba812a914ba124b642b8988c7, type: 3}
-  - {fileID: 6271865233989988866, guid: c40141b2337517648a216391f050e52b, type: 3}
-  - {fileID: 8372226947028340099, guid: 90c239080533d6f40a7e6025bfdd7eb6, type: 3}
-  - {fileID: 5815838039266699333, guid: 0e6353a8d88e1ab4db2663c0c230b7e3, type: 3}
-  - {fileID: 3626740431148270386, guid: dd2a725008a786e4cba4a364d054ccf9, type: 3}
-  - {fileID: 1474855883481834716, guid: ce3bbce28726f9749b57b3e66f816bf7, type: 3}
-  - {fileID: 8647884693277076254, guid: f52619339cefe454088535736a7c96ba, type: 3}
-  - {fileID: 271909292723900361, guid: da05fcefbc0491e4b95e5e0c8b9c420a, type: 3}
-  - {fileID: 5583789312877095878, guid: 38958a0b57104ce46a5851d030d41646, type: 3}
-  - {fileID: 662821738113316265, guid: daa4f342e57440a488ee1a5d374f28b6, type: 3}
-  - {fileID: 8996255594911595990, guid: c4cf98956e4440744a851740fef580c5, type: 3}
-  - {fileID: 3331377499847750201, guid: 62fe1c5ef7ae8734e8e157ed542093c0, type: 3}
-  - {fileID: 8483147470875874169, guid: 5a77fb27870773b478aae0a1bede783a, type: 3}
-  - {fileID: 5968835366010379922, guid: de91b3f34200e6b4698ee19b2e38137c, type: 3}
-  - {fileID: 4367631207137987459, guid: 428844d60002b004dad8caf0f102423b, type: 3}
-  - {fileID: 4473504092527535292, guid: 30cce4a1aa48b2a48baebd20a78a38c6, type: 3}
-  - {fileID: 3802694171331630187, guid: a73a704d9fd95664eaccaf94c9104188, type: 3}
-  - {fileID: 4613005610400489051, guid: 303cb7e39433e1f43aaeb2a40da1a50d, type: 3}
-  - {fileID: 4454854944609010895, guid: e00c3827f67149442ab808f404b33ba8, type: 3}
-  - {fileID: 7278819391782392618, guid: 684851c99a9062f4ab3b9d2360fc028f, type: 3}
-  - {fileID: 6879152376484085785, guid: bb41902da4806f74fab863ed0212bcb3, type: 3}
-  - {fileID: 8682216378573493023, guid: 5a3cd796716117841a5c6cbee4c0e84b, type: 3}
-  - {fileID: 2438017711016675399, guid: d17c1852d33a6504aa352093f3e9958a, type: 3}
-  - {fileID: 5209245008487848685, guid: 85e0fbbea8157c24885fd21261b6c898, type: 3}
-  - {fileID: 3952673392968371367, guid: f73216a7491d84d44bdb16a130423461, type: 3}
+  - {fileID: 3598672583069537096, guid: 8170e62c075dc794da37720ada415e39, type: 3}
+  - {fileID: 643169064733222369, guid: ad38b919ebe690c4c994f88ccbb485b9, type: 3}
+  - {fileID: 1292789659650772819, guid: 11ca54fd5070e564c9063530859d3b43, type: 3}
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0

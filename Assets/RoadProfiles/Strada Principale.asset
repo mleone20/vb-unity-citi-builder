@@ -11,12 +11,12 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7c3466ed179c20540b85eb441537590a, type: 3}
   m_Name: Strada Principale
-  m_EditorClassIdentifier: Assembly-CSharp::RoadProfile
+  m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Core.RoadProfile
   displayName: Strada Principale
   hierarchyLevel: 2
-  roadWidth: 19.5
+  roadWidth: 6.5
   debugColor: {r: 0.95, g: 0.65, b: 0.2, a: 1}
-  intersectionClearanceRadius: 13.5
+  intersectionClearanceRadius: 4.5
   blockInset: 0
-  meshMaterial: {fileID: 2100000, guid: a0c65fdd46208054a9703cfc8f39ce91, type: 2}
+  meshMaterial: {fileID: 0}
   description: Collega quartieri e distribuisce il traffico.

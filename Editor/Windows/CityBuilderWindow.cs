@@ -47,7 +47,7 @@ public class CityBuilderWindow : EditorWindow
     private List<RoadProfile> _cachedRoadProfiles = null;
     private string[]          _cachedProfileNames  = null;
 
-    private ScriptableObject proceduralConfig;
+    private CityConfig proceduralConfig;
     private string _lastProceduralReport = "";
 
     // Async generation
@@ -255,23 +255,15 @@ public class CityBuilderWindow : EditorWindow
 
     private void DrawTopBar()
     {
-        Rect barRect = EditorGUILayout.BeginHorizontal(GUILayout.Height(38));
-        EditorGUI.DrawRect(barRect, new Color(0.15f, 0.15f, 0.15f));
+        Rect titleBarRect = EditorGUILayout.BeginHorizontal(GUILayout.Height(32));
+        EditorGUI.DrawRect(titleBarRect, new Color(0.15f, 0.15f, 0.15f));
         GUILayout.Space(8);
-        GUILayout.Label("\U0001f3d9  CITY BUILDER STUDIO", phaseHeaderStyle, GUILayout.ExpandWidth(false));
-        GUILayout.FlexibleSpace();
-        IReadOnlyList<ICityBuilderToolbarExtension> toolbarExtensions = CityEditorExtensionRegistry.Toolbar;
-        for (int i = 0; i < toolbarExtensions.Count; i++)
-        {
-            toolbarExtensions[i].DrawToolbar(cityManager);
-        }
-        if (cityData != null)
-        {
-            string counts = string.Format("nodi: {0}  seg: {1}  blocchi: {2}  lotti: {3}",
-                cityData.nodes.Count, cityData.segments.Count, cityData.blocks.Count, cityData.lots.Count);
-            GUILayout.Label(counts, statusBarStyle, GUILayout.ExpandWidth(false));
-            GUILayout.Space(10);
-        }
+        GUILayout.Label(
+            "\U0001f3d9  CITY BUILDER STUDIO",
+            phaseHeaderStyle,
+            GUILayout.ExpandWidth(false),
+            GUILayout.Height(24f));
+
         bool isActive = CitySceneHandle.IsEnabled;
         GUI.backgroundColor = isActive ? new Color(0.3f, 0.9f, 0.4f) : new Color(0.9f, 0.5f, 0.2f);
         string toggleLabel = isActive ? "\u25cf ATTIVO" : "\u25cb DISATTIVO";
@@ -281,8 +273,66 @@ public class CityBuilderWindow : EditorWindow
             SceneView.RepaintAll();
         }
         GUI.backgroundColor = Color.white;
+        GUILayout.FlexibleSpace();
         GUILayout.Space(6);
         EditorGUILayout.EndHorizontal();
+
+        Rect cityBarRect = EditorGUILayout.BeginHorizontal(GUILayout.Height(32));
+        EditorGUI.DrawRect(cityBarRect, new Color(0.18f, 0.18f, 0.18f));
+        GUILayout.Space(8);
+        DrawCityManagerSelector();
+
+        IReadOnlyList<ICityBuilderToolbarExtension> toolbarExtensions = CityEditorExtensionRegistry.Toolbar;
+        for (int i = 0; i < toolbarExtensions.Count; i++)
+        {
+            toolbarExtensions[i].DrawToolbar(cityManager);
+        }
+
+        GUILayout.FlexibleSpace();
+        if (cityData != null)
+        {
+            string counts = string.Format("nodi: {0}  seg: {1}  blocchi: {2}  lotti: {3}",
+                cityData.nodes.Count, cityData.segments.Count, cityData.blocks.Count, cityData.lots.Count);
+            GUILayout.Label(counts, statusBarStyle, GUILayout.ExpandWidth(false));
+        }
+        GUILayout.Space(6);
+        EditorGUILayout.EndHorizontal();
+    }
+
+    private void DrawCityManagerSelector()
+    {
+        GUILayout.Label("Città selezionata:", GUILayout.ExpandWidth(false));
+        CityManager[] managers = CityManagerSceneUtility.FindAll();
+        Array.Sort(managers, (left, right) =>
+            string.Compare(left.name, right.name, StringComparison.OrdinalIgnoreCase));
+        if (managers.Length > 0)
+        {
+            string[] labels = new string[managers.Length];
+            int selectedIndex = 0;
+            for (int i = 0; i < managers.Length; i++)
+            {
+                CityData managerData = managers[i].GetCityData();
+                labels[i] = managerData != null
+                    ? managers[i].name + " · " + managerData.name
+                    : managers[i].name + " · senza CityData";
+                if (managers[i] == cityManager)
+                {
+                    selectedIndex = i;
+                }
+            }
+
+            EditorGUI.BeginChangeCheck();
+            int newIndex = EditorGUILayout.Popup(selectedIndex, labels, GUILayout.Width(190f));
+            if (EditorGUI.EndChangeCheck())
+            {
+                SetActiveCityManager(managers[newIndex]);
+            }
+        }
+
+        if (GUILayout.Button("+ Nuova città", GUILayout.Width(96f), GUILayout.Height(24f)))
+        {
+            CreateCityManager();
+        }
     }
 
     // ── Tab Toolbar ────────────────────────────────────────────
@@ -544,62 +594,6 @@ public class CityBuilderWindow : EditorWindow
         if (globalWidth != cityData.globalRoadWidth)
             cityManager.SetGlobalRoadWidth(globalWidth);
 
-        EditorGUILayout.Space(4);
-        EditorGUILayout.BeginHorizontal();
-        if (DrawActionButton("Setup Road Profiles di Default"))
-            CityBuilderMenu.SetupDefaultRoadProfiles();
-        if (DrawActionButton("Setup Zone Types di Default"))
-            CityBuilderMenu.SetupDefaultZoneTypes();
-        EditorGUILayout.EndHorizontal();
-
-        EditorGUILayout.Space(6);
-        DrawSubHeader("PROFILI STRADE");
-        AmericanCityConfig americanConfig = proceduralConfig as AmericanCityConfig;
-        if (americanConfig != null)
-        {
-            if (DrawActionButton("Aggiorna Profili Strade Esistenti", ColConfig * 0.8f))
-            {
-                if (cityData != null && cityData.segments != null)
-                {
-                    Undo.RecordObject(cityData, "Update Road Profiles");
-                    int updated = 0;
-                    foreach (CitySegment seg in cityData.segments)
-                    {
-                        if (seg == null) continue;
-                        RoadProfile profile = null;
-                        if (seg.roadProfile != null)
-                        {
-                            seg.width = seg.roadProfile.roadWidth;
-                            updated++;
-                        }
-                        else
-                        {
-                            if (americanConfig.highwayProfile != null &&
-                                seg.width >= americanConfig.highwayProfile.roadWidth * 0.75f)
-                                profile = americanConfig.highwayProfile;
-                            else if (americanConfig.majorGridProfile != null)
-                                profile = americanConfig.majorGridProfile;
-                            else if (americanConfig.localStreetProfile != null)
-                                profile = americanConfig.localStreetProfile;
-                            if (profile != null)
-                            {
-                                seg.roadProfile = profile;
-                                seg.width = profile.roadWidth;
-                                updated++;
-                            }
-                        }
-                    }
-                    EditorUtility.SetDirty(cityData);
-                    SceneView.RepaintAll();
-                    EditorUtility.DisplayDialog("Profili aggiornati", updated + " segmenti aggiornati.", "OK");
-                }
-            }
-        }
-        else
-        {
-            EditorGUILayout.HelpBox("Questa azione richiede un AmericanCityConfig attivo nel plugin process corrente.", MessageType.None);
-        }
-
         EditorGUILayout.Space(6);
         DrawSubHeader("PERCORSI");
         simplifyMaxDeviationDeg = EditorGUILayout.Slider("Dev. max semplifica (gradi)", simplifyMaxDeviationDeg, 1f, 25f);
@@ -641,8 +635,9 @@ public class CityBuilderWindow : EditorWindow
         }
         if (!_isGenerating && DrawActionButton("Planarizza Rete Stradale", ColProc * 0.7f))
         {
-            AmericanCityConfig planarizeConfig = proceduralConfig as AmericanCityConfig;
-            float mergeTol = planarizeConfig != null ? planarizeConfig.mergeThreshold : 2f;
+            float mergeTol = proceduralConfig != null
+                ? proceduralConfig.PlanarizationMergeTolerance
+                : 2f;
             Undo.RecordObject(cityData, "Planarizza Rete Stradale");
 
             int nodesBefore = cityData.nodes.Count;
@@ -801,14 +796,12 @@ public class CityBuilderWindow : EditorWindow
     {
         EditorGUILayout.HelpBox("Utilita di manutenzione dati e azioni correttive sul city graph.", MessageType.Info);
 
+        CityConfigEditorToolsRegistry.DrawTools(proceduralConfig, cityManager);
+
         GUI.backgroundColor = new Color(0.3f, 0.8f, 0.8f);
         if (GUILayout.Button("\U0001f4ca  Esporta Statistiche (Console)", actionButtonStyle, GUILayout.ExpandWidth(true)))
             cityManager.LogStats();
         GUI.backgroundColor = Color.white;
-
-        EditorGUILayout.Space(4);
-        if (DrawActionButton("Setup Zone Types di Default"))
-            CityBuilderMenu.SetupDefaultZoneTypes();
 
         EditorGUILayout.Space(8);
         DrawSubHeader("PERICOLO");
@@ -875,6 +868,10 @@ public class CityBuilderWindow : EditorWindow
             CityPluginCategory.Process,
             pluginSettings.GetActivePluginId(CityPluginCategory.Process));
         ICityProcessPluginEditorUI processUi = process as ICityProcessPluginEditorUI;
+        ICityProcessCapabilities capabilityProvider = process as ICityProcessCapabilities;
+        CityProcessCapabilities capabilities = capabilityProvider != null
+            ? capabilityProvider.Capabilities
+            : CityProcessCapabilities.All;
 
         DrawSubHeader("CONFIGURAZIONE PLUGIN");
         if (processUi == null)
@@ -884,22 +881,39 @@ public class CityBuilderWindow : EditorWindow
         else
         {
             Type cfgType = processUi.ConfigurationType;
+            if (!typeof(CityConfig).IsAssignableFrom(cfgType))
+            {
+                EditorGUILayout.HelpBox(
+                    "Il plugin dichiara una configurazione che non deriva da CityConfig.",
+                    MessageType.Error);
+                return;
+            }
             string cfgLabel = string.IsNullOrWhiteSpace(processUi.ConfigurationLabel) ? "Process Config" : processUi.ConfigurationLabel;
 
             EditorGUI.BeginChangeCheck();
-            ScriptableObject newConfig = (ScriptableObject)EditorGUILayout.ObjectField(
+            CityConfig newConfig = (CityConfig)EditorGUILayout.ObjectField(
                 cfgLabel,
                 proceduralConfig,
                 cfgType,
                 false);
             if (EditorGUI.EndChangeCheck())
+            {
                 proceduralConfig = newConfig;
+                Undo.RecordObject(cityManager, "Set City Config");
+                cityManager.SetCityConfig(newConfig);
+                EditorUtility.SetDirty(cityManager);
+            }
 
             if (proceduralConfig == null)
             {
                 EditorGUILayout.HelpBox("Assegna un asset di configurazione oppure creane uno nuovo.", MessageType.Warning);
                 if (DrawActionButton("Crea Configurazione", ColProc * 0.8f))
+                {
                     proceduralConfig = processUi.CreateDefaultConfigurationAsset();
+                    Undo.RecordObject(cityManager, "Set City Config");
+                    cityManager.SetCityConfig(proceduralConfig);
+                    EditorUtility.SetDirty(cityManager);
+                }
                 return;
             }
 
@@ -931,7 +945,9 @@ public class CityBuilderWindow : EditorWindow
         }
         else
         {
-            using (new EditorGUI.DisabledScope(proceduralConfig == null))
+            using (new EditorGUI.DisabledScope(
+                proceduralConfig == null ||
+                (capabilities & CityProcessCapabilities.RoadNetwork) == 0))
             {
                 if (DrawActionButton("Genera Rete Stradale", ColProc * 0.7f))
                 {
@@ -945,7 +961,13 @@ public class CityBuilderWindow : EditorWindow
                     }
                 }
 
-                if (DrawActionButton("Assegna Zoning Automatico (per distanza)"))
+            }
+
+            using (new EditorGUI.DisabledScope(
+                proceduralConfig == null ||
+                (capabilities & CityProcessCapabilities.Zoning) == 0))
+            {
+                if (DrawActionButton("Assegna Zoning Automatico"))
                 {
                     CityGenerationReport report = CityGenerationPipelineHost.AssignZoning(cityManager, proceduralConfig);
                     _lastProceduralReport = report.ToMultilineString();
@@ -959,7 +981,10 @@ public class CityBuilderWindow : EditorWindow
 
         EditorGUILayout.Space(4);
         GUI.backgroundColor = new Color(0.3f, 0.85f, 0.5f);
-        bool genAllDisabled = _isGenerating || proceduralConfig == null;
+        bool genAllDisabled =
+            _isGenerating ||
+            proceduralConfig == null ||
+            (capabilities & CityProcessCapabilities.FullGeneration) == 0;
         GUI.enabled = !genAllDisabled;
         if (GUILayout.Button("▶  GENERA TUTTO (via Process Plugin)", GUILayout.Height(40)))
         {
@@ -1085,8 +1110,15 @@ public class CityBuilderWindow : EditorWindow
 
     private void FindCityManager()
     {
-        cityManager = CityManagerSceneUtility.Find();
-        cityData = cityManager != null ? cityManager.GetCityData() : null;
+        SetActiveCityManager(CityManagerSceneUtility.Find());
+    }
+
+    private void SetActiveCityManager(CityManager manager)
+    {
+        cityManager = manager;
+        cityData = manager != null ? manager.GetCityData() : null;
+        proceduralConfig = manager != null ? manager.GetCityConfig() : null;
+        CitySceneHandle.SetActiveManager(manager);
         Repaint();
     }
 
@@ -1103,9 +1135,22 @@ public class CityBuilderWindow : EditorWindow
 
     private void CreateCityManager()
     {
-        cityManager = CityManagerSceneUtility.FindOrCreate();
-        cityData = cityManager.GetCityData();
-        Selection.activeGameObject = cityManager.gameObject;
+        string assetPath = CityManagerSceneUtility.AskCityDataAssetPath("New City");
+        if (string.IsNullOrEmpty(assetPath))
+        {
+            return;
+        }
+
+        string cityName = CityManagerSceneUtility.GetCityNameFromAssetPath(assetPath);
+        CityManager manager = CityManagerSceneUtility.Create(cityName, assetPath);
+        if (manager == null)
+        {
+            return;
+        }
+
+        SetActiveCityManager(manager);
+        Selection.activeGameObject = manager.gameObject;
+        EditorGUIUtility.PingObject(manager.GetCityData());
         SceneView.lastActiveSceneView?.FrameSelected();
     }
 
@@ -1116,10 +1161,21 @@ public class CityBuilderWindow : EditorWindow
             return;
         }
 
-        CityData data = CityManagerSceneUtility.CreateAndAssignData(manager);
+        string assetPath = CityManagerSceneUtility.AskCityDataAssetPath(manager.name);
+        if (string.IsNullOrEmpty(assetPath))
+        {
+            return;
+        }
 
-        cityManager = manager;
-        cityData = data;
+        string cityName = CityManagerSceneUtility.GetCityNameFromAssetPath(assetPath);
+        CityData data = CityManagerSceneUtility.CreateAndAssignData(manager, cityName, assetPath);
+        if (data == null)
+        {
+            return;
+        }
+
+        manager.name = cityName;
+        SetActiveCityManager(manager);
         EditorGUIUtility.PingObject(data);
         Repaint();
     }

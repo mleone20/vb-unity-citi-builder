@@ -62,17 +62,18 @@ public sealed class CityGenerationContext
     public CityData cityData;
 
     // Config asset del plugin process attivo (agnostico rispetto al tema città)
-    public ScriptableObject processConfig;
-
     // Legacy alias: resta per compatibilità con plugin step esistenti a tema American.
-    public AmericanCityConfig config;
+    public CityConfig config;
     public ILotSelectionPlugin lotSelectionPlugin;
     public IServiceProvider services;
 
-    public T GetProcessConfig<T>() where T : ScriptableObject
+    public T GetConfig<T>() where T : CityConfig
     {
-        return processConfig as T;
+        return config as T;
     }
+
+    [Obsolete("Usare GetConfig<T>().")]
+    public T GetProcessConfig<T>() where T : CityConfig => GetConfig<T>();
 }
 
 public interface ICityPipelineStep
@@ -87,6 +88,22 @@ public interface ICityPipelineStep
 public interface ICityPipelineContributor
 {
     IEnumerable<ICityPipelineStep> CreatePipelineSteps(CityGenerationContext context);
+}
+
+[Flags]
+public enum CityProcessCapabilities
+{
+    None = 0,
+    RoadNetwork = 1 << 0,
+    Zoning = 1 << 1,
+    LotGeneration = 1 << 2,
+    FullGeneration = 1 << 3,
+    All = ~0
+}
+
+public interface ICityProcessCapabilities
+{
+    CityProcessCapabilities Capabilities { get; }
 }
 
 public struct CityGenerationReport

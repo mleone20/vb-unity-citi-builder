@@ -11,12 +11,12 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7c3466ed179c20540b85eb441537590a, type: 3}
   m_Name: Autostrada
-  m_EditorClassIdentifier: Assembly-CSharp::RoadProfile
+  m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Core.RoadProfile
   displayName: Autostrada
   hierarchyLevel: 3
-  roadWidth: 28.5
+  roadWidth: 9.5
   debugColor: {r: 0.75, g: 0.25, b: 0.2, a: 1}
-  intersectionClearanceRadius: 18
+  intersectionClearanceRadius: 6
   blockInset: 0
-  meshMaterial: {fileID: 2100000, guid: a0c65fdd46208054a9703cfc8f39ce91, type: 2}
+  meshMaterial: {fileID: 0}
   description: "Asse veloce ad alta capacit\xE0."

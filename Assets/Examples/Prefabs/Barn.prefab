@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &968541288328225494
+--- !u!1 &6107787887094791
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 3345346056755336112}
-  - component: {fileID: 2973648185018961512}
-  - component: {fileID: 3302647729791054021}
+  - component: {fileID: 1301982031241665836}
+  - component: {fileID: 8194836206674267576}
+  - component: {fileID: 4455546095249333690}
   m_Layer: 0
   m_Name: Body
   m_TagString: Untagged
@@ -18,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &3345346056755336112
+--- !u!4 &1301982031241665836
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 968541288328225494}
+  m_GameObject: {fileID: 6107787887094791}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 3, z: 0}
   m_LocalScale: {x: 10, y: 6, z: 12}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8126324706736594597}
+  m_Father: {fileID: 5901070265796956911}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &2973648185018961512
+--- !u!33 &8194836206674267576
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 968541288328225494}
+  m_GameObject: {fileID: 6107787887094791}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!23 &3302647729791054021
+--- !u!23 &4455546095249333690
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 968541288328225494}
+  m_GameObject: {fileID: 6107787887094791}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -90,7 +90,7 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &3853741837272134119
+--- !u!1 &4788559427792950922
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -98,8 +98,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 8126324706736594597}
-  - component: {fileID: 9176412582186961914}
+  - component: {fileID: 5901070265796956911}
+  - component: {fileID: 6551862134748690484}
   m_Layer: 0
   m_Name: Barn
   m_TagString: Untagged
@@ -107,39 +107,41 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &8126324706736594597
+--- !u!4 &5901070265796956911
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3853741837272134119}
+  m_GameObject: {fileID: 4788559427792950922}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3345346056755336112}
+  - {fileID: 1301982031241665836}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &9176412582186961914
+--- !u!114 &6551862134748690484
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3853741837272134119}
+  m_GameObject: {fileID: 4788559427792950922}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 323fa384f24c5fc43a5407df76d8d178, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CityBuilderPrefab
+  m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Components.CityBuilderPrefab
+  aiDescription: 
+  aiSuggestedZoneDisplayNames: []
   footprintSize: {x: 10, y: 12}
   autoComputeFromRenderers: 0
   pivotOffset: {x: 0, y: 0, z: 0}
-  frontageOffset: {x: -5, y: 0, z: 0}
-  frontageDirection: {x: -1, y: 0, z: 0}
+  frontageOffset: {x: 0, y: 0, z: -6}
+  frontageDirection: {x: 0, y: 0, z: -1}
   frontageDisplayHeight: 4
   frontageOffsetInitialized: 1
   frontageDirectionInitialized: 1

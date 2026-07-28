@@ -11,12 +11,12 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7c3466ed179c20540b85eb441537590a, type: 3}
   m_Name: Via Locale
-  m_EditorClassIdentifier: Assembly-CSharp::RoadProfile
+  m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Core.RoadProfile
   displayName: Via Locale
   hierarchyLevel: 1
-  roadWidth: 12
+  roadWidth: 4
   debugColor: {r: 0.45, g: 0.65, b: 0.95, a: 1}
-  intersectionClearanceRadius: 9
+  intersectionClearanceRadius: 3
   blockInset: 0
-  meshMaterial: {fileID: 2100000, guid: a0c65fdd46208054a9703cfc8f39ce91, type: 2}
+  meshMaterial: {fileID: 0}
   description: Strada urbana di quartiere.

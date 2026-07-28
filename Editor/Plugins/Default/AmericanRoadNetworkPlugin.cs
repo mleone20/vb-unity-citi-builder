@@ -17,7 +17,8 @@ public class AmericanRoadNetworkPlugin : IRoadNetworkGenerationPlugin
     public CityGenerationReport GenerateRoadNetwork(CityGenerationContext context)
     {
         CityGenerationReport report = new CityGenerationReport { warnings = new List<string>() };
-        if (context.manager == null || context.config == null)
+        AmericanCityConfig config = context.GetConfig<AmericanCityConfig>();
+        if (context.manager == null || config == null)
         {
             report.warnings.Add("CityManager o AmericanCityConfig non assegnati.");
             return report;
@@ -30,7 +31,7 @@ public class AmericanRoadNetworkPlugin : IRoadNetworkGenerationPlugin
             return report;
         }
 
-        GenerateRoadNetworkGrid(context.manager, context.config, ref report);
+        GenerateRoadNetworkGrid(context.manager, config, ref report);
 
         EditorUtility.SetDirty(cityData);
         SceneView.RepaintAll();

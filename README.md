@@ -99,11 +99,17 @@ Asset (`Assets/RoadProfiles/`) che definisce una categoria stradale:
 - gerarchia (Autostrada → Via Locale → Vicolo)
 
 ### CityConfig
-Asset (`Assets/Settings/`) con parametri globali della generazione:
-- passo della griglia
-- numero di strade radiali
-- raggi degli anelli di zonizzazione
-- dimensioni minime/massime lotti
+
+`CityConfig` è la base generica delle configurazioni di città. Il City Builder conserva sul
+`CityManager` un riferimento a questa base e non dipende da una sua implementazione concreta.
+
+Le configurazioni incluse sono:
+
+- `AmericanCityConfig`, per griglia, highway radiali e zoning ad anelli;
+- `RandomScatterCityConfig`, per città distribuite tramite scattering.
+
+Un nuovo tipo di città può derivare da `CityConfig`, sovrascrivere proprietà comuni come
+`PlanarizationMergeTolerance` e fornire i propri parametri serializzati.
 
 ---
 
@@ -186,6 +192,24 @@ Un process plugin può implementare `ICityPipelineContributor` e restituire una 
 - `ICityBuilderPanelExtension`: pannelli aggiuntivi.
 - `ICitySceneViewExtension`: handle e overlay nella Scene View.
 - `ICityProcessPluginEditorUI`: configurazione del process plugin.
+- `ICityConfigEditorTools`: strumenti mostrati nella tab Tools solo quando è attivo il
+  `CityConfig` compatibile.
+
+Esempio di strumento specifico:
+
+```csharp
+public sealed class MedievalCityTools : ICityConfigEditorTools
+{
+    public Type ConfigType => typeof(MedievalCityConfig);
+    public int Order => 100;
+    public string Title => "MEDIEVAL CITY";
+
+    public void DrawTools(CityConfig config, CityManager manager)
+    {
+        if (GUILayout.Button("Genera mura")) { /* ... */ }
+    }
+}
+```
 
 ### Plugin DLL
 
