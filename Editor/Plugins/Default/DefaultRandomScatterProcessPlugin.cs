@@ -19,14 +19,8 @@ public class DefaultRandomScatterProcessPlugin : ICityProcessPlugin, ICityProces
 
     public ScriptableObject CreateDefaultConfigurationAsset()
     {
-        const string folder = "Assets/BSCCityBuilder/Assets";
-        if (!AssetDatabase.IsValidFolder(folder))
-            AssetDatabase.CreateFolder("Assets/BSCCityBuilder", "Assets");
-
         var cfg = ScriptableObject.CreateInstance<RandomScatterCityConfig>();
-        string path = AssetDatabase.GenerateUniqueAssetPath(folder + "/RandomScatterCityConfig.asset");
-        AssetDatabase.CreateAsset(cfg, path);
-        AssetDatabase.SaveAssets();
+        CityBuilderAssetPaths.CreateUniqueAsset(cfg, "RandomScatterCityConfig.asset");
         Selection.activeObject = cfg;
         return cfg;
     }
@@ -166,10 +160,10 @@ public class DefaultRandomScatterProcessPlugin : ICityProcessPlugin, ICityProces
             }
         }
 
-        ILotSelectionPlugin lotSelection = CityPluginRegistry.Create<ILotSelectionPlugin>(CityPluginCategory.LotSelection, settings.activeLotSelectionPluginId);
-        CityPluginRuntime.SetLotSelectionPlugin(lotSelection);
+        ILotSelectionPlugin lotSelection = CityPluginRegistry.Create<ILotSelectionPlugin>(CityPluginCategory.LotSelection, settings.GetActivePluginId(CityPluginCategory.LotSelection));
+        context.lotSelectionPlugin = lotSelection;
 
-        ILotLayoutPlugin lotLayout = CityPluginRegistry.Create<ILotLayoutPlugin>(CityPluginCategory.LotLayout, settings.activeLotLayoutPluginId);
+        ILotLayoutPlugin lotLayout = CityPluginRegistry.Create<ILotLayoutPlugin>(CityPluginCategory.LotLayout, settings.GetActivePluginId(CityPluginCategory.LotLayout));
         if (lotLayout != null)
         {
             cityData.lots.Clear();

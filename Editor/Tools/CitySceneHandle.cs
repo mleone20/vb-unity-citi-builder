@@ -9,6 +9,7 @@ using BSCCityBuilder.Config;
 using BSCCityBuilder.Rendering;
 using BSCCityBuilder.Plugins;
 using BSCCityBuilder.Editor.Inspectors;
+using BSCCityBuilder.Editor.Plugins;
 
 namespace BSCCityBuilder.Editor.Tools
 {
@@ -68,6 +69,12 @@ public class CitySceneHandle
 
         // Anteprima blocchi auto-rilevati (non ancora confermati).
         CityBlockEditor.DrawSuggestedBlocksPreview();
+
+        IReadOnlyList<ICitySceneViewExtension> extensions = CityEditorExtensionRegistry.SceneViewExtensions;
+        for (int i = 0; i < extensions.Count; i++)
+        {
+            extensions[i].OnSceneGUI(sceneView, cachedCityManager);
+        }
 
         // Processa eventi keyboard/mouse
         ProcessSceneViewInput(sceneView, cachedCityManager, mode);

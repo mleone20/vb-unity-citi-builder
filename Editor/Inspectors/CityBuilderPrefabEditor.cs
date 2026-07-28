@@ -281,7 +281,7 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
         // Forza la richiesta di generazione preview e segnala all'utente di riprovare.
         AssetPreview.GetAssetPreview(prefabAsset);
 
-        bool stillLoading = AssetPreview.IsLoadingAssetPreview(prefabAsset.GetInstanceID()) || AssetPreview.IsLoadingAssetPreviews();
+        bool stillLoading = AssetPreview.IsLoadingAssetPreview(prefabAsset.GetEntityId()) || AssetPreview.IsLoadingAssetPreviews();
         if (stillLoading)
         {
             error = "La preview renderizzata del modello e in preparazione. Attendi qualche istante e riprova.";

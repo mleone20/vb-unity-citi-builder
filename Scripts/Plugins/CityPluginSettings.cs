@@ -9,13 +9,30 @@ namespace BSCCityBuilder.Plugins
 [CreateAssetMenu(fileName = "CityPluginSettings", menuName = "City Builder/Plugin Settings")]
 public class CityPluginSettings : ScriptableObject
 {
+    [System.Serializable]
+    public class PluginSelection
+    {
+        public CityPluginCategory category;
+        public string pluginId;
+    }
+
+    [SerializeField] private System.Collections.Generic.List<PluginSelection> selections =
+        new System.Collections.Generic.List<PluginSelection>();
+
     [Header("Active Plugin IDs")]
+    [HideInInspector]
     public string activeProcessPluginId = "bsc.process.default-random";
+    [HideInInspector]
     public string activeRoadNetworkPluginId = "bsc.american.road-network";
+    [HideInInspector]
     public string activeRoadPlanarizationPluginId = "bsc.default.planarization";
+    [HideInInspector]
     public string activeBlockDetectionPluginId = "bsc.default.block-detection";
+    [HideInInspector]
     public string activeZoningPluginId = "bsc.american.zoning";
+    [HideInInspector]
     public string activeLotLayoutPluginId = "bsc.default.lot-layout";
+    [HideInInspector]
     public string activeLotSelectionPluginId = "bsc.default.lot-selection";
 
     [Header("Pipeline Options")]
@@ -23,6 +40,52 @@ public class CityPluginSettings : ScriptableObject
     public bool runPlanarizationInFullGeneration = true;
 
     public string GetActivePluginId(CityPluginCategory category)
+    {
+        EnsureMigrated();
+        for (int i = 0; i < selections.Count; i++)
+        {
+            if (selections[i].category == category)
+            {
+                return selections[i].pluginId;
+            }
+        }
+        return string.Empty;
+    }
+
+    public void SetActivePluginId(CityPluginCategory category, string pluginId)
+    {
+        EnsureMigrated();
+        for (int i = 0; i < selections.Count; i++)
+        {
+            if (selections[i].category == category)
+            {
+                selections[i].pluginId = pluginId;
+                SyncLegacyField(category, pluginId);
+                return;
+            }
+        }
+        selections.Add(new PluginSelection { category = category, pluginId = pluginId });
+        SyncLegacyField(category, pluginId);
+    }
+
+    private void EnsureMigrated()
+    {
+        if (selections.Count > 0)
+        {
+            return;
+        }
+
+        foreach (CityPluginCategory category in System.Enum.GetValues(typeof(CityPluginCategory)))
+        {
+            selections.Add(new PluginSelection
+            {
+                category = category,
+                pluginId = GetLegacyField(category)
+            });
+        }
+    }
+
+    private string GetLegacyField(CityPluginCategory category)
     {
         switch (category)
         {
@@ -37,7 +100,7 @@ public class CityPluginSettings : ScriptableObject
         }
     }
 
-    public void SetActivePluginId(CityPluginCategory category, string pluginId)
+    private void SyncLegacyField(CityPluginCategory category, string pluginId)
     {
         switch (category)
         {

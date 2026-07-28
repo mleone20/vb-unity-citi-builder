@@ -21,12 +21,14 @@ public enum CityPluginCategory
 }
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public class CityPluginAttribute : Attribute
+public sealed class CityPluginAttribute : Attribute
 {
     public readonly string id;
     public readonly string displayName;
     public readonly CityPluginCategory category;
     public readonly string description;
+    public string Version { get; set; } = "1.0.0";
+    public int Order { get; set; }
 
     public CityPluginAttribute(string id, string displayName, CityPluginCategory category, string description = "")
     {
@@ -37,7 +39,24 @@ public class CityPluginAttribute : Attribute
     }
 }
 
-public struct CityGenerationContext
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+public sealed class CityPluginDependencyAttribute : Attribute
+{
+    public string PluginId { get; }
+    public bool Optional { get; set; }
+
+    public CityPluginDependencyAttribute(string pluginId)
+    {
+        PluginId = pluginId;
+    }
+}
+
+public interface ICityPlugin
+{
+    void Initialize(CityGenerationContext context);
+}
+
+public sealed class CityGenerationContext
 {
     public CityManager manager;
     public CityData cityData;
@@ -47,11 +66,27 @@ public struct CityGenerationContext
 
     // Legacy alias: resta per compatibilità con plugin step esistenti a tema American.
     public AmericanCityConfig config;
+    public ILotSelectionPlugin lotSelectionPlugin;
+    public IServiceProvider services;
 
     public T GetProcessConfig<T>() where T : ScriptableObject
     {
         return processConfig as T;
     }
+}
+
+public interface ICityPipelineStep
+{
+    string Id { get; }
+    string DisplayName { get; }
+    int Order { get; }
+    bool CanExecute(CityGenerationContext context);
+    CityGenerationReport Execute(CityGenerationContext context);
+}
+
+public interface ICityPipelineContributor
+{
+    IEnumerable<ICityPipelineStep> CreatePipelineSteps(CityGenerationContext context);
 }
 
 public struct CityGenerationReport

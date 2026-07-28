@@ -1,106 +1,177 @@
-using UnityEngine;
-using UnityEditor;
+using System;
 using System.Collections.Generic;
-using BSCCityBuilder.Core;
-using BSCCityBuilder.Management;
-using BSCCityBuilder.Config;
-using BSCCityBuilder.Generation;
+using System.IO;
+using System.Reflection;
+using UnityEditor;
+using UnityEngine;
 using BSCCityBuilder.Plugins;
 
 namespace BSCCityBuilder.Editor.Plugins
 {
-/// <summary>
-/// Loader di plugin esterni da assembly .dll — FASE 2 PLACEHOLDER.
-///
-/// In Fase 1 questo loader non carica nessun assembly reale.
-/// Fornisce la struttura e l'API che verrà usata in Fase 2 quando si vorrà
-/// supportare plugin distribuiti come DLL esterne.
-///
-/// Per abilitare in Fase 2:
-///   1. Rimuovere il commento dal blocco #if CITY_PLUGIN_PHASE2
-///   2. Aggiungere CITY_PLUGIN_PHASE2 ai Scripting Define Symbols del progetto
-///   3. Implementare la validazione firma assembly se richiesta
-/// </summary>
 [InitializeOnLoad]
 public static class CityExternalPluginLoader
 {
-    // Manifests caricati nella sessione corrente
-    private static readonly List<CityPluginManifest> _loadedManifests = new List<CityPluginManifest>();
+    public const string SupportedApiVersion = "1.0";
+    private static readonly List<CityPluginManifest> Loaded = new List<CityPluginManifest>();
 
     static CityExternalPluginLoader()
     {
-        // Scan automatico manifest al caricamento del dominio
-        ScanManifests();
+        EditorApplication.delayCall += ScanManifests;
     }
 
-    /// <summary>
-    /// Scansiona tutti i CityPluginManifest nel progetto e tenta di caricarli.
-    /// Chiamato automaticamente a ogni ricompilazione, o manualmente via menu.
-    /// </summary>
+    public static IReadOnlyList<CityPluginManifest> LoadedManifests => Loaded;
+
+    [MenuItem("Tools/City Builder/Refresh External Plugins")]
     public static void ScanManifests()
     {
-        _loadedManifests.Clear();
-
+        Loaded.Clear();
+        CityPluginRegistry.Refresh();
         string[] guids = AssetDatabase.FindAssets("t:CityPluginManifest");
-        foreach (string guid in guids)
+        for (int i = 0; i < guids.Length; i++)
         {
-            string path = AssetDatabase.GUIDToAssetPath(guid);
-            var manifest = AssetDatabase.LoadAssetAtPath<CityPluginManifest>(path);
-            if (manifest != null)
-                TryLoadManifest(manifest);
+            TryLoadManifest(AssetDatabase.LoadAssetAtPath<CityPluginManifest>(
+                AssetDatabase.GUIDToAssetPath(guids[i])));
         }
-
-        if (_loadedManifests.Count > 0)
-            Debug.Log($"[CityExternalPluginLoader] {_loadedManifests.Count} manifest trovati. " +
-                      "Caricamento DLL esterno disabilitato (Fase 1).");
+        CityPluginRegistry.Refresh();
     }
 
-    /// <summary>
-    /// Tenta di caricare un manifest. In Fase 1 segna solo il manifest come rilevato.
-    /// In Fase 2 caricherà l'assembly dalla <see cref="CityPluginManifest.dllRelativePath"/>.
-    /// </summary>
-    public static void TryLoadManifest(CityPluginManifest manifest)
+    public static bool TryLoadManifest(CityPluginManifest manifest)
     {
-        if (manifest == null) return;
-
-        // Fase 1: validazione strutturale solo
-        if (string.IsNullOrEmpty(manifest.dllRelativePath))
+        if (manifest == null)
         {
-            // Manifest interno (nessuna DLL) — solo registrazione metadati
-            manifest.isLoaded = true;
-            _loadedManifests.Add(manifest);
-            return;
+            return false;
         }
 
-        // ── FASE 2 (non attiva) ──────────────────────────────────────────────
-        // #if CITY_PLUGIN_PHASE2
-        //   string fullPath = System.IO.Path.Combine(Application.dataPath, "Plugins", manifest.dllRelativePath);
-        //   if (!System.IO.File.Exists(fullPath))
-        //   {
-        //       Debug.LogWarning($"[CityExternalPluginLoader] DLL non trovata: {fullPath}");
-        //       return;
-        //   }
-        //
-        //   // Validazione whitelist categorie
-        //   var allowedSet = new System.Collections.Generic.HashSet<CityPluginCategory>(manifest.allowedCategories);
-        //
-        //   // Caricamento assembly e reflection per trovare tipi [CityPlugin]
-        //   var asm = System.Reflection.Assembly.LoadFrom(fullPath);
-        //   // CityPluginRegistry.RegisterExternalAssembly(asm, allowedSet);
-        //
-        //   manifest.isLoaded = true;
-        //   _loadedManifests.Add(manifest);
-        //   Debug.Log($"[CityExternalPluginLoader] Caricato: {manifest.pluginDisplayName} v{manifest.version}");
-        // #endif
-        // ────────────────────────────────────────────────────────────────────
+        manifest.isLoaded = false;
+        manifest.loadMessage = "";
 
-        Debug.LogWarning($"[CityExternalPluginLoader] Manifest '{manifest.pluginDisplayName}' ha una dllRelativePath " +
-                         "ma il caricamento DLL esterno non è ancora abilitato (Fase 1). " +
-                         "Definire CITY_PLUGIN_PHASE2 nei Scripting Define Symbols per abilitarlo.");
+        if (string.IsNullOrWhiteSpace(manifest.pluginDisplayName) ||
+            !Version.TryParse(NormalizeVersion(manifest.version), out _))
+        {
+            return Fail(manifest, "Nome o versione semantica non validi.");
+        }
+
+        if (!string.Equals(manifest.apiVersion, SupportedApiVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            return Fail(manifest, "API richiesta " + manifest.apiVersion +
+                                  ", API supportata " + SupportedApiVersion + ".");
+        }
+
+        string[] dependencies = manifest.dependencies ?? new string[0];
+        for (int i = 0; i < dependencies.Length; i++)
+        {
+            if (!CityPluginRegistry.ContainsPlugin(dependencies[i]))
+            {
+                return Fail(manifest, "Dipendenza plugin mancante: " + dependencies[i]);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifest.dllRelativePath))
+        {
+            string dllAssetPath = ResolveDllAssetPath(manifest);
+            if (string.IsNullOrEmpty(dllAssetPath) || AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(dllAssetPath) == null)
+            {
+                return Fail(manifest, "DLL non trovata nel progetto: " + manifest.dllRelativePath);
+            }
+
+            string assemblyName = Path.GetFileNameWithoutExtension(dllAssetPath);
+            Assembly assembly = FindLoadedAssembly(assemblyName);
+            if (assembly == null)
+            {
+                return Fail(manifest,
+                    "La DLL è presente ma non è caricata da Unity. Verificare Plugin Import Settings e compatibilità piattaforma.");
+            }
+
+            if (!ValidateAssemblyCategories(manifest, assembly, out string validationError))
+            {
+                return Fail(manifest, validationError);
+            }
+        }
+
+        manifest.isLoaded = true;
+        manifest.loadMessage = "Caricato";
+        Loaded.Add(manifest);
+        EditorUtility.SetDirty(manifest);
+        return true;
     }
 
-    /// <summary>Restituisce tutti i manifest caricati in questa sessione.</summary>
-    public static IReadOnlyList<CityPluginManifest> LoadedManifests => _loadedManifests;
-}
+    private static bool ValidateAssemblyCategories(
+        CityPluginManifest manifest,
+        Assembly assembly,
+        out string error)
+    {
+        var allowed = new HashSet<CityPluginCategory>(manifest.allowedCategories ?? new CityPluginCategory[0]);
+        Type[] types;
+        try
+        {
+            types = assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException exception)
+        {
+            types = exception.Types;
+        }
 
+        for (int i = 0; i < types.Length; i++)
+        {
+            Type type = types[i];
+            if (type == null)
+            {
+                continue;
+            }
+            CityPluginAttribute attribute = type.GetCustomAttribute<CityPluginAttribute>();
+            if (attribute != null && !allowed.Contains(attribute.category))
+            {
+                error = "Il plugin '" + attribute.id + "' usa la categoria non autorizzata " + attribute.category + ".";
+                return false;
+            }
+        }
+
+        error = "";
+        return true;
+    }
+
+    private static string ResolveDllAssetPath(CityPluginManifest manifest)
+    {
+        string requested = manifest.dllRelativePath.Replace('\\', '/');
+        if (requested.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+        {
+            return requested;
+        }
+
+        string manifestPath = AssetDatabase.GetAssetPath(manifest);
+        string folder = Path.GetDirectoryName(manifestPath)?.Replace('\\', '/');
+        return string.IsNullOrEmpty(folder) ? requested : folder + "/" + requested;
+    }
+
+    private static Assembly FindLoadedAssembly(string assemblyName)
+    {
+        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+        for (int i = 0; i < assemblies.Length; i++)
+        {
+            if (string.Equals(assemblies[i].GetName().Name, assemblyName, StringComparison.OrdinalIgnoreCase))
+            {
+                return assemblies[i];
+            }
+        }
+        return null;
+    }
+
+    private static bool Fail(CityPluginManifest manifest, string message)
+    {
+        manifest.loadMessage = message;
+        EditorUtility.SetDirty(manifest);
+        Debug.LogWarning("[CityExternalPluginLoader] " + manifest.pluginDisplayName + ": " + message, manifest);
+        return false;
+    }
+
+    private static string NormalizeVersion(string version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            return "";
+        }
+        string[] parts = version.Split('.');
+        return parts.Length == 2 ? version + ".0" : version;
+    }
+}
 }

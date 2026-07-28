@@ -18,15 +18,9 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
 
     public ScriptableObject CreateDefaultConfigurationAsset()
     {
-        const string folder = "Assets/BSCCityBuilder/Assets";
-        if (!AssetDatabase.IsValidFolder(folder))
-            AssetDatabase.CreateFolder("Assets/BSCCityBuilder", "Assets");
-
         AmericanCityConfig config = ScriptableObject.CreateInstance<AmericanCityConfig>();
         config.ResetToAmericanDefaults();
-        string path = AssetDatabase.GenerateUniqueAssetPath(folder + "/AmericanCityConfig.asset");
-        AssetDatabase.CreateAsset(config, path);
-        AssetDatabase.SaveAssets();
+        CityBuilderAssetPaths.CreateUniqueAsset(config, "AmericanCityConfig.asset");
         Selection.activeObject = config;
         return config;
     }
@@ -72,8 +66,8 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
 
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
 
-        ILotSelectionPlugin lotSelection = CityPluginRegistry.Create<ILotSelectionPlugin>(CityPluginCategory.LotSelection, settings.activeLotSelectionPluginId);
-        CityPluginRuntime.SetLotSelectionPlugin(lotSelection);
+        ILotSelectionPlugin lotSelection = CityPluginRegistry.Create<ILotSelectionPlugin>(CityPluginCategory.LotSelection, settings.GetActivePluginId(CityPluginCategory.LotSelection));
+        context.lotSelectionPlugin = lotSelection;
 
         // Garantisce che i plugin step legacy che leggono context.config ricevano il config americano.
         context.processConfig = cfg;
@@ -84,7 +78,7 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
 
         if (settings.runPlanarizationInFullGeneration)
         {
-            IRoadPlanarizationPlugin planarization = CityPluginRegistry.Create<IRoadPlanarizationPlugin>(CityPluginCategory.RoadPlanarization, settings.activeRoadPlanarizationPluginId);
+            IRoadPlanarizationPlugin planarization = CityPluginRegistry.Create<IRoadPlanarizationPlugin>(CityPluginCategory.RoadPlanarization, settings.GetActivePluginId(CityPluginCategory.RoadPlanarization));
             if (planarization != null)
             {
                 total.Merge(planarization.PlanarizeRoads(context));
@@ -103,7 +97,7 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
         cityData.lots.Clear();
         EditorUtility.SetDirty(cityData);
 
-        IBlockDetectionPlugin blockDetection = CityPluginRegistry.Create<IBlockDetectionPlugin>(CityPluginCategory.BlockDetection, settings.activeBlockDetectionPluginId);
+        IBlockDetectionPlugin blockDetection = CityPluginRegistry.Create<IBlockDetectionPlugin>(CityPluginCategory.BlockDetection, settings.GetActivePluginId(CityPluginCategory.BlockDetection));
         List<List<Vector3>> detected = blockDetection != null ? blockDetection.DetectBlocks(context) : new List<List<Vector3>>();
         for (int i = 0; i < detected.Count; i++)
         {
@@ -114,7 +108,7 @@ public class AmericanFullProcessPlugin : ICityProcessPlugin, ICityProcessPluginE
         IZoningAssignmentPlugin zoning = new AmericanZoningPlugin();
         total.Merge(zoning.AssignZoning(context));
 
-        ILotLayoutPlugin lotLayout = CityPluginRegistry.Create<ILotLayoutPlugin>(CityPluginCategory.LotLayout, settings.activeLotLayoutPluginId);
+        ILotLayoutPlugin lotLayout = CityPluginRegistry.Create<ILotLayoutPlugin>(CityPluginCategory.LotLayout, settings.GetActivePluginId(CityPluginCategory.LotLayout));
         if (lotLayout != null)
         {
             int lotsGenerated = 0;

@@ -11,16 +11,15 @@ namespace BSCCityBuilder.Editor.Plugins
 {
 public static class CityPluginSettingsEditorUtility
 {
-    private const string SettingsAssetPath = "Assets/BSCCityBuilder/Assets/CityPluginSettings.asset";
-
     public static CityPluginSettings GetOrCreateSettings()
     {
-        CityPluginSettings settings = AssetDatabase.LoadAssetAtPath<CityPluginSettings>(SettingsAssetPath);
+        string settingsPath = CityBuilderAssetPaths.PluginSettingsPath;
+        CityPluginSettings settings = AssetDatabase.LoadAssetAtPath<CityPluginSettings>(settingsPath);
         if (settings == null)
         {
-            EnsureAssetFolder();
+            CityBuilderAssetPaths.EnsureFolder(CityBuilderAssetPaths.SettingsFolder);
             settings = ScriptableObject.CreateInstance<CityPluginSettings>();
-            AssetDatabase.CreateAsset(settings, SettingsAssetPath);
+            AssetDatabase.CreateAsset(settings, settingsPath);
             AssetDatabase.SaveAssets();
         }
 
@@ -54,7 +53,7 @@ public static class CityPluginSettingsEditorUtility
     private static bool EnsureSelection(CityPluginSettings settings, CityPluginCategory category)
     {
         string current = settings.GetActivePluginId(category);
-        List<CityPluginDescriptor> plugins = CityPluginRegistry.GetPlugins(category);
+        IReadOnlyList<CityPluginDescriptor> plugins = CityPluginRegistry.GetPlugins(category);
 
         if (plugins.Count == 0)
         {
@@ -79,18 +78,6 @@ public static class CityPluginSettingsEditorUtility
         return true;
     }
 
-    private static void EnsureAssetFolder()
-    {
-        if (!AssetDatabase.IsValidFolder("Assets/BSCCityBuilder"))
-        {
-            AssetDatabase.CreateFolder("Assets", "BSCCityBuilder");
-        }
-
-        if (!AssetDatabase.IsValidFolder("Assets/BSCCityBuilder/Assets"))
-        {
-            AssetDatabase.CreateFolder("Assets/BSCCityBuilder", "Assets");
-        }
-    }
 }
 
 }

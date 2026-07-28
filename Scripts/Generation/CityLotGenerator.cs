@@ -18,10 +18,16 @@ public static class CityLotGenerator
 {
     private const float LotSafetyMargin = 0.05f;
 
-    public static List<CityLot> GenerateLotsForBlock(CityBlock block, ZoneType zoning, int blockIndex, CityData cityData, BlockOrientation orientation = BlockOrientation.Interior)
+    public static List<CityLot> GenerateLotsForBlock(
+        CityBlock block,
+        ZoneType zoning,
+        int blockIndex,
+        CityData cityData,
+        BlockOrientation orientation = BlockOrientation.Interior,
+        ILotSelectionPlugin lotSelectionPlugin = null)
     {
         if (orientation == BlockOrientation.Sparse)
-            return GenerateSparseLotsForBlock(block, zoning, blockIndex, cityData);
+            return GenerateSparseLotsForBlock(block, zoning, blockIndex, cityData, lotSelectionPlugin);
 
         bool isExterior = orientation == BlockOrientation.Exterior;
 
@@ -75,7 +81,7 @@ public static class CityLotGenerator
             {
                 // ── Seleziona prefab e dimensioni lotto ──────────────────────
                 float lotWidth, lotDepth;
-                int prefabIndex = PickCandidateIndex(blockIndex, edgeIdx, lotIdx, candidates, zoning);
+                int prefabIndex = PickCandidateIndex(blockIndex, edgeIdx, lotIdx, candidates, zoning, lotSelectionPlugin);
                 if (prefabIndex < 0)
                 {
                     break;
@@ -181,7 +187,12 @@ public static class CityLotGenerator
 
     // ── Modalità Sparse ──────────────────────────────────────────────────────
 
-    private static List<CityLot> GenerateSparseLotsForBlock(CityBlock block, ZoneType zoning, int blockIndex, CityData cityData)
+    private static List<CityLot> GenerateSparseLotsForBlock(
+        CityBlock block,
+        ZoneType zoning,
+        int blockIndex,
+        CityData cityData,
+        ILotSelectionPlugin lotSelectionPlugin)
     {
         List<CityLot> lots = new List<CityLot>();
         if (block.vertices.Count < 3) return lots;
@@ -237,7 +248,7 @@ public static class CityLotGenerator
                 Vector3 center = new Vector3(cx, centerY, cz);
 
                 // Prefab e rotazione (multipli di 90°, deterministici).
-                int prefabIndex = PickCandidateIndex(blockIndex, cellIdx, 0, candidates, zoning);
+                int prefabIndex = PickCandidateIndex(blockIndex, cellIdx, 0, candidates, zoning, lotSelectionPlugin);
                 if (prefabIndex < 0)
                 {
                     cellIdx++;
@@ -333,7 +344,13 @@ public static class CityLotGenerator
         return result;
     }
 
-    private static int PickCandidateIndex(int blockIdx, int edgeIdx, int lotIdx, List<CityLotCandidate> candidates, ZoneType zone)
+    private static int PickCandidateIndex(
+        int blockIdx,
+        int edgeIdx,
+        int lotIdx,
+        List<CityLotCandidate> candidates,
+        ZoneType zone,
+        ILotSelectionPlugin lotSelectionPlugin)
     {
         CityLotSelectionContext context = new CityLotSelectionContext
         {
@@ -344,7 +361,7 @@ public static class CityLotGenerator
             candidates = candidates
         };
 
-        return CityPluginRuntime.PickLotCandidate(context);
+        return (lotSelectionPlugin ?? new DefaultLotSelectionPlugin()).PickCandidateIndex(context);
     }
 
     // ── SAT 2-D ──────────────────────────────────────────────────────────────

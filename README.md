@@ -160,14 +160,38 @@ Il sistema integra un client LLM locale per classificare automaticamente i prefa
 
 ## Sistema Plugin
 
-Registrare implementazioni custom tramite `CityPluginRegistry`. Ogni plugin deve implementare l'interfaccia corrispondente:
+I plugin sono scoperti automaticamente tramite `TypeCache`. Devono avere un costruttore pubblico senza
+parametri, implementare il contratto della categoria ed essere decorati con `CityPlugin`:
 
 ```csharp
+[CityPlugin("acme.roads", "ACME Roads", CityPluginCategory.RoadNetwork,
+    "Generatore stradale custom", Version = "1.2.0", Order = 100)]
+[CityPluginDependency("bsc.default.planarization", Optional = true)]
 public class MyRoadPlugin : IRoadNetworkGenerationPlugin
 {
-    public void Generate(CityData city, CityPluginSettings settings) { ... }
+    public CityGenerationReport GenerateRoadNetwork(CityGenerationContext context)
+    {
+        return new CityGenerationReport();
+    }
 }
 ```
+
+`CityGenerationContext` è per-esecuzione: non servono singleton per passare stato tra plugin.
+Un process plugin può implementare `ICityPipelineContributor` e restituire una sequenza ordinata di
+`ICityPipelineStep`.
+
+### Estensioni dell'editor
+
+- `ICityBuilderToolbarExtension`: comandi nella barra superiore.
+- `ICityBuilderPanelExtension`: pannelli aggiuntivi.
+- `ICitySceneViewExtension`: handle e overlay nella Scene View.
+- `ICityProcessPluginEditorUI`: configurazione del process plugin.
+
+### Plugin DLL
+
+Le DLL vengono importate normalmente da Unity e accompagnate da un `CityPluginManifest`.
+Il loader verifica API, versione semantica, dipendenze, assembly e whitelist delle categorie.
+Usare **Tools → City Builder → Refresh External Plugins** dopo una modifica.
 
 Plugin built-in disponibili:
 
@@ -211,4 +235,6 @@ BSCCityBuilder/
 
 - Le query sui nodi più vicini usano distanza planare **XZ** (non 3D) per correttezza su terreni inclinati.
 - Nei namespace `BSCCityBuilder.Editor.*`, usare `UnityEditor.Editor` qualificato per evitare conflitti tipo-vs-namespace.
-- Il sistema di plugin esterni (caricamento .dll) è un placeholder attualmente inattivo (`CityExternalPluginLoader`).
+- I percorsi degli asset sono ricavati dalla posizione del package tramite `CityBuilderAssetPaths`.
+- I manifest delle DLL vengono validati da `CityExternalPluginLoader`; Unity resta responsabile
+  dell'import e del caricamento dell'assembly.

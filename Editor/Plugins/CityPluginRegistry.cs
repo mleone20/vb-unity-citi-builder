@@ -17,11 +17,26 @@ public struct CityPluginDescriptor
     public string description;
     public CityPluginCategory category;
     public Type pluginType;
+    public string version;
+    public int order;
+    public string[] dependencies;
+    public bool isValid;
+    public string validationMessage;
 }
 
 public static class CityPluginRegistry
 {
     private static readonly Dictionary<CityPluginCategory, List<CityPluginDescriptor>> _byCategory = new Dictionary<CityPluginCategory, List<CityPluginDescriptor>>();
+    private static readonly Dictionary<CityPluginCategory, Type> _contracts = new Dictionary<CityPluginCategory, Type>
+    {
+        { CityPluginCategory.Process, typeof(ICityProcessPlugin) },
+        { CityPluginCategory.RoadNetwork, typeof(IRoadNetworkGenerationPlugin) },
+        { CityPluginCategory.RoadPlanarization, typeof(IRoadPlanarizationPlugin) },
+        { CityPluginCategory.BlockDetection, typeof(IBlockDetectionPlugin) },
+        { CityPluginCategory.Zoning, typeof(IZoningAssignmentPlugin) },
+        { CityPluginCategory.LotLayout, typeof(ILotLayoutPlugin) },
+        { CityPluginCategory.LotSelection, typeof(ILotSelectionPlugin) }
+    };
     private static bool _initialized;
 
     [InitializeOnLoadMethod]
@@ -71,7 +86,12 @@ public static class CityPluginRegistry
                 displayName = string.IsNullOrWhiteSpace(attr.displayName) ? type.Name : attr.displayName,
                 description = attr.description,
                 category = attr.category,
-                pluginType = type
+                pluginType = type,
+                version = attr.Version,
+                order = attr.Order,
+                dependencies = GetDependencies(type),
+                isValid = true,
+                validationMessage = string.Empty
             };
 
             List<CityPluginDescriptor> list = _byCategory[attr.category];
@@ -92,13 +112,19 @@ public static class CityPluginRegistry
             }
         }
 
+        ValidateDependencies();
+        foreach (List<CityPluginDescriptor> plugins in _byCategory.Values)
+        {
+            plugins.Sort(CompareDescriptors);
+        }
+
         _initialized = true;
     }
 
-    public static List<CityPluginDescriptor> GetPlugins(CityPluginCategory category)
+    public static IReadOnlyList<CityPluginDescriptor> GetPlugins(CityPluginCategory category)
     {
         EnsureInitialized();
-        return _byCategory[category];
+        return _byCategory[category].AsReadOnly();
     }
 
     public static CityPluginDescriptor? GetDescriptor(CityPluginCategory category, string pluginId)
@@ -116,22 +142,43 @@ public static class CityPluginRegistry
         return null;
     }
 
+    public static bool ContainsPlugin(string pluginId)
+    {
+        EnsureInitialized();
+        if (string.IsNullOrWhiteSpace(pluginId))
+        {
+            return false;
+        }
+        foreach (List<CityPluginDescriptor> plugins in _byCategory.Values)
+        {
+            for (int i = 0; i < plugins.Count; i++)
+            {
+                if (string.Equals(plugins[i].id, pluginId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public static T Create<T>(CityPluginCategory category, string pluginId) where T : class
     {
         EnsureInitialized();
 
         CityPluginDescriptor? desc = GetDescriptor(category, pluginId);
-        if (desc.HasValue)
+        if (desc.HasValue && desc.Value.isValid)
         {
-            object instance = Activator.CreateInstance(desc.Value.pluginType);
-            return instance as T;
+            return CreateInstance<T>(desc.Value);
         }
 
         List<CityPluginDescriptor> list = _byCategory[category];
-        if (list.Count > 0)
+        for (int i = 0; i < list.Count; i++)
         {
-            object fallback = Activator.CreateInstance(list[0].pluginType);
-            return fallback as T;
+            if (list[i].isValid)
+            {
+                return CreateInstance<T>(list[i]);
+            }
         }
 
         return null;
@@ -147,17 +194,76 @@ public static class CityPluginRegistry
 
     private static bool TypeMatchesCategory(Type type, CityPluginCategory category)
     {
-        switch (category)
+        Type contract;
+        return _contracts.TryGetValue(category, out contract) && contract.IsAssignableFrom(type);
+    }
+
+    private static T CreateInstance<T>(CityPluginDescriptor descriptor) where T : class
+    {
+        try
         {
-            case CityPluginCategory.Process: return typeof(ICityProcessPlugin).IsAssignableFrom(type);
-            case CityPluginCategory.RoadNetwork: return typeof(IRoadNetworkGenerationPlugin).IsAssignableFrom(type);
-            case CityPluginCategory.RoadPlanarization: return typeof(IRoadPlanarizationPlugin).IsAssignableFrom(type);
-            case CityPluginCategory.BlockDetection: return typeof(IBlockDetectionPlugin).IsAssignableFrom(type);
-            case CityPluginCategory.Zoning: return typeof(IZoningAssignmentPlugin).IsAssignableFrom(type);
-            case CityPluginCategory.LotLayout: return typeof(ILotLayoutPlugin).IsAssignableFrom(type);
-            case CityPluginCategory.LotSelection: return typeof(ILotSelectionPlugin).IsAssignableFrom(type);
-            default: return false;
+            return Activator.CreateInstance(descriptor.pluginType) as T;
         }
+        catch (Exception exception)
+        {
+            Debug.LogException(new InvalidOperationException(
+                "Impossibile creare il plugin '" + descriptor.id + "'. Verificare il costruttore pubblico senza parametri.",
+                exception));
+            return null;
+        }
+    }
+
+    private static string[] GetDependencies(Type type)
+    {
+        object[] attributes = type.GetCustomAttributes(typeof(CityPluginDependencyAttribute), false);
+        var result = new List<string>();
+        for (int i = 0; i < attributes.Length; i++)
+        {
+            CityPluginDependencyAttribute dependency = attributes[i] as CityPluginDependencyAttribute;
+            if (dependency != null && !dependency.Optional && !string.IsNullOrWhiteSpace(dependency.PluginId))
+            {
+                result.Add(dependency.PluginId);
+            }
+        }
+        return result.ToArray();
+    }
+
+    private static void ValidateDependencies()
+    {
+        var knownIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (List<CityPluginDescriptor> plugins in _byCategory.Values)
+        {
+            for (int i = 0; i < plugins.Count; i++)
+            {
+                knownIds.Add(plugins[i].id);
+            }
+        }
+
+        foreach (List<CityPluginDescriptor> plugins in _byCategory.Values)
+        {
+            for (int i = 0; i < plugins.Count; i++)
+            {
+                CityPluginDescriptor descriptor = plugins[i];
+                for (int d = 0; d < descriptor.dependencies.Length; d++)
+                {
+                    if (!knownIds.Contains(descriptor.dependencies[d]))
+                    {
+                        descriptor.isValid = false;
+                        descriptor.validationMessage = "Dipendenza mancante: " + descriptor.dependencies[d];
+                        break;
+                    }
+                }
+                plugins[i] = descriptor;
+            }
+        }
+    }
+
+    private static int CompareDescriptors(CityPluginDescriptor left, CityPluginDescriptor right)
+    {
+        int order = left.order.CompareTo(right.order);
+        return order != 0
+            ? order
+            : string.Compare(left.displayName, right.displayName, StringComparison.OrdinalIgnoreCase);
     }
 }
 

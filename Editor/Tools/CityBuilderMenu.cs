@@ -21,18 +21,7 @@ public static class CityBuilderMenu
     {
         CityData newData = ScriptableObject.CreateInstance<CityData>();
         
-        string path = "Assets/BSCCityBuilder/Assets/CityData.asset";
-        
-        // Assicura che la cartella esista
-        string directory = System.IO.Path.GetDirectoryName(path);
-        if (!System.IO.Directory.Exists(directory))
-        {
-            System.IO.Directory.CreateDirectory(directory);
-        }
-        
-        // Salva asset
-        AssetDatabase.CreateAsset(newData, path);
-        AssetDatabase.SaveAssets();
+        string path = CityBuilderAssetPaths.CreateUniqueAsset(newData, "CityData.asset");
         AssetDatabase.Refresh();
         
         EditorUtility.FocusProjectWindow();
@@ -45,12 +34,8 @@ public static class CityBuilderMenu
     [MenuItem("Tools/City Builder/Setup Default Zone Types")]
     public static void SetupDefaultZoneTypes()
     {
-        string baseFolder = "Assets/BSCCityBuilder/Assets/ZoneTypes";
-        if (!AssetDatabase.IsValidFolder("Assets/BSCCityBuilder/Assets"))
-            AssetDatabase.CreateFolder("Assets/BSCCityBuilder", "Assets");
-
-        if (!AssetDatabase.IsValidFolder(baseFolder))
-            AssetDatabase.CreateFolder("Assets/BSCCityBuilder/Assets", "ZoneTypes");
+        string baseFolder = CityBuilderAssetPaths.DataFolder + "/ZoneTypes";
+        CityBuilderAssetPaths.EnsureFolder(baseFolder);
 
         // I 5 ZoneType corrispondono 1:1 ai ring del preset americano:
         // Center→CBD, Commercial→Inner City, Residential→Urban Residential,
@@ -174,16 +159,8 @@ public static class CityBuilderMenu
     [MenuItem("Tools/City Builder/Setup Default Road Profiles")]
     public static void SetupDefaultRoadProfiles()
     {
-        string baseFolder = "Assets/BSCCityBuilder/Assets/RoadProfiles";
-        if (!AssetDatabase.IsValidFolder("Assets/BSCCityBuilder/Assets"))
-        {
-            AssetDatabase.CreateFolder("Assets/BSCCityBuilder", "Assets");
-        }
-
-        if (!AssetDatabase.IsValidFolder(baseFolder))
-        {
-            AssetDatabase.CreateFolder("Assets/BSCCityBuilder/Assets", "RoadProfiles");
-        }
+        string baseFolder = CityBuilderAssetPaths.DataFolder + "/RoadProfiles";
+        CityBuilderAssetPaths.EnsureFolder(baseFolder);
 
         int createdCount = 0;
         createdCount += CreateRoadProfileIfMissing(baseFolder, "Autostrada", RoadHierarchyLevel.Highway, 9.5f, new Color(0.75f, 0.25f, 0.2f), 6f, "Asse veloce ad alta capacità.");
@@ -255,15 +232,12 @@ public static class CityBuilderMenu
     [MenuItem("Tools/City Builder/Create American City Config")]
     public static void CreateAmericanCityConfig()
     {
-        string folder = "Assets/BSCCityBuilder/Assets";
-
-        if (!AssetDatabase.IsValidFolder("Assets/BSCCityBuilder/Assets"))
-            AssetDatabase.CreateFolder("Assets/BSCCityBuilder", "Assets");
+        string folder = CityBuilderAssetPaths.DataFolder;
+        CityBuilderAssetPaths.EnsureFolder(folder);
 
         // Crea prima i ZoneType di default (no-op se già presenti)
-        string baseFolder = "Assets/BSCCityBuilder/Assets/ZoneTypes";
-        if (!AssetDatabase.IsValidFolder(baseFolder))
-            AssetDatabase.CreateFolder("Assets/BSCCityBuilder/Assets", "ZoneTypes");
+        string baseFolder = CityBuilderAssetPaths.DataFolder + "/ZoneTypes";
+        CityBuilderAssetPaths.EnsureFolder(baseFolder);
         CreateZoneTypeIfMissing(baseFolder, "Center",      new Color(1.0f, 0.42f, 0.21f), 30f, "CBD/Downtown ad alta densità.");
         CreateZoneTypeIfMissing(baseFolder, "Commercial",  new Color(0.29f, 0.56f, 0.85f), 14f, "Inner city: retail, uffici e uso misto.");
         CreateZoneTypeIfMissing(baseFolder, "Residential", new Color(0.3f, 0.68f, 0.31f),  8f,  "Residenziale urbano a media densità.");
@@ -297,12 +271,11 @@ public static class CityBuilderMenu
     [MenuItem("Tools/City Builder/Create Example Prefabs and Zone Data")]
     public static void CreateExamplePrefabsAndZoneData()
     {
-        const string examplesRoot  = "Assets/BSCCityBuilder/Assets/Examples";
-        const string materialsPath = "Assets/BSCCityBuilder/Assets/Examples/Materials";
-        const string prefabsPath   = "Assets/BSCCityBuilder/Assets/Examples/Prefabs";
+        string examplesRoot  = CityBuilderAssetPaths.DataFolder + "/Examples";
+        string materialsPath = examplesRoot + "/Materials";
+        string prefabsPath   = examplesRoot + "/Prefabs";
 
-        EnsureFolder("Assets/BSCCityBuilder/Assets");
-        EnsureFolder("Assets/BSCCityBuilder/Assets/Examples");
+        CityBuilderAssetPaths.EnsureFolder(examplesRoot);
         EnsureFolder(materialsPath);
         EnsureFolder(prefabsPath);
 
@@ -547,7 +520,7 @@ public static class CityBuilderMenu
     [MenuItem("Tools/City Builder/Planarize Road Network")]
     public static void PlanarizeExistingNetworkMenu()
     {
-        CityManager manager = Object.FindFirstObjectByType<CityManager>();
+        CityManager manager = Object.FindAnyObjectByType<CityManager>();
         if (manager == null)
         {
             EditorUtility.DisplayDialog("Planarizza Rete", "Nessun CityManager trovato nella scena.", "OK");

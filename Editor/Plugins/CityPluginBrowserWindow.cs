@@ -1,5 +1,6 @@
 using UnityEditor;
 using UnityEngine;
+using System;
 using System.Collections.Generic;
 using BSCCityBuilder.Core;
 using BSCCityBuilder.Management;
@@ -34,13 +35,10 @@ public class CityPluginBrowserWindow : EditorWindow
         }
 
         _scroll = EditorGUILayout.BeginScrollView(_scroll);
-        DrawCategory(settings, CityPluginCategory.Process, "Process");
-        DrawCategory(settings, CityPluginCategory.RoadNetwork, "Road Network");
-        DrawCategory(settings, CityPluginCategory.RoadPlanarization, "Road Planarization");
-        DrawCategory(settings, CityPluginCategory.BlockDetection, "Block Detection");
-        DrawCategory(settings, CityPluginCategory.Zoning, "Zoning");
-        DrawCategory(settings, CityPluginCategory.LotLayout, "Lot Layout");
-        DrawCategory(settings, CityPluginCategory.LotSelection, "Lot Selection");
+        foreach (CityPluginCategory category in Enum.GetValues(typeof(CityPluginCategory)))
+        {
+            DrawCategory(settings, category, ObjectNames.NicifyVariableName(category.ToString()));
+        }
 
         EditorGUILayout.Space(8);
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
@@ -59,7 +57,7 @@ public class CityPluginBrowserWindow : EditorWindow
 
     private void DrawCategory(CityPluginSettings settings, CityPluginCategory category, string label)
     {
-        List<CityPluginDescriptor> plugins = CityPluginRegistry.GetPlugins(category);
+        IReadOnlyList<CityPluginDescriptor> plugins = CityPluginRegistry.GetPlugins(category);
         EditorGUILayout.BeginVertical(EditorStyles.helpBox);
         EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
 
@@ -96,6 +94,11 @@ public class CityPluginBrowserWindow : EditorWindow
         }
 
         EditorGUILayout.LabelField("Type", active.pluginType.Name, EditorStyles.miniLabel);
+        EditorGUILayout.LabelField("Version", active.version, EditorStyles.miniLabel);
+        if (!active.isValid)
+        {
+            EditorGUILayout.HelpBox(active.validationMessage, MessageType.Error);
+        }
         EditorGUILayout.EndVertical();
         EditorGUILayout.Space(4);
     }

@@ -11,14 +11,11 @@ namespace BSCCityBuilder.Editor.Plugins
 {
 public static class CityGenerationPipelineHost
 {
-    public static CityGenerationReport GenerateRoadNetwork(CityManager manager, AmericanCityConfig config)
+    public static CityGenerationReport GenerateRoadNetwork(CityManager manager, ScriptableObject config)
     {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
-        ILotSelectionPlugin lotSelection = CityPluginRegistry.Create<ILotSelectionPlugin>(CityPluginCategory.LotSelection, settings.activeLotSelectionPluginId);
-        CityPluginRuntime.SetLotSelectionPlugin(lotSelection);
-
-        IRoadNetworkGenerationPlugin roadPlugin = CityPluginRegistry.Create<IRoadNetworkGenerationPlugin>(CityPluginCategory.RoadNetwork, settings.activeRoadNetworkPluginId);
+        IRoadNetworkGenerationPlugin roadPlugin = CityPluginRegistry.Create<IRoadNetworkGenerationPlugin>(CityPluginCategory.RoadNetwork, settings.GetActivePluginId(CityPluginCategory.RoadNetwork));
         if (roadPlugin == null)
         {
             return BuildMissingPluginReport("RoadNetwork");
@@ -33,12 +30,12 @@ public static class CityGenerationPipelineHost
         return report;
     }
 
-    public static CityGenerationReport PlanarizeRoads(CityManager manager, AmericanCityConfig config)
+    public static CityGenerationReport PlanarizeRoads(CityManager manager, ScriptableObject config)
     {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
 
-        IRoadPlanarizationPlugin planarizer = CityPluginRegistry.Create<IRoadPlanarizationPlugin>(CityPluginCategory.RoadPlanarization, settings.activeRoadPlanarizationPluginId);
+        IRoadPlanarizationPlugin planarizer = CityPluginRegistry.Create<IRoadPlanarizationPlugin>(CityPluginCategory.RoadPlanarization, settings.GetActivePluginId(CityPluginCategory.RoadPlanarization));
         if (planarizer == null)
         {
             return BuildMissingPluginReport("RoadPlanarization");
@@ -47,12 +44,12 @@ public static class CityGenerationPipelineHost
         return planarizer.PlanarizeRoads(context);
     }
 
-    public static List<List<Vector3>> DetectBlocks(CityManager manager, AmericanCityConfig config)
+    public static List<List<Vector3>> DetectBlocks(CityManager manager, ScriptableObject config)
     {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
 
-        IBlockDetectionPlugin detector = CityPluginRegistry.Create<IBlockDetectionPlugin>(CityPluginCategory.BlockDetection, settings.activeBlockDetectionPluginId);
+        IBlockDetectionPlugin detector = CityPluginRegistry.Create<IBlockDetectionPlugin>(CityPluginCategory.BlockDetection, settings.GetActivePluginId(CityPluginCategory.BlockDetection));
         if (detector == null)
         {
             return new List<List<Vector3>>();
@@ -61,12 +58,12 @@ public static class CityGenerationPipelineHost
         return detector.DetectBlocks(context);
     }
 
-    public static CityGenerationReport AssignZoning(CityManager manager, AmericanCityConfig config)
+    public static CityGenerationReport AssignZoning(CityManager manager, ScriptableObject config)
     {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
 
-        IZoningAssignmentPlugin zoningPlugin = CityPluginRegistry.Create<IZoningAssignmentPlugin>(CityPluginCategory.Zoning, settings.activeZoningPluginId);
+        IZoningAssignmentPlugin zoningPlugin = CityPluginRegistry.Create<IZoningAssignmentPlugin>(CityPluginCategory.Zoning, settings.GetActivePluginId(CityPluginCategory.Zoning));
         if (zoningPlugin == null)
         {
             return BuildMissingPluginReport("Zoning");
@@ -75,15 +72,12 @@ public static class CityGenerationPipelineHost
         return zoningPlugin.AssignZoning(context);
     }
 
-    public static int GenerateLots(CityManager manager, AmericanCityConfig config)
+    public static int GenerateLots(CityManager manager, ScriptableObject config)
     {
         CityGenerationContext context = BuildContext(manager, config);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
 
-        ILotLayoutPlugin layoutPlugin = CityPluginRegistry.Create<ILotLayoutPlugin>(CityPluginCategory.LotLayout, settings.activeLotLayoutPluginId);
-        ILotSelectionPlugin lotSelection = CityPluginRegistry.Create<ILotSelectionPlugin>(CityPluginCategory.LotSelection, settings.activeLotSelectionPluginId);
-        CityPluginRuntime.SetLotSelectionPlugin(lotSelection);
-
+        ILotLayoutPlugin layoutPlugin = CityPluginRegistry.Create<ILotLayoutPlugin>(CityPluginCategory.LotLayout, settings.GetActivePluginId(CityPluginCategory.LotLayout));
         if (layoutPlugin == null || context.cityData == null)
         {
             return 0;
@@ -128,30 +122,33 @@ public static class CityGenerationPipelineHost
         CityGenerationContext context = BuildContext(manager, processConfig);
         CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
 
-        ICityProcessPlugin processPlugin = CityPluginRegistry.Create<ICityProcessPlugin>(CityPluginCategory.Process, settings.activeProcessPluginId);
+        ICityProcessPlugin processPlugin = CityPluginRegistry.Create<ICityProcessPlugin>(CityPluginCategory.Process, settings.GetActivePluginId(CityPluginCategory.Process));
         if (processPlugin != null)
         {
+            ICityPlugin initializable = processPlugin as ICityPlugin;
+            initializable?.Initialize(context);
+
+            ICityPipelineContributor contributor = processPlugin as ICityPipelineContributor;
+            if (contributor != null)
+            {
+                return ExecutePipeline(context, contributor.CreatePipelineSteps(context));
+            }
             return processPlugin.GenerateAll(context);
         }
 
         return GenerateAllWithCurrentStepPlugins(context, settings);
     }
 
-    public static CityGenerationReport GenerateAll(CityManager manager, AmericanCityConfig config)
-    {
-        return GenerateAll(manager, (ScriptableObject)config);
-    }
-
     public static CityGenerationReport GenerateAllWithCurrentStepPlugins(CityGenerationContext context, CityPluginSettings settings)
     {
         CityGenerationReport total = new CityGenerationReport { warnings = new List<string>() };
 
-        CityGenerationReport road = GenerateRoadNetwork(context.manager, context.config);
+        CityGenerationReport road = GenerateRoadNetwork(context.manager, context.processConfig);
         total.Merge(road);
 
         if (!settings.runPlanarizationAfterRoadNetwork && settings.runPlanarizationInFullGeneration)
         {
-            CityGenerationReport planarize = PlanarizeRoads(context.manager, context.config);
+            CityGenerationReport planarize = PlanarizeRoads(context.manager, context.processConfig);
             total.Merge(planarize);
         }
 
@@ -175,37 +172,37 @@ public static class CityGenerationPipelineHost
         context.cityData.lots.Clear();
         EditorUtility.SetDirty(context.cityData);
 
-        List<List<Vector3>> detected = DetectBlocks(context.manager, context.config);
+        List<List<Vector3>> detected = DetectBlocks(context.manager, context.processConfig);
         for (int i = 0; i < detected.Count; i++)
         {
             context.manager.AddBlock(detected[i]);
         }
         total.blocksDetected += detected.Count;
 
-        CityGenerationReport zoning = AssignZoning(context.manager, context.config);
+        CityGenerationReport zoning = AssignZoning(context.manager, context.processConfig);
         total.Merge(zoning);
 
-        int lots = GenerateLots(context.manager, context.config);
+        int lots = GenerateLots(context.manager, context.processConfig);
         total.lotsGenerated += lots;
 
         return total;
     }
 
-    private static CityGenerationContext BuildContext(CityManager manager, AmericanCityConfig config)
-    {
-        return BuildContext(manager, (ScriptableObject)config);
-    }
-
     private static CityGenerationContext BuildContext(CityManager manager, ScriptableObject processConfig)
     {
         CityData data = manager != null ? manager.GetCityData() : null;
+        CityPluginSettings settings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
+        ILotSelectionPlugin lotSelection = CityPluginRegistry.Create<ILotSelectionPlugin>(
+            CityPluginCategory.LotSelection,
+            settings.GetActivePluginId(CityPluginCategory.LotSelection));
         AmericanCityConfig americanConfig = processConfig as AmericanCityConfig;
         return new CityGenerationContext
         {
             manager = manager,
             cityData = data,
             processConfig = processConfig,
-            config = americanConfig
+            config = americanConfig,
+            lotSelectionPlugin = lotSelection
         };
     }
 
@@ -214,6 +211,45 @@ public static class CityGenerationPipelineHost
         CityGenerationReport report = new CityGenerationReport { warnings = new List<string>() };
         report.warnings.Add("Nessun plugin disponibile per categoria " + category + ".");
         return report;
+    }
+
+    public static CityGenerationReport ExecutePipeline(
+        CityGenerationContext context,
+        IEnumerable<ICityPipelineStep> steps)
+    {
+        CityGenerationReport total = new CityGenerationReport { warnings = new List<string>() };
+        if (steps == null)
+        {
+            total.warnings.Add("La pipeline non contiene step.");
+            return total;
+        }
+
+        var ordered = new List<ICityPipelineStep>(steps);
+        ordered.RemoveAll(step => step == null);
+        ordered.Sort((left, right) => left.Order.CompareTo(right.Order));
+
+        for (int i = 0; i < ordered.Count; i++)
+        {
+            ICityPipelineStep step = ordered[i];
+            if (!step.CanExecute(context))
+            {
+                total.warnings.Add("Step saltato: " + step.DisplayName + ".");
+                continue;
+            }
+
+            try
+            {
+                total.Merge(step.Execute(context));
+            }
+            catch (System.Exception exception)
+            {
+                total.warnings.Add("Errore nello step '" + step.DisplayName + "': " + exception.Message);
+                Debug.LogException(exception);
+                break;
+            }
+        }
+
+        return total;
     }
 }
 

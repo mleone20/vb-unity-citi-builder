@@ -6,6 +6,7 @@ using BSCCityBuilder.Generation;
 
 namespace BSCCityBuilder.Plugins
 {
+[System.Obsolete("Passare ILotSelectionPlugin tramite CityGenerationContext. Lo stato globale è mantenuto solo per compatibilità.")]
 public static class CityPluginRuntime
 {
     private static ILotSelectionPlugin _activeLotSelectionPlugin;

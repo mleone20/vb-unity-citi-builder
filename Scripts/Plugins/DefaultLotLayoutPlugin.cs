@@ -16,7 +16,13 @@ public class DefaultLotLayoutPlugin : ILotLayoutPlugin
             return new List<CityLot>();
         }
 
-        return CityLotGenerator.GenerateLotsForBlock(block, block.zoning, blockIndex, context.cityData, block.orientation);
+        return CityLotGenerator.GenerateLotsForBlock(
+            block,
+            block.zoning,
+            blockIndex,
+            context.cityData,
+            block.orientation,
+            context.lotSelectionPlugin);
     }
 }
 

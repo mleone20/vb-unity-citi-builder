@@ -95,7 +95,10 @@ public class CityBuilderWindow : EditorWindow
     [MenuItem("Window/City Builder/City Builder Tool")]
     public static void ShowWindow()
     {
-        GetWindow<CityBuilderWindow>("City Builder Studio");
+        CityBuilderWindow window = GetWindow<CityBuilderWindow>("City Builder Studio");
+        window.FindCityManager();
+        window.Show();
+        window.Focus();
     }
 
     private void OnEnable()
@@ -160,10 +163,29 @@ public class CityBuilderWindow : EditorWindow
         if (cityManager == null)
         {
             EditorGUILayout.Space(6);
-            EditorGUILayout.HelpBox("CityManager non trovato nella scena!\nCrea un GameObject con il componente CityManager.", MessageType.Warning);
-            if (GUILayout.Button("Cerca CityManager", GUILayout.Height(30)))
+            EditorGUILayout.HelpBox(
+                "CityManager non trovato nella scena. Puoi crearne uno già configurato con un nuovo asset CityData.",
+                MessageType.Warning);
+            if (GUILayout.Button("Crea City Manager", GUILayout.Height(34)))
+            {
+                CreateCityManager();
+            }
+            if (GUILayout.Button("Cerca City Manager", GUILayout.Height(24)))
             {
                 FindCityManager();
+            }
+            return;
+        }
+
+        if (cityData == null)
+        {
+            EditorGUILayout.Space(6);
+            EditorGUILayout.HelpBox(
+                "Il City Manager non ha un asset CityData assegnato.",
+                MessageType.Warning);
+            if (GUILayout.Button("Crea e assegna CityData", GUILayout.Height(34)))
+            {
+                CreateAndAssignCityData(cityManager);
             }
             return;
         }
@@ -177,6 +199,7 @@ public class CityBuilderWindow : EditorWindow
         DrawPhaseHeader();
         EditorGUILayout.Space(4);
         DrawCurrentSection();
+        DrawPluginPanels();
         EditorGUILayout.Space(8);
         EditorGUILayout.EndScrollView();
 
@@ -237,6 +260,11 @@ public class CityBuilderWindow : EditorWindow
         GUILayout.Space(8);
         GUILayout.Label("\U0001f3d9  CITY BUILDER STUDIO", phaseHeaderStyle, GUILayout.ExpandWidth(false));
         GUILayout.FlexibleSpace();
+        IReadOnlyList<ICityBuilderToolbarExtension> toolbarExtensions = CityEditorExtensionRegistry.Toolbar;
+        for (int i = 0; i < toolbarExtensions.Count; i++)
+        {
+            toolbarExtensions[i].DrawToolbar(cityManager);
+        }
         if (cityData != null)
         {
             string counts = string.Format("nodi: {0}  seg: {1}  blocchi: {2}  lotti: {3}",
@@ -814,7 +842,7 @@ public class CityBuilderWindow : EditorWindow
     private void DrawProceduralGenerationSection()
     {
         CityPluginSettings pluginSettings = CityPluginSettingsEditorUtility.GetOrCreateSettings();
-        List<CityPluginDescriptor> processPlugins = CityPluginRegistry.GetPlugins(CityPluginCategory.Process);
+        IReadOnlyList<CityPluginDescriptor> processPlugins = CityPluginRegistry.GetPlugins(CityPluginCategory.Process);
 
         DrawSubHeader("PLUGIN PROCESS");
         if (processPlugins.Count == 0)
@@ -828,14 +856,14 @@ public class CityBuilderWindow : EditorWindow
         for (int i = 0; i < processPlugins.Count; i++)
         {
             labels[i] = processPlugins[i].displayName + " (" + processPlugins[i].id + ")";
-            if (string.Equals(processPlugins[i].id, pluginSettings.activeProcessPluginId, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(processPlugins[i].id, pluginSettings.GetActivePluginId(CityPluginCategory.Process), StringComparison.OrdinalIgnoreCase))
                 currentIndex = i;
         }
 
         int newIndex = EditorGUILayout.Popup("Plugin di Generazione", currentIndex, labels);
         if (newIndex != currentIndex)
         {
-            pluginSettings.activeProcessPluginId = processPlugins[newIndex].id;
+            pluginSettings.SetActivePluginId(CityPluginCategory.Process, processPlugins[newIndex].id);
             EditorUtility.SetDirty(pluginSettings);
             AssetDatabase.SaveAssets();
         }
@@ -843,7 +871,9 @@ public class CityBuilderWindow : EditorWindow
         if (DrawActionButton("Apri Plugin Browser", ColProc * 0.9f))
             CityPluginBrowserWindow.ShowWindow();
 
-        ICityProcessPlugin process = CityPluginRegistry.Create<ICityProcessPlugin>(CityPluginCategory.Process, pluginSettings.activeProcessPluginId);
+        ICityProcessPlugin process = CityPluginRegistry.Create<ICityProcessPlugin>(
+            CityPluginCategory.Process,
+            pluginSettings.GetActivePluginId(CityPluginCategory.Process));
         ICityProcessPluginEditorUI processUi = process as ICityProcessPluginEditorUI;
 
         DrawSubHeader("CONFIGURAZIONE PLUGIN");
@@ -883,15 +913,14 @@ public class CityBuilderWindow : EditorWindow
         }
 
         DrawSubHeader("PLUGIN ATTIVI");
-        EditorGUILayout.LabelField("Process", pluginSettings.activeProcessPluginId, EditorStyles.miniLabel);
-        EditorGUILayout.LabelField("Road Network", pluginSettings.activeRoadNetworkPluginId, EditorStyles.miniLabel);
-        EditorGUILayout.LabelField("Road Planarization", pluginSettings.activeRoadPlanarizationPluginId, EditorStyles.miniLabel);
-        EditorGUILayout.LabelField("Block Detection", pluginSettings.activeBlockDetectionPluginId, EditorStyles.miniLabel);
-        EditorGUILayout.LabelField("Zoning", pluginSettings.activeZoningPluginId, EditorStyles.miniLabel);
-        EditorGUILayout.LabelField("Lot Layout", pluginSettings.activeLotLayoutPluginId, EditorStyles.miniLabel);
-        EditorGUILayout.LabelField("Lot Selection", pluginSettings.activeLotSelectionPluginId, EditorStyles.miniLabel);
+        foreach (CityPluginCategory category in Enum.GetValues(typeof(CityPluginCategory)))
+        {
+            EditorGUILayout.LabelField(
+                ObjectNames.NicifyVariableName(category.ToString()),
+                pluginSettings.GetActivePluginId(category),
+                EditorStyles.miniLabel);
+        }
 
-        AmericanCityConfig americanConfig = proceduralConfig as AmericanCityConfig;
         DrawSubHeader("AZIONI");
 
         if (_isGenerating)
@@ -902,7 +931,7 @@ public class CityBuilderWindow : EditorWindow
         }
         else
         {
-            using (new EditorGUI.DisabledScope(americanConfig == null))
+            using (new EditorGUI.DisabledScope(proceduralConfig == null))
             {
                 if (DrawActionButton("Genera Rete Stradale", ColProc * 0.7f))
                 {
@@ -910,7 +939,7 @@ public class CityBuilderWindow : EditorWindow
                         "Verranno aggiunti nodi e segmenti alla rete stradale esistente. Continuare?", "Genera", "Annulla");
                     if (ok)
                     {
-                        CityGenerationReport report = CityGenerationPipelineHost.GenerateRoadNetwork(cityManager, americanConfig);
+                        CityGenerationReport report = CityGenerationPipelineHost.GenerateRoadNetwork(cityManager, proceduralConfig);
                         _lastProceduralReport = report.ToMultilineString();
                         EditorUtility.DisplayDialog("Rete Stradale Generata", _lastProceduralReport, "OK");
                     }
@@ -918,14 +947,14 @@ public class CityBuilderWindow : EditorWindow
 
                 if (DrawActionButton("Assegna Zoning Automatico (per distanza)"))
                 {
-                    CityGenerationReport report = CityGenerationPipelineHost.AssignZoning(cityManager, americanConfig);
+                    CityGenerationReport report = CityGenerationPipelineHost.AssignZoning(cityManager, proceduralConfig);
                     _lastProceduralReport = report.ToMultilineString();
                     EditorUtility.DisplayDialog("Zoning Assegnato", _lastProceduralReport, "OK");
                 }
             }
 
-            if (americanConfig == null)
-                EditorGUILayout.HelpBox("Le azioni step-by-step (Road/Zoning) richiedono un AmericanCityConfig. Usa GENERA TUTTO per process plugin non-americani.", MessageType.None);
+            if (proceduralConfig == null)
+                EditorGUILayout.HelpBox("Assegna la configurazione richiesta dal plugin per usare le azioni step-by-step.", MessageType.None);
         }
 
         EditorGUILayout.Space(4);
@@ -1056,9 +1085,43 @@ public class CityBuilderWindow : EditorWindow
 
     private void FindCityManager()
     {
-        cityManager = UnityEngine.Object.FindAnyObjectByType<CityManager>();
-        if (cityManager != null)
-            cityData = cityManager.GetCityData();
+        cityManager = CityManagerSceneUtility.Find();
+        cityData = cityManager != null ? cityManager.GetCityData() : null;
+        Repaint();
+    }
+
+    private void DrawPluginPanels()
+    {
+        IReadOnlyList<ICityBuilderPanelExtension> panels = CityEditorExtensionRegistry.PanelExtensions;
+        for (int i = 0; i < panels.Count; i++)
+        {
+            EditorGUILayout.Space(8);
+            DrawSubHeader(panels[i].Title);
+            panels[i].DrawPanel(cityManager);
+        }
+    }
+
+    private void CreateCityManager()
+    {
+        cityManager = CityManagerSceneUtility.FindOrCreate();
+        cityData = cityManager.GetCityData();
+        Selection.activeGameObject = cityManager.gameObject;
+        SceneView.lastActiveSceneView?.FrameSelected();
+    }
+
+    private void CreateAndAssignCityData(CityManager manager)
+    {
+        if (manager == null)
+        {
+            return;
+        }
+
+        CityData data = CityManagerSceneUtility.CreateAndAssignData(manager);
+
+        cityManager = manager;
+        cityData = data;
+        EditorGUIUtility.PingObject(data);
+        Repaint();
     }
 
     private void GenerateAllLots()
@@ -1075,7 +1138,7 @@ public class CityBuilderWindow : EditorWindow
 
     private int RunLotGeneration()
     {
-        return CityGenerationPipelineHost.GenerateLots(cityManager, proceduralConfig as AmericanCityConfig);
+        return CityGenerationPipelineHost.GenerateLots(cityManager, proceduralConfig);
     }
 
     private void SpawnBuildingsFromZoneTypes()

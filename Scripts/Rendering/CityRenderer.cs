@@ -179,8 +179,6 @@ public static class CityRenderer
 
         // Batch: nodi normali (bianchi) disegnati come coppie di linee incrociate
         var normalDots = new List<Vector3>();
-        float dotHalf = NODE_MIN_SIZE * 0.6f;
-
         foreach (var node in cityData.nodes)
         {
             float dist = cam != null ? Vector3.Distance(camPos, node.position) : 0f;

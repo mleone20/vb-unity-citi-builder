@@ -34,8 +34,14 @@ public class CityPluginManifest : ScriptableObject
     [Tooltip("Versione semantica (es. 1.0.0).")]
     public string version = "1.0.0";
 
-    [Header("Assembly esterno (Fase 2)")]
-    [Tooltip("Percorso relativo alla cartella Plugins/ della .dll esterna. Lasciare vuoto per plugin interni.")]
+    [Tooltip("Versione del contratto City Builder richiesta dal plugin.")]
+    public string apiVersion = "1.0";
+
+    [Tooltip("ID di altri plugin richiesti.")]
+    public string[] dependencies = new string[0];
+
+    [Header("Assembly esterno")]
+    [Tooltip("Percorso asset della DLL, assoluto da Assets/ o relativo alla cartella del manifest. Lasciare vuoto per plugin interni.")]
     public string dllRelativePath = "";
 
     [Header("Whitelist categorie")]
@@ -45,6 +51,9 @@ public class CityPluginManifest : ScriptableObject
     [Header("Stato (sola lettura)")]
     [Tooltip("Impostato a runtime da CityExternalPluginLoader. Non modificare manualmente.")]
     public bool isLoaded = false;
+
+    [TextArea]
+    public string loadMessage = "";
 }
 
 }
