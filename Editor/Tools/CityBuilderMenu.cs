@@ -161,10 +161,10 @@ public static class CityBuilderMenu
         CityBuilderAssetPaths.EnsureFolder(baseFolder);
 
         int createdCount = 0;
-        createdCount += CreateRoadProfileIfMissing(baseFolder, "Autostrada", RoadHierarchyLevel.Highway, 9.5f, new Color(0.75f, 0.25f, 0.2f), 6f, "Asse veloce ad alta capacità.");
-        createdCount += CreateRoadProfileIfMissing(baseFolder, "Strada Principale", RoadHierarchyLevel.MainRoad, 6.5f, new Color(0.95f, 0.65f, 0.2f), 4.5f, "Collega quartieri e distribuisce il traffico.");
-        createdCount += CreateRoadProfileIfMissing(baseFolder, "Via Locale", RoadHierarchyLevel.LocalStreet, 4.0f, new Color(0.45f, 0.65f, 0.95f), 3f, "Strada urbana di quartiere.");
-        createdCount += CreateRoadProfileIfMissing(baseFolder, "Vicolo", RoadHierarchyLevel.Alley, 2.2f, new Color(0.5f, 0.8f, 0.55f), 2f, "Connessione minuta o di servizio.");
+        createdCount += CreateRoadProfileIfMissing(baseFolder, "Autostrada", RoadHierarchyLevel.Highway, 22f, new Color(0.75f, 0.25f, 0.2f), 14f, "Asse veloce a carreggiate multiple, con larghezza complessiva adatta a una città americana.");
+        createdCount += CreateRoadProfileIfMissing(baseFolder, "Strada Principale", RoadHierarchyLevel.MainRoad, 13f, new Color(0.95f, 0.65f, 0.2f), 9f, "Arteria urbana a più corsie che collega quartieri e distribuisce il traffico.");
+        createdCount += CreateRoadProfileIfMissing(baseFolder, "Via Locale", RoadHierarchyLevel.LocalStreet, 8f, new Color(0.45f, 0.65f, 0.95f), 6f, "Strada urbana di quartiere a doppio senso.");
+        createdCount += CreateRoadProfileIfMissing(baseFolder, "Vicolo", RoadHierarchyLevel.Alley, 5f, new Color(0.5f, 0.8f, 0.55f), 3.5f, "Connessione minuta o di servizio.");
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();

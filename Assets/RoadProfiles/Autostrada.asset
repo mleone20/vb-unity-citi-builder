@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Core.RoadProfile
   displayName: Autostrada
   hierarchyLevel: 3
-  roadWidth: 9.5
+  roadWidth: 22
   debugColor: {r: 0.75, g: 0.25, b: 0.2, a: 1}
-  intersectionClearanceRadius: 6
+  intersectionClearanceRadius: 14
   blockInset: 0
   meshMaterial: {fileID: 2100000, guid: a7078032eef7634438c528735892ea98, type: 2}
-  description: "Asse veloce ad alta capacit\xE0."
+  description: "Asse veloce a carreggiate multiple, con larghezza complessiva adatta a una citt\xE0 americana."

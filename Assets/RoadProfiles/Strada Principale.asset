@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Core.RoadProfile
   displayName: Strada Principale
   hierarchyLevel: 2
-  roadWidth: 6.5
+  roadWidth: 13
   debugColor: {r: 0.95, g: 0.65, b: 0.2, a: 1}
-  intersectionClearanceRadius: 4.5
+  intersectionClearanceRadius: 9
   blockInset: 0
   meshMaterial: {fileID: 2100000, guid: a7078032eef7634438c528735892ea98, type: 2}
-  description: Collega quartieri e distribuisce il traffico.
+  description: Arteria urbana a più corsie che collega quartieri e distribuisce il traffico.

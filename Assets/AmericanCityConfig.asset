@@ -24,7 +24,7 @@ MonoBehaviour:
   mergeThreshold: 3
   snapRadius: 12
   alleyEnabled: 1
-  alleyProfile: {fileID: 0}
+  alleyProfile: {fileID: 11400000, guid: 9870cab19feef2e4e9cc7d80bd337b7b, type: 2}
   alleyPositionFraction: 0.5
   alleyMaxRadius: 1500
   zoneRings:
