@@ -17,6 +17,6 @@ MonoBehaviour:
   roadWidth: 8
   debugColor: {r: 0.45, g: 0.65, b: 0.95, a: 1}
   intersectionClearanceRadius: 6
-  blockInset: 0
+  blockInset: 2
   meshMaterial: {fileID: 2100000, guid: a7078032eef7634438c528735892ea98, type: 2}
   description: Strada urbana di quartiere a doppio senso.

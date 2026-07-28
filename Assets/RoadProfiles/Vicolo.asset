@@ -17,6 +17,6 @@ MonoBehaviour:
   roadWidth: 5
   debugColor: {r: 0.5, g: 0.8, b: 0.55, a: 1}
   intersectionClearanceRadius: 3.5
-  blockInset: 0
+  blockInset: 1
   meshMaterial: {fileID: 2100000, guid: a7078032eef7634438c528735892ea98, type: 2}
   description: Connessione minuta o di servizio.

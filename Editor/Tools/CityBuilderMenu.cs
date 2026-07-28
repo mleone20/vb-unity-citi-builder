@@ -161,10 +161,10 @@ public static class CityBuilderMenu
         CityBuilderAssetPaths.EnsureFolder(baseFolder);
 
         int createdCount = 0;
-        createdCount += CreateRoadProfileIfMissing(baseFolder, "Autostrada", RoadHierarchyLevel.Highway, 22f, new Color(0.75f, 0.25f, 0.2f), 14f, "Asse veloce a carreggiate multiple, con larghezza complessiva adatta a una città americana.");
-        createdCount += CreateRoadProfileIfMissing(baseFolder, "Strada Principale", RoadHierarchyLevel.MainRoad, 13f, new Color(0.95f, 0.65f, 0.2f), 9f, "Arteria urbana a più corsie che collega quartieri e distribuisce il traffico.");
-        createdCount += CreateRoadProfileIfMissing(baseFolder, "Via Locale", RoadHierarchyLevel.LocalStreet, 8f, new Color(0.45f, 0.65f, 0.95f), 6f, "Strada urbana di quartiere a doppio senso.");
-        createdCount += CreateRoadProfileIfMissing(baseFolder, "Vicolo", RoadHierarchyLevel.Alley, 5f, new Color(0.5f, 0.8f, 0.55f), 3.5f, "Connessione minuta o di servizio.");
+        createdCount += CreateRoadProfileIfMissing(baseFolder, "Autostrada", RoadHierarchyLevel.Highway, 22f, new Color(0.75f, 0.25f, 0.2f), 14f, 5f, "Asse veloce a carreggiate multiple, con larghezza complessiva adatta a una città americana.");
+        createdCount += CreateRoadProfileIfMissing(baseFolder, "Strada Principale", RoadHierarchyLevel.MainRoad, 13f, new Color(0.95f, 0.65f, 0.2f), 9f, 3f, "Arteria urbana a più corsie che collega quartieri e distribuisce il traffico.");
+        createdCount += CreateRoadProfileIfMissing(baseFolder, "Via Locale", RoadHierarchyLevel.LocalStreet, 8f, new Color(0.45f, 0.65f, 0.95f), 6f, 2f, "Strada urbana di quartiere a doppio senso.");
+        createdCount += CreateRoadProfileIfMissing(baseFolder, "Vicolo", RoadHierarchyLevel.Alley, 5f, new Color(0.5f, 0.8f, 0.55f), 3.5f, 1f, "Connessione minuta o di servizio.");
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
@@ -201,7 +201,7 @@ public static class CityBuilderMenu
         return 1;
     }
 
-    private static int CreateRoadProfileIfMissing(string folder, string assetName, RoadHierarchyLevel hierarchyLevel, float roadWidth, Color color, float intersectionClearanceRadius, string description)
+    private static int CreateRoadProfileIfMissing(string folder, string assetName, RoadHierarchyLevel hierarchyLevel, float roadWidth, Color color, float intersectionClearanceRadius, float blockInset, string description)
     {
         string[] existing = AssetDatabase.FindAssets($"t:RoadProfile {assetName}");
         for (int i = 0; i < existing.Length; i++)
@@ -220,6 +220,7 @@ public static class CityBuilderMenu
         roadProfile.roadWidth = roadWidth;
         roadProfile.debugColor = color;
         roadProfile.intersectionClearanceRadius = intersectionClearanceRadius;
+        roadProfile.blockInset = blockInset;
         roadProfile.description = description;
 
         string pathForAsset = AssetDatabase.GenerateUniqueAssetPath($"{folder}/{assetName}.asset");

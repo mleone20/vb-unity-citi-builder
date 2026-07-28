@@ -16,7 +16,9 @@ namespace BSCCityBuilder.Generation
 /// </summary>
 public static class CityLotGenerator
 {
-    private const float LotSafetyMargin = 0.05f;
+    // Evita che tolleranze geometriche, miter e patch di intersezione portino
+    // il footprint dell'edificio a toccare visivamente la mesh stradale.
+    private const float LotSafetyMargin = 0.5f;
 
     public static List<CityLot> GenerateLotsForBlock(
         CityBlock block,
@@ -76,6 +78,8 @@ public static class CityLotGenerator
         List<Vector3> verts   = block.vertices;
         Vector3 blockCenter   = block.GetCenter();
         int tempID            = 0;
+        float[] edgeRoadClearances = BuildRoadClearances(
+            cityData, verts, LotSafetyMargin);
 
         // Raccolta candidati prefab con metadata valida.
         List<CityLotCandidate> candidates = CollectCandidates(zoning);
@@ -96,11 +100,7 @@ public static class CityLotGenerator
             if (edgeLength < 2f) continue;
 
             // Setback basato sulla larghezza reale della strada su questo edge
-            CitySegment edgeSeg = cityData.FindSegmentBetweenPositions(edgeStart, edgeEnd, Mathf.Max(2f, cityData.globalRoadWidth));
-            float edgeWidth = edgeSeg != null
-                ? edgeSeg.GetConfiguredWidth(cityData.globalRoadWidth)
-                : cityData.globalRoadWidth;
-            float roadSetback = edgeWidth * 0.5f + LotSafetyMargin;
+            float roadSetback = edgeRoadClearances[edgeIdx];
 
             Vector3 edgeDir = (edgeEnd - edgeStart).normalized;
             // Perpendicolare verso l'interno del blocco.
@@ -176,7 +176,7 @@ public static class CityLotGenerator
 
                 bool isLotValid = isExterior
                     ? IsOutsideBuildableArea(lotVerts, verts, roadSetback)
-                    : IsInsideBuildableArea(lotVerts, verts, roadSetback);
+                    : IsInsideRoadClearances(lotVerts, verts, edgeRoadClearances);
 
                 float skipStep = block.lotGapOverride >= 0f ? block.lotGapOverride : cityData.gapMinimum;
                 if (skipStep <= 0f) skipStep = 0.1f;
@@ -718,6 +718,86 @@ public static class CityLotGenerator
         center /= vertices.Count;
 
         return PointInPolygonXZ(center, blockPolygon) && DistanceToPolygonEdgesXZ(center, blockPolygon) + 0.01f >= roadSetback;
+    }
+
+    /// <summary>
+    /// Valida ogni vertice del lotto rispetto alla carreggiata specifica di
+    /// ciascun lato del blocco. È importante agli angoli tra strade di gerarchia
+    /// diversa, dove un unico setback non è sufficiente.
+    /// </summary>
+    private static bool IsInsideRoadClearances(
+        List<Vector3> vertices,
+        List<Vector3> blockPolygon,
+        float[] edgeRoadClearances)
+    {
+        if (vertices == null || vertices.Count == 0 ||
+            blockPolygon == null || blockPolygon.Count < 3 ||
+            edgeRoadClearances == null ||
+            edgeRoadClearances.Length != blockPolygon.Count)
+        {
+            return false;
+        }
+
+        for (int v = 0; v < vertices.Count; v++)
+        {
+            Vector3 point = vertices[v];
+            if (!PointInPolygonXZ(point, blockPolygon)) return false;
+
+            for (int edge = 0; edge < blockPolygon.Count; edge++)
+            {
+                Vector3 a = blockPolygon[edge];
+                Vector3 b = blockPolygon[(edge + 1) % blockPolygon.Count];
+                float requiredClearance = edgeRoadClearances[edge];
+                if (DistancePointToSegmentXZ(point, a, b) + 0.01f < requiredClearance)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static float[] BuildRoadClearances(
+        CityData cityData,
+        List<Vector3> blockPolygon,
+        float safetyMargin)
+    {
+        int edgeCount = blockPolygon != null ? blockPolygon.Count : 0;
+        float[] clearances = new float[edgeCount];
+        for (int edge = 0; edge < edgeCount; edge++)
+        {
+            clearances[edge] = GetRoadClearanceForEdge(
+                cityData,
+                blockPolygon[edge],
+                blockPolygon[(edge + 1) % edgeCount],
+                safetyMargin);
+        }
+        return clearances;
+    }
+
+    private static float GetRoadClearanceForEdge(
+        CityData cityData,
+        Vector3 edgeStart,
+        Vector3 edgeEnd,
+        float safetyMargin)
+    {
+        float fallbackWidth = cityData != null
+            ? Mathf.Max(0.5f, cityData.globalRoadWidth)
+            : 3f;
+        CitySegment segment = cityData != null
+            ? cityData.FindSegmentBetweenPositions(
+                edgeStart,
+                edgeEnd,
+                Mathf.Max(2f, fallbackWidth))
+            : null;
+        float roadWidth = segment != null
+            ? segment.GetConfiguredWidth(fallbackWidth)
+            : fallbackWidth;
+        float blockInset = segment != null && segment.roadProfile != null
+            ? Mathf.Max(0f, segment.roadProfile.blockInset)
+            : 0f;
+        return roadWidth * 0.5f + blockInset + Mathf.Max(0f, safetyMargin);
     }
 
     private static bool IsOutsideBuildableArea(List<Vector3> vertices, List<Vector3> blockPolygon, float roadSetback)
