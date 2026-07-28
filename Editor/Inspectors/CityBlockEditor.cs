@@ -110,6 +110,12 @@ public class CityBlockEditor
             
             CityBlock block = cityData.blocks[i];
             EditorGUILayout.LabelField($"Block {block.id}: {block.vertices.Count} vertici, Area: {block.GetArea():F2}");
+            BlockLayoutProfile effectiveLayout = block.layoutProfileOverride != null
+                ? block.layoutProfileOverride
+                : block.zoning != null ? block.zoning.blockLayoutProfile : null;
+            EditorGUILayout.LabelField(
+                "Layout: " + (effectiveLayout != null ? effectiveLayout.name : "Legacy"),
+                EditorStyles.miniLabel);
             
             // Orientamento del blocco
             EditorGUILayout.BeginHorizontal();

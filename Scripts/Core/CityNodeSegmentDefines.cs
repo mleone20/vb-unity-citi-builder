@@ -21,6 +21,9 @@ public class ZoneType : ScriptableObject
     public bool deterministicPrefabSelection = true;
     public int prefabSelectionSeed = 0;
 
+    [Header("Layout blocchi")]
+    public BlockLayoutProfile blockLayoutProfile;
+
     private void OnValidate()
     {
         EnsurePrefabEntries();
@@ -235,6 +238,9 @@ public class CityBlock
     public BlockOrientation orientation = BlockOrientation.Interior;
     /// <summary>Gap fisso tra lotti per questo blocco. Se negativo usa i valori globali di CityData.</summary>
     public float lotGapOverride = -1f;
+    [Tooltip("Se assegnato sostituisce il profilo definito dallo ZoneType.")]
+    public BlockLayoutProfile layoutProfileOverride;
+    public List<CityBlockLayoutArea> generatedLayoutAreas = new List<CityBlockLayoutArea>();
 
     public CityBlock(int id)
     {

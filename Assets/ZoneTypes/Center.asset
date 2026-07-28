@@ -25,3 +25,4 @@ MonoBehaviour:
     spawnProbability: 1
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0
+  blockLayoutProfile: {fileID: 11400000, guid: c42307195dd54d079b2c0e22beec3e60, type: 2}

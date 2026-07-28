@@ -429,6 +429,7 @@ public static class CityRenderer
 
         // Disegna area riempita (tramite overlay sottile)
         DrawFilledPolygon2D(block.vertices, blockColor * 0.4f);
+        DrawBlockOpenSpaces(block);
 
         // Disegna centro blocco
         Vector3 center = block.GetCenter();
@@ -621,6 +622,32 @@ public static class CityRenderer
             Gizmos.DrawWireCube(Vector3.zero, bSize);
 
             Gizmos.matrix = oldMatrix;
+        }
+    }
+
+    private static void DrawBlockOpenSpaces(CityBlock block)
+    {
+        if (block.generatedLayoutAreas == null) return;
+        for (int spaceIndex = 0; spaceIndex < block.generatedLayoutAreas.Count; spaceIndex++)
+        {
+            CityBlockLayoutArea space = block.generatedLayoutAreas[spaceIndex];
+            if (space == null || space.vertices == null || space.vertices.Count < 3) continue;
+
+            Gizmos.color = new Color(0.2f, 0.9f, 0.75f, 0.9f);
+            Vector3 center = Vector3.zero;
+            for (int i = 0; i < space.vertices.Count; i++)
+            {
+                Vector3 current = space.vertices[i] + Vector3.up * 0.04f;
+                Vector3 next = space.vertices[(i + 1) % space.vertices.Count] + Vector3.up * 0.04f;
+                Gizmos.DrawLine(current, next);
+                center += space.vertices[i];
+            }
+            center /= space.vertices.Count;
+#if UNITY_EDITOR
+            Handles.color = new Color(0.2f, 1f, 0.8f, 1f);
+            Handles.Label(center + Vector3.up * 0.15f,
+                string.IsNullOrWhiteSpace(space.label) ? space.typeId : space.label);
+#endif
         }
     }
 

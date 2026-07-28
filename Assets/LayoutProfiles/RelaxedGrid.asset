@@ -1,0 +1,13 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c45bd97c1a64d67ae0d6c5abeb36cb0, type: 3}
+  m_Name: Relaxed Grid Fill
+  operationEnabled: 1
+  minimumBlockArea: 1400
+  maximumBlockArea: 0
+  maximumRows: 6
+  columnGap: 3
+  rowGap: 6

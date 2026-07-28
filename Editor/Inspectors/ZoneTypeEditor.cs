@@ -24,6 +24,7 @@ public class ZoneTypeEditor : UnityEditor.Editor
         SerializedProperty buildingPrefabEntries = serializedObject.FindProperty("buildingPrefabEntries");
         SerializedProperty deterministicPrefabSelection = serializedObject.FindProperty("deterministicPrefabSelection");
         SerializedProperty prefabSelectionSeed = serializedObject.FindProperty("prefabSelectionSeed");
+        SerializedProperty blockLayoutProfile = serializedObject.FindProperty("blockLayoutProfile");
 
         EditorGUILayout.LabelField("Zone Type", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(displayName, new GUIContent("Display Name"));
@@ -42,6 +43,13 @@ public class ZoneTypeEditor : UnityEditor.Editor
         {
             EditorGUILayout.PropertyField(prefabSelectionSeed, new GUIContent("Selection Seed"));
         }
+
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Layout blocchi", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox(
+            "Profilo componibile di operazioni. Può essere sostituito sul singolo blocco.",
+            MessageType.Info);
+        EditorGUILayout.PropertyField(blockLayoutProfile, new GUIContent("Block Layout Profile"));
 
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Prefab Preview", EditorStyles.boldLabel);

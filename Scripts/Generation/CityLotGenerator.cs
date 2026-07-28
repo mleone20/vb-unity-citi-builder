@@ -24,8 +24,40 @@ public static class CityLotGenerator
         int blockIndex,
         CityData cityData,
         BlockOrientation orientation = BlockOrientation.Interior,
-        ILotSelectionPlugin lotSelectionPlugin = null)
+        ILotSelectionPlugin lotSelectionPlugin = null,
+        BlockLayoutProfile layoutProfile = null,
+        bool preserveGeneratedAreas = false)
     {
+        if (block == null || cityData == null)
+            return new List<CityLot>();
+        if (block.generatedLayoutAreas == null)
+            block.generatedLayoutAreas = new List<CityBlockLayoutArea>();
+        if (!preserveGeneratedAreas)
+            block.generatedLayoutAreas.Clear();
+
+        if (layoutProfile != null)
+        {
+            var operationContext = new BlockLayoutOperationContext
+            {
+                cityData = cityData,
+                block = block,
+                zoneType = zoning,
+                blockIndex = blockIndex,
+                lotSelectionPlugin = lotSelectionPlugin
+            };
+            if (layoutProfile.operations != null)
+            {
+                for (int i = 0; i < layoutProfile.operations.Count; i++)
+                {
+                    BlockLayoutOperation operation = layoutProfile.operations[i];
+                    if (operation != null && operation.CanExecute(operationContext))
+                        operation.Execute(operationContext);
+                }
+            }
+            block.generatedLayoutAreas.AddRange(operationContext.reservedAreas);
+            return operationContext.lots;
+        }
+
         if (orientation == BlockOrientation.Sparse)
             return GenerateSparseLotsForBlock(block, zoning, blockIndex, cityData, lotSelectionPlugin);
 
@@ -185,6 +217,194 @@ public static class CityLotGenerator
         return lots;
     }
 
+    /// <summary>
+    /// Implementazione generica del riempimento interno usata dal plugin predefinito.
+    /// Plugin esterni possono ignorarla e produrre direttamente i propri CityLot.
+    /// </summary>
+    public static List<CityLot> GenerateGridFillLots(
+        BlockLayoutOperationContext context,
+        GridFillBlockLayoutOperation operation)
+    {
+        var result = new List<CityLot>();
+        if (context == null || context.cityData == null || context.block == null ||
+            context.zoneType == null || operation == null)
+        {
+            return result;
+        }
+
+        List<CityLotCandidate> candidates = CollectCandidates(context.zoneType);
+        if (candidates.Count == 0) return result;
+
+        List<Vector3> polygon = context.block.vertices;
+        GetBlockAxes(polygon, out Vector3 tangent, out Vector3 forward);
+        GetProjectionBounds(polygon, tangent, forward,
+            out float minW, out float maxW, out float minD, out float maxD);
+
+        float cellWidth = 0f;
+        float cellDepth = 0f;
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            Vector2 footprint = candidates[i].meta.GetAlignedFootprintSize();
+            cellWidth = Mathf.Max(cellWidth, footprint.x);
+            cellDepth = Mathf.Max(cellDepth, footprint.y);
+        }
+        if (cellWidth <= 0f || cellDepth <= 0f) return result;
+
+        float roadMargin = GetMaximumRoadSetback(context.cityData, polygon);
+        int maximumRows = Mathf.Max(1, operation.maximumRows);
+        float centerY = context.block.GetCenter().y;
+
+        var occupied = new List<Vector2[]>();
+        if (context.lots != null)
+        {
+            for (int i = 0; i < context.lots.Count; i++)
+            {
+                CityLot lot = context.lots[i];
+                if (lot != null && lot.vertices != null && lot.vertices.Count >= 3)
+                    occupied.Add(ToXZ(lot.vertices));
+            }
+        }
+
+        var reservedPolygons = new List<Vector2[]>();
+        for (int i = 0; i < context.reservedAreas.Count; i++)
+        {
+            CityBlockLayoutArea area = context.reservedAreas[i];
+            if (area != null && area.vertices != null && area.vertices.Count >= 3)
+                reservedPolygons.Add(ToXZ(area.vertices));
+        }
+
+        int row = 0;
+        int filledRows = 0;
+        int lotSequence = 0;
+        for (float d = minD + roadMargin + cellDepth * 0.5f;
+             d <= maxD - roadMargin - cellDepth * 0.5f && filledRows < maximumRows;
+             d += cellDepth + Mathf.Max(0f, operation.rowGap), row++)
+        {
+            bool filledThisRow = false;
+            int column = 0;
+            for (float w = minW + roadMargin + cellWidth * 0.5f;
+                 w <= maxW - roadMargin - cellWidth * 0.5f;
+                 w += cellWidth + Mathf.Max(0f, operation.columnGap), column++)
+            {
+                int candidateIndex = PickCandidateIndex(
+                    context.blockIndex, 1000 + row, column, candidates,
+                    context.zoneType, context.lotSelectionPlugin);
+                if (candidateIndex < 0 || candidateIndex >= candidates.Count) continue;
+
+                CityBuilderPrefab metadata = candidates[candidateIndex].meta;
+                Vector2 footprint = metadata.GetAlignedFootprintSize();
+                Vector3 center = tangent * w + forward * d;
+                center.y = centerY;
+                List<Vector3> lotVertices = BuildOrientedRectangle(
+                    center, tangent, forward, footprint.x, footprint.y);
+                Vector2[] lotPolygon = ToXZ(
+                    lotVertices[0], lotVertices[1],
+                    lotVertices[2], lotVertices[3]);
+
+                if (!IsInsideBuildableArea(lotVertices, polygon, roadMargin) ||
+                    OverlapsAny(lotPolygon, occupied) ||
+                    OverlapsAny(lotPolygon, reservedPolygons))
+                {
+                    continue;
+                }
+
+                Vector3 desiredFront = -forward;
+                Quaternion rotation = Quaternion.FromToRotation(
+                    metadata.GetFrontageDirectionLocal(), desiredFront);
+                result.Add(new CityLot(context.blockIndex * 100000 + lotSequence, context.block.id)
+                {
+                    buildingCenter = center,
+                    buildingHeight = context.cityData.GetZoneHeight(context.zoneType),
+                    vertices = lotVertices,
+                    lotGap = operation.columnGap,
+                    assignedPrefabIndex = candidateIndex,
+                    assignedSpawnRotation = rotation,
+                    hasAssignedSpawnRotation = true
+                });
+                occupied.Add(lotPolygon);
+                lotSequence++;
+                filledThisRow = true;
+            }
+            if (filledThisRow) filledRows++;
+        }
+
+        return result;
+    }
+
+    private static float GetMaximumRoadSetback(CityData cityData, List<Vector3> polygon)
+    {
+        float maxWidth = cityData.globalRoadWidth;
+        for (int i = 0; i < polygon.Count; i++)
+        {
+            CitySegment segment = cityData.FindSegmentBetweenPositions(
+                polygon[i], polygon[(i + 1) % polygon.Count],
+                Mathf.Max(2f, cityData.globalRoadWidth));
+            if (segment != null)
+                maxWidth = Mathf.Max(maxWidth, segment.GetConfiguredWidth(cityData.globalRoadWidth));
+        }
+        return maxWidth * 0.5f + LotSafetyMargin;
+    }
+
+    private static void GetBlockAxes(
+        List<Vector3> vertices,
+        out Vector3 tangent,
+        out Vector3 forward)
+    {
+        tangent = Vector3.right;
+        float longest = 0f;
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            Vector3 edge = vertices[(i + 1) % vertices.Count] - vertices[i];
+            edge.y = 0f;
+            if (edge.sqrMagnitude > longest)
+            {
+                longest = edge.sqrMagnitude;
+                tangent = edge.normalized;
+            }
+        }
+        forward = new Vector3(-tangent.z, 0f, tangent.x);
+    }
+
+    private static void GetProjectionBounds(
+        List<Vector3> vertices,
+        Vector3 tangent,
+        Vector3 forward,
+        out float minW,
+        out float maxW,
+        out float minD,
+        out float maxD)
+    {
+        minW = minD = float.MaxValue;
+        maxW = maxD = float.MinValue;
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            float w = Vector3.Dot(vertices[i], tangent);
+            float d = Vector3.Dot(vertices[i], forward);
+            minW = Mathf.Min(minW, w);
+            maxW = Mathf.Max(maxW, w);
+            minD = Mathf.Min(minD, d);
+            maxD = Mathf.Max(maxD, d);
+        }
+    }
+
+    private static List<Vector3> BuildOrientedRectangle(
+        Vector3 center,
+        Vector3 tangent,
+        Vector3 forward,
+        float width,
+        float depth)
+    {
+        Vector3 halfW = tangent * (width * 0.5f);
+        Vector3 halfD = forward * (depth * 0.5f);
+        return new List<Vector3>
+        {
+            center - halfW - halfD,
+            center + halfW - halfD,
+            center + halfW + halfD,
+            center - halfW + halfD
+        };
+    }
+
     // ── Modalità Sparse ──────────────────────────────────────────────────────
 
     private static List<CityLot> GenerateSparseLotsForBlock(
@@ -192,7 +412,9 @@ public static class CityLotGenerator
         ZoneType zoning,
         int blockIndex,
         CityData cityData,
-        ILotSelectionPlugin lotSelectionPlugin)
+        ILotSelectionPlugin lotSelectionPlugin,
+        List<CityLot> existingLots = null,
+        List<CityBlockLayoutArea> reservedAreas = null)
     {
         List<CityLot> lots = new List<CityLot>();
         if (block.vertices.Count < 3) return lots;
@@ -233,6 +455,24 @@ public static class CityLotGenerator
         float centerY = block.GetCenter().y;
 
         List<Vector2[]> occupied = new List<Vector2[]>();
+        if (existingLots != null)
+        {
+            for (int i = 0; i < existingLots.Count; i++)
+            {
+                CityLot existing = existingLots[i];
+                if (existing != null && existing.vertices != null && existing.vertices.Count >= 3)
+                    occupied.Add(ToXZ(existing.vertices));
+            }
+        }
+        if (reservedAreas != null)
+        {
+            for (int i = 0; i < reservedAreas.Count; i++)
+            {
+                CityBlockLayoutArea area = reservedAreas[i];
+                if (area != null && area.vertices != null && area.vertices.Count >= 3)
+                    occupied.Add(ToXZ(area.vertices));
+            }
+        }
         int cellIdx = 0;
 
         for (float gz = minZ + margin; gz < maxZ - margin; gz += stepZ)
@@ -302,6 +542,50 @@ public static class CityLotGenerator
         }
 
         return lots;
+    }
+
+    public static List<CityLot> GenerateScatterLots(BlockLayoutOperationContext context)
+    {
+        if (context == null) return new List<CityLot>();
+        return GenerateSparseLotsForBlock(
+            context.block,
+            context.zoneType,
+            context.blockIndex,
+            context.cityData,
+            context.lotSelectionPlugin,
+            context.lots,
+            context.reservedAreas);
+    }
+
+    public static void AppendNonOverlappingLots(
+        BlockLayoutOperationContext context,
+        List<CityLot> candidates)
+    {
+        if (context == null || candidates == null) return;
+        var occupied = new List<Vector2[]>();
+        for (int i = 0; i < context.lots.Count; i++)
+        {
+            CityLot lot = context.lots[i];
+            if (lot != null && lot.vertices != null && lot.vertices.Count >= 3)
+                occupied.Add(ToXZ(lot.vertices));
+        }
+        for (int i = 0; i < context.reservedAreas.Count; i++)
+        {
+            CityBlockLayoutArea area = context.reservedAreas[i];
+            if (area != null && area.vertices != null && area.vertices.Count >= 3)
+                occupied.Add(ToXZ(area.vertices));
+        }
+
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            CityLot candidate = candidates[i];
+            if (candidate == null || candidate.vertices == null || candidate.vertices.Count < 3)
+                continue;
+            Vector2[] polygon = ToXZ(candidate.vertices);
+            if (OverlapsAny(polygon, occupied)) continue;
+            context.lots.Add(candidate);
+            occupied.Add(polygon);
+        }
     }
 
     // ── Selezione prefab ─────────────────────────────────────────────────────
@@ -515,6 +799,14 @@ public static class CityLotGenerator
 
     private static Vector2[] ToXZ(Vector3 a, Vector3 b, Vector3 c, Vector3 d) =>
         new Vector2[] { new Vector2(a.x, a.z), new Vector2(b.x, b.z), new Vector2(c.x, c.z), new Vector2(d.x, d.z) };
+
+    private static Vector2[] ToXZ(IList<Vector3> vertices)
+    {
+        Vector2[] result = new Vector2[vertices.Count];
+        for (int i = 0; i < vertices.Count; i++)
+            result[i] = new Vector2(vertices[i].x, vertices[i].z);
+        return result;
+    }
 }
 
 }

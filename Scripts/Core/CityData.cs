@@ -100,7 +100,10 @@ public class CityData : ScriptableObject
                 zoning = block.zoning,
                 vertices = new List<Vector3>(block.vertices),
                 lotIDs = new List<int>(block.lotIDs),
-                orientation = block.orientation
+                orientation = block.orientation,
+                lotGapOverride = block.lotGapOverride,
+                layoutProfileOverride = block.layoutProfileOverride,
+                generatedLayoutAreas = CloneLayoutAreas(block.generatedLayoutAreas)
             };
             clone.blocks.Add(clonedBlock);
         }
@@ -125,6 +128,26 @@ public class CityData : ScriptableObject
         clone.nextLotID = this.nextLotID;
         
         return clone;
+    }
+
+    private static List<CityBlockLayoutArea> CloneLayoutAreas(List<CityBlockLayoutArea> source)
+    {
+        List<CityBlockLayoutArea> result = new List<CityBlockLayoutArea>();
+        if (source == null) return result;
+        for (int i = 0; i < source.Count; i++)
+        {
+            CityBlockLayoutArea item = source[i];
+            if (item == null) continue;
+            result.Add(new CityBlockLayoutArea
+            {
+                typeId = item.typeId,
+                label = item.label,
+                vertices = item.vertices != null
+                    ? new List<Vector3>(item.vertices)
+                    : new List<Vector3>()
+            });
+        }
+        return result;
     }
 
     /// <summary>

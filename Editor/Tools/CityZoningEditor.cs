@@ -105,6 +105,27 @@ public static class CityZoningEditor
                     EditorUtility.SetDirty(cityData);
                 }
 
+                EditorGUI.BeginChangeCheck();
+                BlockLayoutProfile layoutOverride = (BlockLayoutProfile)EditorGUILayout.ObjectField(
+                    "Override Layout Profile",
+                    selectedBlock.layoutProfileOverride,
+                    typeof(BlockLayoutProfile),
+                    false);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    Undo.RecordObject(cityData, "Set Block Layout Profile");
+                    selectedBlock.layoutProfileOverride = layoutOverride;
+                    EditorUtility.SetDirty(cityData);
+                }
+                BlockLayoutProfile effectiveProfile = selectedBlock.layoutProfileOverride != null
+                    ? selectedBlock.layoutProfileOverride
+                    : selectedBlock.zoning != null ? selectedBlock.zoning.blockLayoutProfile : null;
+                EditorGUILayout.LabelField(
+                    effectiveProfile != null
+                        ? "Profilo effettivo: " + effectiveProfile.name
+                        : "Profilo effettivo: layout legacy",
+                    EditorStyles.miniLabel);
+
                 EditorGUILayout.Space();
 
                 // Gap override per blocco

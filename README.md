@@ -251,6 +251,31 @@ Il motore integrato costruisce ribbon con giunti miter limitati, indicizza spazi
 rileva crossing geometrici anche senza nodi condivisi e genera patch di intersezione dedicate.
 Incroci con differenza di quota significativa vengono considerati sovrappassi e non vengono uniti.
 
+### Pipeline di layout dei blocchi
+
+Un `BlockLayoutProfile` contiene una sequenza ordinata di asset `BlockLayoutOperation`. Il profilo
+puÃ² essere assegnato allo `ZoneType` e sostituito sul singolo `CityBlock`. Le operazioni built-in
+sono primitive combinabili (`Frontage`, `Grid Fill`, `Centered Reserved Area`, `Scatter`): concetti
+come un quartiere denso o un parco centrale sono quindi preset di asset e non modalitÃ  del core.
+
+Un'integrazione esterna aggiunge operazioni derivando `BlockLayoutOperation`. Il nuovo tipo appare
+automaticamente nel menu **+ Operazione** dell'Inspector del profilo:
+
+```csharp
+[CreateAssetMenu(menuName = "City Builder/Layout Operations/ACME")]
+public sealed class AcmeLayoutOperation : BlockLayoutOperation
+{
+    public float customParameter = 10f;
+
+    public override void Execute(BlockLayoutOperationContext context)
+    {
+        if (!CanExecute(context)) return;
+        // Aggiungere risultati a context.lots e aree semantiche a
+        // context.reservedAreas. Le operazioni successive li vedranno.
+    }
+}
+```
+
 Plugin built-in disponibili:
 
 | Plugin | Classe |

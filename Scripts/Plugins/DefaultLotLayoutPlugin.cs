@@ -22,7 +22,10 @@ public class DefaultLotLayoutPlugin : ILotLayoutPlugin
             blockIndex,
             context.cityData,
             block.orientation,
-            context.lotSelectionPlugin);
+            context.lotSelectionPlugin,
+            block.layoutProfileOverride != null
+                ? block.layoutProfileOverride
+                : block.zoning != null ? block.zoning.blockLayoutProfile : null);
     }
 }
 

@@ -1,0 +1,14 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e851b4e203b847f4bbba796663d629e2, type: 3}
+  m_Name: Central Park Area
+  operationEnabled: 1
+  minimumBlockArea: 1400
+  maximumBlockArea: 0
+  typeId: park
+  label: Central Park
+  width: 24
+  depth: 20
