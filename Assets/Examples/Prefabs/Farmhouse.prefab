@@ -135,8 +135,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 323fa384f24c5fc43a5407df76d8d178, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Components.CityBuilderPrefab
-  aiDescription: 
-  aiSuggestedZoneDisplayNames: []
+  description: 
+  zoneTypeTags: []
   footprintSize: {x: 6, y: 8}
   autoComputeFromRenderers: 0
   pivotOffset: {x: 0, y: 0, z: 0}

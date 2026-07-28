@@ -30,8 +30,8 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
         SerializedProperty frontageDirection = serializedObject.FindProperty("frontageDirection");
         SerializedProperty frontageAnchor = serializedObject.FindProperty("frontageAnchor");
         SerializedProperty frontageDisplayHeight = serializedObject.FindProperty("frontageDisplayHeight");
-        SerializedProperty aiDescription = serializedObject.FindProperty("aiDescription");
-        SerializedProperty aiSuggestedZoneDisplayNames = serializedObject.FindProperty("aiSuggestedZoneDisplayNames");
+        SerializedProperty description = serializedObject.FindProperty("description");
+        SerializedProperty zoneTypeTags = serializedObject.FindProperty("zoneTypeTags");
 
         using (new EditorGUI.DisabledScope(autoCompute.boolValue))
         {
@@ -58,9 +58,9 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
         EditorGUILayout.PropertyField(frontageDisplayHeight, new GUIContent("Altezza Gizmo", "Altezza visiva del piano arancio (solo estetica)."));
 
         EditorGUILayout.Space();
-        EditorGUILayout.LabelField("AI Tagging", EditorStyles.boldLabel);
-        EditorGUILayout.PropertyField(aiDescription, new GUIContent("AI Description"));
-        EditorGUILayout.PropertyField(aiSuggestedZoneDisplayNames, new GUIContent("AI Suggested Zone Types"), true);
+        EditorGUILayout.LabelField("Building Tags", EditorStyles.boldLabel);
+        EditorGUILayout.PropertyField(description, new GUIContent("Description"));
+        EditorGUILayout.PropertyField(zoneTypeTags, new GUIContent("Zone Type Tags"), true);
     
         serializedObject.ApplyModifiedProperties();
 
@@ -208,28 +208,28 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
             out List<LLMClient.ZoneTypeCandidate> candidates, 
             out string preparationError))
         {
-            EditorUtility.DisplayDialog("AI Tagging", preparationError, "OK");
+            EditorUtility.DisplayDialog("LLM Tagging", preparationError, "OK");
             return;
         }
 
         LLMClient llmClient = CreateConfiguredClient();
         if (!llmClient.TryAutoTagPrefab(previewPng, candidates, out LLMClient.AutoTagResponse response, out string error))
         {
-            EditorUtility.DisplayDialog("AI Tagging", string.IsNullOrWhiteSpace(error) ? "LLMClient non disponibile." : error, "OK");
+            EditorUtility.DisplayDialog("LLM Tagging", string.IsNullOrWhiteSpace(error) ? "LLMClient non disponibile." : error, "OK");
             return;
         }
 
         if (response == null)
         {
-            EditorUtility.DisplayDialog("AI Tagging", "Risposta LLM nulla.", "OK");
+            EditorUtility.DisplayDialog("LLM Tagging", "Risposta LLM nulla.", "OK");
             return;
         }
 
         List<string> normalizedSuggestions = NormalizeSuggestedZoneNames(response.zoneTypeDisplayNames);
 
         Undo.RecordObject(prefabMetadata, AutoTagUndoName);
-        prefabMetadata.aiDescription = response.description ?? string.Empty;
-        prefabMetadata.aiSuggestedZoneDisplayNames = normalizedSuggestions;
+        prefabMetadata.description = response.description ?? string.Empty;
+        prefabMetadata.zoneTypeTags = normalizedSuggestions;
         EditorUtility.SetDirty(prefabMetadata);
 
         int zonesUpdated = 0;
@@ -267,7 +267,7 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
             "Duplicati evitati: " + duplicateEntries + "\n" +
             "Suggerimenti senza match: " + unknownSuggestions;
 
-        EditorUtility.DisplayDialog("AI Tagging", report, "OK");
+        EditorUtility.DisplayDialog("LLM Tagging", report, "OK");
     }
 
     private static void ShowLlmRequestPreview(CityBuilderPrefab selectedComponent)

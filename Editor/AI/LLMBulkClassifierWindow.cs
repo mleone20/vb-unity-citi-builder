@@ -167,8 +167,8 @@ public class LLMBulkClassifierWindow : EditorWindow
                     List<string> normalizedSuggestions = NormalizeSuggestions(response.zoneTypeDisplayNames);
 
                     Undo.RecordObject(metadata, "Bulk Auto Tag Prefabs");
-                    metadata.aiDescription = response.description ?? string.Empty;
-                    metadata.aiSuggestedZoneDisplayNames = normalizedSuggestions;
+                    metadata.description = response.description ?? string.Empty;
+                    metadata.zoneTypeTags = normalizedSuggestions;
                     EditorUtility.SetDirty(metadata);
 
                     zoneAssignments += ApplyZoneAssignments(prefab, allZoneTypes, normalizedSuggestions);

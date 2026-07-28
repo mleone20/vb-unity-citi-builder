@@ -155,7 +155,7 @@ Il sistema integra un client LLM locale per classificare automaticamente i prefa
 1. Aprire **Window → BSC City Builder AI → Bulk Classifier**
 2. Selezionare i prefab da classificare
 3. Il sistema cattura uno screenshot del prefab, costruisce un prompt con i `ZoneType` disponibili e invia al modello
-4. La risposta JSON (`{ "description": "...", "zoneTypeDisplayNames": [...] }`) viene salvata nei campi `aiDescription` e `aiSuggestedZoneDisplayNames` del componente `CityBuilderPrefab`
+4. La risposta JSON (`{ "description": "...", "zoneTypeDisplayNames": [...] }`) viene salvata nei campi `description` e `zoneTypeTags` del componente `CityBuilderPrefab`
 
 **Finestre AI**:
 - `LLMClientSettingsWindow` — configura endpoint e modello

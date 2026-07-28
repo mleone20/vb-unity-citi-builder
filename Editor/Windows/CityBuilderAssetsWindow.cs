@@ -256,7 +256,8 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
             ValidateEntry(entry);
             entry.searchableText = (
                 prefab.name + " " + path + " " + string.Join(" ", entry.zones) +
-                " " + (metadata.aiDescription ?? string.Empty)).ToLowerInvariant();
+                " " + (metadata.description ?? string.Empty) +
+                " " + string.Join(" ", metadata.zoneTypeTags ?? new List<string>())).ToLowerInvariant();
             entries.Add(entry);
         }
 

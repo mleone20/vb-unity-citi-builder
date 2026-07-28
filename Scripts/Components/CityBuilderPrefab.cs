@@ -1,5 +1,6 @@
 
 using UnityEngine;
+using UnityEngine.Serialization;
 using System.Collections.Generic;
 using BSCCityBuilder.Core;
 
@@ -17,13 +18,15 @@ public class CityBuilderPrefab : MonoBehaviour
 { 
     private const float MinFootprint = 0.1f;
 
-    [Header("AI Tagging")]
+    [Header("Building Tags")]
     [TextArea(2, 5)]
-    [Tooltip("Descrizione generata dal modello LLM locale per questo prefab.")]
-    public string aiDescription;
+    [Tooltip("Descrizione libera del prefab, compilabile manualmente o tramite LLM.")]
+    [FormerlySerializedAs("aiDescription")]
+    public string description;
 
-    [Tooltip("Lista display name degli ZoneType suggeriti dal modello LLM locale.")]
-    public List<string> aiSuggestedZoneDisplayNames = new List<string>();
+    [Tooltip("Tag basati sui display name degli ZoneType, compilabili manualmente o tramite LLM.")]
+    [FormerlySerializedAs("aiSuggestedZoneDisplayNames")]
+    public List<string> zoneTypeTags = new List<string>();
 
     [Tooltip("Ingombro sul piano XZ (X=larghezza, Y=profondità).")]
     public Vector2 footprintSize = new Vector2(8f, 8f);
