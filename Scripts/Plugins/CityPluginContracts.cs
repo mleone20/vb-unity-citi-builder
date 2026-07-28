@@ -62,7 +62,6 @@ public sealed class CityGenerationContext
     public CityData cityData;
 
     // Config asset del plugin process attivo (agnostico rispetto al tema città)
-    // Legacy alias: resta per compatibilità con plugin step esistenti a tema American.
     public CityConfig config;
     public ILotSelectionPlugin lotSelectionPlugin;
     public IServiceProvider services;
@@ -72,8 +71,6 @@ public sealed class CityGenerationContext
         return config as T;
     }
 
-    [Obsolete("Usare GetConfig<T>().")]
-    public T GetProcessConfig<T>() where T : CityConfig => GetConfig<T>();
 }
 
 public interface ICityPipelineStep

@@ -1,22 +1,10 @@
 using UnityEngine;
-using BSCCityBuilder.Core;
-using BSCCityBuilder.Management;
-using BSCCityBuilder.Config;
-using BSCCityBuilder.Generation;
 
 namespace BSCCityBuilder.Plugins
 {
 /// <summary>
-/// ScriptableObject manifest per plugin esterni caricati da DLL esterne.
-///
-/// FASE 2 - Placeholder strutturale.
-/// In questa fase il manifest viene riconosciuto dall'editor ma il loader
-/// non effettua nessun caricamento reale di assembly.
-///
-/// Utilizzo futuro (Fase 2):
-///   1. Creare un asset CityPluginManifest via Assets > Create > CityBuilder > Plugin Manifest
-///   2. Compilare il plugin come .dll e metterlo nel percorso indicato in dllPath
-///   3. CityExternalPluginLoader caricherà l'assembly e registrerà i plugin nel registry
+/// Manifest per plugin distribuiti come assembly Unity.
+/// Il loader valida API, dipendenze, assembly importato e categorie consentite.
 /// </summary>
 [CreateAssetMenu(
     menuName = "CityBuilder/Plugin Manifest",
@@ -41,19 +29,17 @@ public class CityPluginManifest : ScriptableObject
     public string[] dependencies = new string[0];
 
     [Header("Assembly esterno")]
-    [Tooltip("Percorso asset della DLL, assoluto da Assets/ o relativo alla cartella del manifest. Lasciare vuoto per plugin interni.")]
+    [Tooltip("Percorso della DLL, assoluto da Assets/ o relativo al manifest.")]
     public string dllRelativePath = "";
 
     [Header("Whitelist categorie")]
-    [Tooltip("Categorie per cui questo manifest può registrare plugin. Limita la superficie di attacco.")]
+    [Tooltip("Categorie che l'assembly può registrare.")]
     public CityPluginCategory[] allowedCategories = new CityPluginCategory[0];
 
     [Header("Stato (sola lettura)")]
-    [Tooltip("Impostato a runtime da CityExternalPluginLoader. Non modificare manualmente.")]
-    public bool isLoaded = false;
+    public bool isLoaded;
 
     [TextArea]
     public string loadMessage = "";
 }
-
 }

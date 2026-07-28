@@ -23,9 +23,5 @@ MonoBehaviour:
     spawnProbability: 1
   - prefab: {fileID: 1292789659650772819, guid: 11ca54fd5070e564c9063530859d3b43, type: 3}
     spawnProbability: 1
-  buildingPrefabs:
-  - {fileID: 2409739466179412054, guid: 5208ffb919898d6408e97ddf6658f968, type: 3}
-  - {fileID: 6277758328546257117, guid: c4c6ff2f15c2671408395805eb2490dc, type: 3}
-  - {fileID: 1292789659650772819, guid: 11ca54fd5070e564c9063530859d3b43, type: 3}
   deterministicPrefabSelection: 1
   prefabSelectionSeed: 0

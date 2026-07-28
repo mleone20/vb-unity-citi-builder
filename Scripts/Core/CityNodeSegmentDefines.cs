@@ -18,16 +18,12 @@ public class ZoneType : ScriptableObject
     [Header("Building Prefabs")]
     public List<ZonePrefabSpawnEntry> buildingPrefabEntries = new List<ZonePrefabSpawnEntry>();
 
-    [HideInInspector]
-    public List<GameObject> buildingPrefabs = new List<GameObject>();
-
     public bool deterministicPrefabSelection = true;
     public int prefabSelectionSeed = 0;
 
     private void OnValidate()
     {
         EnsurePrefabEntries();
-        SyncLegacyPrefabListFromEntries();
     }
 
     public void EnsurePrefabEntries()
@@ -37,30 +33,6 @@ public class ZoneType : ScriptableObject
             buildingPrefabEntries = new List<ZonePrefabSpawnEntry>();
         }
 
-        if (buildingPrefabEntries.Count > 0)
-        {
-            return;
-        }
-
-        if (buildingPrefabs == null || buildingPrefabs.Count == 0)
-        {
-            return;
-        }
-
-        for (int i = 0; i < buildingPrefabs.Count; i++)
-        {
-            GameObject prefab = buildingPrefabs[i];
-            if (prefab == null)
-            {
-                continue;
-            }
-
-            buildingPrefabEntries.Add(new ZonePrefabSpawnEntry
-            {
-                prefab = prefab,
-                spawnProbability = 1f
-            });
-        }
     }
 
     public List<ZonePrefabSpawnEntry> GetValidPrefabEntries(bool includeZeroProbability = false)
@@ -131,7 +103,6 @@ public class ZoneType : ScriptableObject
             spawnProbability = Mathf.Clamp01(spawnProbability)
         });
 
-        SyncLegacyPrefabListFromEntries();
         return true;
     }
 
@@ -157,38 +128,6 @@ public class ZoneType : ScriptableObject
             }
         }
 
-        SyncLegacyPrefabListFromEntries();
-    }
-
-    private void SyncLegacyPrefabListFromEntries()
-    {
-        if (buildingPrefabs == null)
-        {
-            buildingPrefabs = new List<GameObject>();
-        }
-        else
-        {
-            buildingPrefabs.Clear();
-        }
-
-        if (buildingPrefabEntries == null)
-        {
-            return;
-        }
-
-        for (int i = 0; i < buildingPrefabEntries.Count; i++)
-        {
-            ZonePrefabSpawnEntry entry = buildingPrefabEntries[i];
-            if (entry == null || entry.prefab == null)
-            {
-                continue;
-            }
-
-            if (!buildingPrefabs.Contains(entry.prefab))
-            {
-                buildingPrefabs.Add(entry.prefab);
-            }
-        }
     }
 
     public string GetDisplayName()

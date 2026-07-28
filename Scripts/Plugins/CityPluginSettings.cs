@@ -19,29 +19,13 @@ public class CityPluginSettings : ScriptableObject
     [SerializeField] private System.Collections.Generic.List<PluginSelection> selections =
         new System.Collections.Generic.List<PluginSelection>();
 
-    [Header("Active Plugin IDs")]
-    [HideInInspector]
-    public string activeProcessPluginId = "bsc.process.default-random";
-    [HideInInspector]
-    public string activeRoadNetworkPluginId = "bsc.american.road-network";
-    [HideInInspector]
-    public string activeRoadPlanarizationPluginId = "bsc.default.planarization";
-    [HideInInspector]
-    public string activeBlockDetectionPluginId = "bsc.default.block-detection";
-    [HideInInspector]
-    public string activeZoningPluginId = "bsc.american.zoning";
-    [HideInInspector]
-    public string activeLotLayoutPluginId = "bsc.default.lot-layout";
-    [HideInInspector]
-    public string activeLotSelectionPluginId = "bsc.default.lot-selection";
-
     [Header("Pipeline Options")]
     public bool runPlanarizationAfterRoadNetwork = true;
     public bool runPlanarizationInFullGeneration = true;
 
     public string GetActivePluginId(CityPluginCategory category)
     {
-        EnsureMigrated();
+        EnsureSelections();
         for (int i = 0; i < selections.Count; i++)
         {
             if (selections[i].category == category)
@@ -54,63 +38,54 @@ public class CityPluginSettings : ScriptableObject
 
     public void SetActivePluginId(CityPluginCategory category, string pluginId)
     {
-        EnsureMigrated();
+        EnsureSelections();
         for (int i = 0; i < selections.Count; i++)
         {
             if (selections[i].category == category)
             {
                 selections[i].pluginId = pluginId;
-                SyncLegacyField(category, pluginId);
                 return;
             }
         }
         selections.Add(new PluginSelection { category = category, pluginId = pluginId });
-        SyncLegacyField(category, pluginId);
     }
 
-    private void EnsureMigrated()
+    private void EnsureSelections()
     {
-        if (selections.Count > 0)
-        {
-            return;
-        }
-
         foreach (CityPluginCategory category in System.Enum.GetValues(typeof(CityPluginCategory)))
         {
-            selections.Add(new PluginSelection
+            bool exists = false;
+            for (int i = 0; i < selections.Count; i++)
             {
-                category = category,
-                pluginId = GetLegacyField(category)
-            });
+                if (selections[i].category == category)
+                {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists)
+            {
+                selections.Add(new PluginSelection
+                {
+                    category = category,
+                    pluginId = GetDefaultPluginId(category)
+                });
+            }
         }
     }
 
-    private string GetLegacyField(CityPluginCategory category)
+    private static string GetDefaultPluginId(CityPluginCategory category)
     {
         switch (category)
         {
-            case CityPluginCategory.Process: return activeProcessPluginId;
-            case CityPluginCategory.RoadNetwork: return activeRoadNetworkPluginId;
-            case CityPluginCategory.RoadPlanarization: return activeRoadPlanarizationPluginId;
-            case CityPluginCategory.BlockDetection: return activeBlockDetectionPluginId;
-            case CityPluginCategory.Zoning: return activeZoningPluginId;
-            case CityPluginCategory.LotLayout: return activeLotLayoutPluginId;
-            case CityPluginCategory.LotSelection: return activeLotSelectionPluginId;
+            case CityPluginCategory.Process: return "bsc.process.default-random";
+            case CityPluginCategory.RoadNetwork: return "bsc.american.road-network";
+            case CityPluginCategory.RoadPlanarization: return "bsc.default.planarization";
+            case CityPluginCategory.BlockDetection: return "bsc.default.block-detection";
+            case CityPluginCategory.Zoning: return "bsc.american.zoning";
+            case CityPluginCategory.LotLayout: return "bsc.default.lot-layout";
+            case CityPluginCategory.LotSelection: return "bsc.default.lot-selection";
             default: return string.Empty;
-        }
-    }
-
-    private void SyncLegacyField(CityPluginCategory category, string pluginId)
-    {
-        switch (category)
-        {
-            case CityPluginCategory.Process: activeProcessPluginId = pluginId; break;
-            case CityPluginCategory.RoadNetwork: activeRoadNetworkPluginId = pluginId; break;
-            case CityPluginCategory.RoadPlanarization: activeRoadPlanarizationPluginId = pluginId; break;
-            case CityPluginCategory.BlockDetection: activeBlockDetectionPluginId = pluginId; break;
-            case CityPluginCategory.Zoning: activeZoningPluginId = pluginId; break;
-            case CityPluginCategory.LotLayout: activeLotLayoutPluginId = pluginId; break;
-            case CityPluginCategory.LotSelection: activeLotSelectionPluginId = pluginId; break;
         }
     }
 }

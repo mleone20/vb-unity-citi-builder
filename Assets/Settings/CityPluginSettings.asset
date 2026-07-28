@@ -12,13 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e94e178d4b5e86a4d8318500ab64fd51, type: 3}
   m_Name: CityPluginSettings
   m_EditorClassIdentifier: BSCCityBuilder.Runtime::BSCCityBuilder.Plugins.CityPluginSettings
-  selections: []
-  activeProcessPluginId: bsc.process.default-random
-  activeRoadNetworkPluginId: bsc.american.road-network
-  activeRoadPlanarizationPluginId: bsc.default.planarization
-  activeBlockDetectionPluginId: bsc.default.block-detection
-  activeZoningPluginId: bsc.american.zoning
-  activeLotLayoutPluginId: bsc.default.lot-layout
-  activeLotSelectionPluginId: bsc.default.lot-selection
+  selections:
+  - category: 0
+    pluginId: bsc.process.default-random
+  - category: 1
+    pluginId: bsc.american.road-network
+  - category: 2
+    pluginId: bsc.default.planarization
+  - category: 3
+    pluginId: bsc.default.block-detection
+  - category: 4
+    pluginId: bsc.american.zoning
+  - category: 5
+    pluginId: bsc.default.lot-layout
+  - category: 6
+    pluginId: bsc.default.lot-selection
   runPlanarizationAfterRoadNetwork: 1
   runPlanarizationInFullGeneration: 1

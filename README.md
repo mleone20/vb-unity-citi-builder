@@ -247,6 +247,10 @@ public sealed class ExternalRoadEngine : IRoadMeshGenerationEngine
 L'engine viene scoperto automaticamente e appare nel menu **Motore strade**. Un'integrazione Editor
 può implementare anche `IRoadMeshGenerationEngineEditorUI` per mostrare impostazioni proprie.
 
+Il motore integrato costruisce ribbon con giunti miter limitati, indicizza spazialmente i tratti,
+rileva crossing geometrici anche senza nodi condivisi e genera patch di intersezione dedicate.
+Incroci con differenza di quota significativa vengono considerati sovrappassi e non vengono uniti.
+
 Plugin built-in disponibili:
 
 | Plugin | Classe |
@@ -271,7 +275,8 @@ BSCCityBuilder/
 │   ├── AI/                 # LLM client e finestre AI
 │   ├── Inspectors/         # Custom Inspector (ZoneType, CityBlock, CityBuilderPrefab)
 │   ├── Plugins/            # CityGenerationPipelineHost, CityExternalPluginLoader
-│   ├── Tools/              # CityRoadMeshBuilder, CityBuildingSpawner, CitySceneHandle
+│   ├── Roads/              # Registry, host e motore superfici stradali
+│   ├── Tools/              # CityBuildingSpawner, CityRoadPlanarizer, CitySceneHandle
 │   └── Windows/            # CityBuilderWindow e tab
 └── Scripts/
     ├── Components/         # CityBuilderPrefab (MonoBehaviour)

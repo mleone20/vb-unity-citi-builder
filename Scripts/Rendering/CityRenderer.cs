@@ -586,26 +586,6 @@ public static class CityRenderer
 
             Gizmos.matrix = oldMatrix;
         }
-        else
-        {
-            // Fallback per lotti legacy senza vertices
-            Vector3 center = lot.buildingCenter + Vector3.up * (height * 0.5f);
-            Gizmos.color = new Color(buildingColor.r, buildingColor.g, buildingColor.b, 0.25f);
-            DrawWireCube(center, new Vector3(5f, height, 5f));
-        }
-    }
-
-    // ========== UTILITY DRAWING FUNCTIONS ==========
-
-    private static void DrawCube(Vector3 center, Vector3 size)
-    {
-        // Semplice: usa Gizmos.DrawCube
-        Gizmos.DrawCube(center, size);
-    }
-
-    private static void DrawWireCube(Vector3 center, Vector3 size)
-    {
-        Gizmos.DrawWireCube(center, size);
     }
 
 #if UNITY_EDITOR
