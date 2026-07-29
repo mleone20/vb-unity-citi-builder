@@ -18,6 +18,7 @@ public static class CityBuildingSpawner
 {
     private const string SpawnRootName = "CitySpawnedBuildings";
     private const float FitTolerance = 0.05f;
+    private const float SpawnCollisionCellSize = 32f;
 
     public enum ExistingBuildingsHandling
     {
@@ -36,6 +37,7 @@ public static class CityBuildingSpawner
         public int lotsInvalidGeometry;
         public int prefabMissingMetadata;
         public int lotsOutOfFit;
+        public int overlapsPrevented;
 
         public string ToMultilineString()
         {
@@ -48,7 +50,8 @@ public static class CityBuildingSpawner
                 "Blocchi senza prefab zona: " + blocksWithoutPrefabs + "\n" +
                 "Lotti con geometria non valida: " + lotsInvalidGeometry + "\n" +
                 "Prefab senza CityBuilderPrefab: " + prefabMissingMetadata + "\n" +
-                "Prefab fuori fit lotto (informativo): " + lotsOutOfFit;
+                "Prefab fuori fit lotto (informativo): " + lotsOutOfFit + "\n" +
+                "Sovrapposizioni prefab evitate: " + overlapsPrevented;
         }
     }
 
@@ -175,6 +178,8 @@ public static class CityBuildingSpawner
             report.clearedObjects = ClearRoot(root);
             root = GetOrCreateRoot();
         }
+        var occupiedBuildingFootprints =
+            new Dictionary<Vector2Int, List<Vector2[]>>();
 
         for (int i = 0; i < cityData.blocks.Count; i++)
         {
@@ -250,8 +255,32 @@ public static class CityBuildingSpawner
 
                     spawnRotation = lot.assignedSpawnRotation;
                     Vector3 lotFrontCenter = (lot.vertices[0] + lot.vertices[1]) * 0.5f;
+                    Vector3 lotBackCenter = (lot.vertices[2] + lot.vertices[3]) * 0.5f;
                     spawnPosition = ComputeLotMatchedSpawnPosition(
-                        metadata, lotCenter, lotFrontCenter, spawnRotation);
+                        metadata,
+                        lotCenter,
+                        lotFrontCenter,
+                        lotBackCenter,
+                        spawnRotation);
+
+                    if (TryBuildSpawnFootprint(
+                            metadata,
+                            spawnPosition,
+                            spawnRotation,
+                            out Vector2[] spawnFootprint) &&
+                        OverlapsAnySpawnFootprint(
+                            spawnFootprint,
+                            occupiedBuildingFootprints))
+                    {
+                        report.overlapsPrevented++;
+                        continue;
+                    }
+                    if (spawnFootprint != null)
+                    {
+                        RegisterSpawnFootprint(
+                            spawnFootprint,
+                            occupiedBuildingFootprints);
+                    }
                 }
                 else
                 {
@@ -821,8 +850,31 @@ public static class CityBuildingSpawner
         CityBuilderPrefab metadata,
         Vector3 lotCenter,
         Vector3 lotFrontCenter,
+        Vector3 lotBackCenter,
         Quaternion spawnRotation)
     {
+        if (metadata.TryGetPlacementBounds(
+            out Vector3 scaledBoundsCenter,
+            out Vector2 alignedBoundsSize))
+        {
+            Vector3 inward = lotBackCenter - lotFrontCenter;
+            inward.y = 0f;
+            if (inward.sqrMagnitude > 0.0001f)
+            {
+                inward.Normalize();
+                float margin = Mathf.Max(0f, metadata.separationMargin);
+                Vector3 desiredBoundsCenter =
+                    lotFrontCenter +
+                    inward * (alignedBoundsSize.y * 0.5f + margin);
+                Vector3 localCenterXZ = new Vector3(
+                    scaledBoundsCenter.x, 0f, scaledBoundsCenter.z);
+                Vector3 alignedSpawnPosition =
+                    desiredBoundsCenter - spawnRotation * localCenterXZ;
+                alignedSpawnPosition.y = lotCenter.y - metadata.pivotOffset.y;
+                return alignedSpawnPosition;
+            }
+        }
+
         Vector3 pivotOffsetXZ = new Vector3(metadata.pivotOffset.x, 0f, metadata.pivotOffset.z);
         Vector3 worldPivotOffsetXZ = spawnRotation * pivotOffsetXZ;
         Vector3 spawnPosition = lotCenter - worldPivotOffsetXZ;
@@ -844,6 +896,164 @@ public static class CityBuildingSpawner
 
         spawnPosition.y = lotCenter.y - metadata.pivotOffset.y;
         return spawnPosition;
+    }
+
+    private static bool TryBuildSpawnFootprint(
+        CityBuilderPrefab metadata,
+        Vector3 spawnPosition,
+        Quaternion spawnRotation,
+        out Vector2[] polygon)
+    {
+        polygon = null;
+        if (metadata == null ||
+            !metadata.TryGetPlacementBounds(
+                out Vector3 localBoundsCenter,
+                out Vector2 alignedSize))
+        {
+            return false;
+        }
+
+        Vector3 center = spawnPosition + spawnRotation * new Vector3(
+            localBoundsCenter.x, 0f, localBoundsCenter.z);
+        Vector3 outward = spawnRotation * metadata.GetFrontageDirectionLocal();
+        outward.y = 0f;
+        if (outward.sqrMagnitude < 0.0001f) return false;
+        outward.Normalize();
+        Vector3 inward = -outward;
+        Vector3 tangent = new Vector3(-outward.z, 0f, outward.x).normalized;
+        float margin = Mathf.Max(0f, metadata.separationMargin);
+        float halfWidth = alignedSize.x * 0.5f + margin;
+        float halfDepth = alignedSize.y * 0.5f + margin;
+
+        Vector3 frontLeft = center - tangent * halfWidth - inward * halfDepth;
+        Vector3 frontRight = center + tangent * halfWidth - inward * halfDepth;
+        Vector3 backRight = center + tangent * halfWidth + inward * halfDepth;
+        Vector3 backLeft = center - tangent * halfWidth + inward * halfDepth;
+        polygon = new[]
+        {
+            new Vector2(frontLeft.x, frontLeft.z),
+            new Vector2(frontRight.x, frontRight.z),
+            new Vector2(backRight.x, backRight.z),
+            new Vector2(backLeft.x, backLeft.z)
+        };
+        return true;
+    }
+
+    private static bool OverlapsAnySpawnFootprint(
+        Vector2[] candidate,
+        Dictionary<Vector2Int, List<Vector2[]>> occupied)
+    {
+        GetSpawnFootprintCellRange(
+            candidate,
+            out int minX,
+            out int maxX,
+            out int minY,
+            out int maxY);
+        var checkedPolygons = new HashSet<Vector2[]>();
+        for (int x = minX; x <= maxX; x++)
+        {
+            for (int y = minY; y <= maxY; y++)
+            {
+                if (!occupied.TryGetValue(
+                    new Vector2Int(x, y),
+                    out List<Vector2[]> polygons))
+                {
+                    continue;
+                }
+                for (int i = 0; i < polygons.Count; i++)
+                {
+                    if (checkedPolygons.Add(polygons[i]) &&
+                        SpawnFootprintsOverlap(candidate, polygons[i]))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void RegisterSpawnFootprint(
+        Vector2[] polygon,
+        Dictionary<Vector2Int, List<Vector2[]>> occupied)
+    {
+        GetSpawnFootprintCellRange(
+            polygon,
+            out int minX,
+            out int maxX,
+            out int minY,
+            out int maxY);
+        for (int x = minX; x <= maxX; x++)
+        {
+            for (int y = minY; y <= maxY; y++)
+            {
+                Vector2Int key = new Vector2Int(x, y);
+                if (!occupied.TryGetValue(key, out List<Vector2[]> polygons))
+                {
+                    polygons = new List<Vector2[]>();
+                    occupied.Add(key, polygons);
+                }
+                polygons.Add(polygon);
+            }
+        }
+    }
+
+    private static void GetSpawnFootprintCellRange(
+        Vector2[] polygon,
+        out int minX,
+        out int maxX,
+        out int minY,
+        out int maxY)
+    {
+        float rawMinX = float.MaxValue;
+        float rawMaxX = float.MinValue;
+        float rawMinY = float.MaxValue;
+        float rawMaxY = float.MinValue;
+        for (int i = 0; i < polygon.Length; i++)
+        {
+            rawMinX = Mathf.Min(rawMinX, polygon[i].x);
+            rawMaxX = Mathf.Max(rawMaxX, polygon[i].x);
+            rawMinY = Mathf.Min(rawMinY, polygon[i].y);
+            rawMaxY = Mathf.Max(rawMaxY, polygon[i].y);
+        }
+        minX = Mathf.FloorToInt(rawMinX / SpawnCollisionCellSize);
+        maxX = Mathf.FloorToInt(rawMaxX / SpawnCollisionCellSize);
+        minY = Mathf.FloorToInt(rawMinY / SpawnCollisionCellSize);
+        maxY = Mathf.FloorToInt(rawMaxY / SpawnCollisionCellSize);
+    }
+
+    private static bool SpawnFootprintsOverlap(Vector2[] left, Vector2[] right)
+    {
+        return !HasSpawnSeparator(left, right) &&
+               !HasSpawnSeparator(right, left);
+    }
+
+    private static bool HasSpawnSeparator(Vector2[] source, Vector2[] other)
+    {
+        for (int edgeIndex = 0; edgeIndex < source.Length; edgeIndex++)
+        {
+            Vector2 edge =
+                source[(edgeIndex + 1) % source.Length] - source[edgeIndex];
+            Vector2 axis = new Vector2(-edge.y, edge.x).normalized;
+            float sourceMin = float.MaxValue;
+            float sourceMax = float.MinValue;
+            float otherMin = float.MaxValue;
+            float otherMax = float.MinValue;
+            for (int i = 0; i < source.Length; i++)
+            {
+                float projection = Vector2.Dot(source[i], axis);
+                sourceMin = Mathf.Min(sourceMin, projection);
+                sourceMax = Mathf.Max(sourceMax, projection);
+            }
+            for (int i = 0; i < other.Length; i++)
+            {
+                float projection = Vector2.Dot(other[i], axis);
+                otherMin = Mathf.Min(otherMin, projection);
+                otherMax = Mathf.Max(otherMax, projection);
+            }
+            if (sourceMax <= otherMin || otherMax <= sourceMin) return true;
+        }
+        return false;
     }
 
     private static bool TryGetLotPolygon(CityLot lot, out List<Vector3> polygon)

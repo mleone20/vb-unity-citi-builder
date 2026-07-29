@@ -30,6 +30,7 @@ public sealed class DefaultRoadMeshGenerationEngine : IRoadMeshGenerationEngine
     private sealed class Junction
     {
         public Vector3 center;
+        public RoadJunctionBuildData source;
         public readonly List<JunctionArm> arms = new List<JunctionArm>();
     }
 
@@ -55,6 +56,8 @@ public sealed class DefaultRoadMeshGenerationEngine : IRoadMeshGenerationEngine
         root.transform.SetParent(request.outputParent, true);
         Undo.RegisterCreatedObjectUndo(root, "Generate Road Surfaces");
 
+        Dictionary<int, RoadJunctionBuildData> roundaboutNodes =
+            CollectRoundaboutNodes(request);
         var validPaths = new List<RoadPathBuildData>();
         for (int i = 0; i < request.paths.Count; i++)
         {
@@ -71,6 +74,22 @@ public sealed class DefaultRoadMeshGenerationEngine : IRoadMeshGenerationEngine
                 continue;
             }
 
+            RoadJunctionBuildData startRoundabout;
+            RoadJunctionBuildData endRoundabout;
+            float trimStart = roundaboutNodes.TryGetValue(path.startNodeId, out startRoundabout)
+                ? startRoundabout.GetRoundaboutConnectionRadius(path.width)
+                : 0f;
+            float trimEnd = roundaboutNodes.TryGetValue(path.endNodeId, out endRoundabout)
+                ? endRoundabout.GetRoundaboutConnectionRadius(path.width)
+                : 0f;
+            if (!TryTrimPath(points, trimStart, trimEnd, out points))
+            {
+                result.messages.Add(
+                    "Segmento " + path.segmentId +
+                    " ignorato: troppo corto per lo spazio richiesto dalla rotonda.");
+                continue;
+            }
+
             RoadPathBuildData cleanPath = CopyWithPoints(path, points);
             if (BuildRoadRibbon(cleanPath, root.transform))
             {
@@ -84,9 +103,17 @@ public sealed class DefaultRoadMeshGenerationEngine : IRoadMeshGenerationEngine
 
         for (int i = 0; i < junctions.Count; i++)
         {
-            if (junctions[i].arms.Count >= 2 && BuildJunctionSurface(junctions[i], root.transform, i))
+            Junction junction = junctions[i];
+            bool built = junction.source != null && junction.source.IsRoundabout(junction.arms.Count)
+                ? BuildRoundaboutSurface(junction, root.transform, i)
+                : junction.arms.Count >= 2 && BuildJunctionSurface(junction, root.transform, i);
+            if (built)
             {
                 result.junctionsGenerated++;
+                if (junction.source != null && junction.source.IsRoundabout(junction.arms.Count))
+                {
+                    result.roundaboutsGenerated++;
+                }
             }
         }
 
@@ -220,7 +247,7 @@ public sealed class DefaultRoadMeshGenerationEngine : IRoadMeshGenerationEngine
                 continue;
             }
 
-            var junction = new Junction { center = source.position };
+            var junction = new Junction { center = source.position, source = source };
             for (int s = 0; s < source.connectedSegmentIds.Count; s++)
             {
                 RoadPathBuildData path;
@@ -506,6 +533,196 @@ public sealed class DefaultRoadMeshGenerationEngine : IRoadMeshGenerationEngine
         surface.AddComponent<MeshRenderer>().sharedMaterial = material;
         Undo.RegisterCreatedObjectUndo(surface, "Generate Road Junction");
         return true;
+    }
+
+    private static bool BuildRoundaboutSurface(Junction junction, Transform parent, int index)
+    {
+        RoadJunctionBuildData settings = junction.source;
+        if (settings == null || junction.arms.Count < 3)
+        {
+            return false;
+        }
+
+        Material roadMaterial = null;
+        float widestArm = -1f;
+        for (int i = 0; i < junction.arms.Count; i++)
+        {
+            if (junction.arms[i].material != null &&
+                junction.arms[i].width > widestArm)
+            {
+                widestArm = junction.arms[i].width;
+                roadMaterial = junction.arms[i].material;
+            }
+        }
+        if (roadMaterial == null)
+        {
+            return false;
+        }
+
+        float innerRadius = Mathf.Max(1f, settings.roundaboutIslandRadius);
+        float outerRadius = innerRadius + Mathf.Max(2f, settings.roundaboutCarriagewayWidth);
+        int resolution = Mathf.Clamp(settings.roundaboutResolution, 12, 96);
+        var vertices = new Vector3[(resolution + 1) * 2];
+        var uvs = new Vector2[vertices.Length];
+        var triangles = new int[resolution * 6];
+
+        for (int i = 0; i <= resolution; i++)
+        {
+            float t = i / (float)resolution;
+            float angle = t * Mathf.PI * 2f;
+            Vector3 radial = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+            vertices[i * 2] = junction.center + radial * innerRadius + Vector3.up * JunctionOffset;
+            vertices[i * 2 + 1] = junction.center + radial * outerRadius + Vector3.up * JunctionOffset;
+            uvs[i * 2] = new Vector2(t, 0f);
+            uvs[i * 2 + 1] = new Vector2(t, 1f);
+
+            if (i < resolution)
+            {
+                int vertex = i * 2;
+                int triangle = i * 6;
+                triangles[triangle] = vertex;
+                triangles[triangle + 1] = vertex + 3;
+                triangles[triangle + 2] = vertex + 1;
+                triangles[triangle + 3] = vertex;
+                triangles[triangle + 4] = vertex + 2;
+                triangles[triangle + 5] = vertex + 3;
+            }
+        }
+
+        Mesh ringMesh = CreateMesh("RoundaboutRing_" + index, vertices, triangles, uvs);
+        GameObject roundabout = new GameObject("Roundabout_" + settings.nodeId);
+        roundabout.transform.SetParent(parent, true);
+        roundabout.AddComponent<MeshFilter>().sharedMesh = ringMesh;
+        roundabout.AddComponent<MeshRenderer>().sharedMaterial = roadMaterial;
+        Undo.RegisterCreatedObjectUndo(roundabout, "Generate Roundabout");
+
+        if (settings.generateRoundaboutIsland)
+        {
+            BuildRoundaboutIsland(
+                junction,
+                roundabout.transform,
+                index,
+                innerRadius,
+                resolution,
+                settings.roundaboutIslandMaterial != null
+                    ? settings.roundaboutIslandMaterial
+                    : roadMaterial);
+        }
+        return true;
+    }
+
+    private static void BuildRoundaboutIsland(
+        Junction junction,
+        Transform parent,
+        int index,
+        float radius,
+        int resolution,
+        Material material)
+    {
+        var vertices = new Vector3[resolution + 1];
+        var uvs = new Vector2[vertices.Length];
+        var triangles = new int[resolution * 3];
+        vertices[0] = junction.center + Vector3.up * (JunctionOffset + 0.002f);
+        uvs[0] = new Vector2(0.5f, 0.5f);
+        for (int i = 0; i < resolution; i++)
+        {
+            float angle = i / (float)resolution * Mathf.PI * 2f;
+            Vector3 radial = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+            vertices[i + 1] = junction.center + radial * radius +
+                              Vector3.up * (JunctionOffset + 0.002f);
+            uvs[i + 1] = new Vector2(
+                0.5f + radial.x * 0.5f,
+                0.5f + radial.z * 0.5f);
+            triangles[i * 3] = 0;
+            triangles[i * 3 + 1] = ((i + 1) % resolution) + 1;
+            triangles[i * 3 + 2] = i + 1;
+        }
+
+        Mesh mesh = CreateMesh("RoundaboutIsland_" + index, vertices, triangles, uvs);
+        GameObject island = new GameObject("Island");
+        island.transform.SetParent(parent, true);
+        island.AddComponent<MeshFilter>().sharedMesh = mesh;
+        island.AddComponent<MeshRenderer>().sharedMaterial = material;
+        Undo.RegisterCreatedObjectUndo(island, "Generate Roundabout Island");
+    }
+
+    private static Dictionary<int, RoadJunctionBuildData> CollectRoundaboutNodes(
+        RoadNetworkBuildRequest request)
+    {
+        var result = new Dictionary<int, RoadJunctionBuildData>();
+        if (request.junctions == null)
+        {
+            return result;
+        }
+        for (int i = 0; i < request.junctions.Count; i++)
+        {
+            RoadJunctionBuildData junction = request.junctions[i];
+            int connections = junction.connectedSegmentIds != null
+                ? junction.connectedSegmentIds.Count
+                : 0;
+            if (junction.IsRoundabout(connections))
+            {
+                result[junction.nodeId] = junction;
+            }
+        }
+        return result;
+    }
+
+    private static bool TryTrimPath(
+        List<Vector3> source,
+        float startDistance,
+        float endDistance,
+        out List<Vector3> result)
+    {
+        result = source;
+        startDistance = Mathf.Max(0f, startDistance);
+        endDistance = Mathf.Max(0f, endDistance);
+        float totalLength = 0f;
+        for (int i = 1; i < source.Count; i++)
+        {
+            totalLength += Vector3.Distance(source[i - 1], source[i]);
+        }
+        if (totalLength <= startDistance + endDistance + PointEpsilon)
+        {
+            return false;
+        }
+
+        List<Vector3> trimmed = TrimFromStart(source, startDistance);
+        trimmed.Reverse();
+        trimmed = TrimFromStart(trimmed, endDistance);
+        trimmed.Reverse();
+        result = SanitizePoints(trimmed);
+        return result.Count >= 2;
+    }
+
+    private static List<Vector3> TrimFromStart(List<Vector3> source, float distance)
+    {
+        if (distance <= PointEpsilon)
+        {
+            return new List<Vector3>(source);
+        }
+
+        float remaining = distance;
+        for (int i = 1; i < source.Count; i++)
+        {
+            Vector3 a = source[i - 1];
+            Vector3 b = source[i];
+            float length = Vector3.Distance(a, b);
+            if (remaining < length)
+            {
+                var result = new List<Vector3>(source.Count - i + 1)
+                {
+                    Vector3.Lerp(a, b, remaining / length)
+                };
+                for (int p = i; p < source.Count; p++)
+                {
+                    result.Add(source[p]);
+                }
+                return result;
+            }
+            remaining -= length;
+        }
+        return new List<Vector3>();
     }
 
     private static JunctionArm CreateArm(RoadPathBuildData path, Vector3 direction)

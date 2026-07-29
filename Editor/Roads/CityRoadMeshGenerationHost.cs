@@ -101,13 +101,20 @@ public static class CityRoadMeshGenerationHost
             {
                 continue;
             }
+            CityRoundaboutSettings roundabout = node.roundabout ?? new CityRoundaboutSettings();
             junctions.Add(new RoadJunctionBuildData
             {
                 nodeId = node.id,
                 position = node.position,
                 connectedSegmentIds = node.connectedSegmentIDs != null
                     ? new List<int>(node.connectedSegmentIDs)
-                    : new List<int>()
+                    : new List<int>(),
+                junctionType = node.junctionType,
+                roundaboutIslandRadius = roundabout.islandRadius,
+                roundaboutCarriagewayWidth = roundabout.carriagewayWidth,
+                roundaboutResolution = roundabout.resolution,
+                roundaboutIslandMaterial = roundabout.islandMaterial,
+                generateRoundaboutIsland = roundabout.generateIsland
             });
         }
 

@@ -152,6 +152,40 @@ public enum CitySegmentGeometryType
     Bezier
 }
 
+public enum CityJunctionType
+{
+    Standard,
+    Roundabout,
+    Auto
+}
+
+[System.Serializable]
+public class CityRoundaboutSettings
+{
+    [Min(1f)]
+    [Tooltip("Raggio dell'isola centrale.")]
+    public float islandRadius = 6f;
+
+    [Min(2f)]
+    [Tooltip("Larghezza della carreggiata anulare.")]
+    public float carriagewayWidth = 7f;
+
+    [Range(12, 96)]
+    [Tooltip("Numero di sezioni usate per costruire l'anello.")]
+    public int resolution = 32;
+
+    [Tooltip("Materiale opzionale per l'isola centrale.")]
+    public Material islandMaterial;
+
+    [Tooltip("Genera anche la superficie dell'isola centrale.")]
+    public bool generateIsland = true;
+
+    public float GetOuterRadius()
+    {
+        return Mathf.Max(1f, islandRadius) + Mathf.Max(2f, carriagewayWidth);
+    }
+}
+
 /// <summary>
 /// Orientamento del blocco: interno (edifici dentro il blocco), esterno (fuori dalla strada) o sparso (random nel blocco)
 /// </summary>
@@ -164,6 +198,9 @@ public class CityNode
     public int id;
     public Vector3 position;
     public List<int> connectedSegmentIDs = new List<int>();
+    [Tooltip("Auto crea una rotonda quando il nodo ha almeno tre strade valide.")]
+    public CityJunctionType junctionType = CityJunctionType.Standard;
+    public CityRoundaboutSettings roundabout = new CityRoundaboutSettings();
 
     public CityNode(int id, Vector3 position)
     {

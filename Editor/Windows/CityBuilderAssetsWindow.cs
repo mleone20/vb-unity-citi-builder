@@ -376,7 +376,7 @@ public sealed class CityBuilderAssetsWindow : EditorWindow
 
         if (entry.zones.Count == 0)
         {
-            Color previousContent = GUI.contentColor;
+            Color previousContent = GUI.contentColor; 
             GUI.contentColor = new Color(1f, 0.55f, 0.12f);
             EditorGUILayout.LabelField(
                 "● Fuori dai ZoneType",

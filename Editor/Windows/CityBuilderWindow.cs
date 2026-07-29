@@ -206,10 +206,6 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.Space(8);
         EditorGUILayout.EndScrollView();
 
-        int selSeg = cityManager.GetSelectedSegmentID();
-        if (selSeg != -1 && cityData.GetSegment(selSeg) != null)
-            DrawSegmentInspectorPanel();
-
         EditorGUILayout.EndHorizontal();
     }
 
@@ -733,6 +729,10 @@ public class CityBuilderWindow : EditorWindow
         DrawSubHeader("INFORMAZIONI");
         EditorGUILayout.LabelField(string.Format("Nodi: {0}   Segmenti: {1}", cityData.nodes.Count, cityData.segments.Count));
         EditorGUILayout.LabelField(string.Format("Nodo selezionato: {0}   Segmento: {1}", cityManager.GetSelectedNodeID(), cityManager.GetSelectedSegmentID()));
+        if (GUILayout.Button("Apri Inspector Strade", buttonStyle))
+        {
+            CityRoadElementInspectorWindow.ShowForManager(cityManager);
+        }
     }
 
     // ── BLOCCHI ────────────────────────────────────────────────
@@ -1064,7 +1064,10 @@ public class CityBuilderWindow : EditorWindow
         Rect panelRect = EditorGUILayout.BeginVertical(EditorStyles.helpBox, GUILayout.Width(214), GUILayout.ExpandHeight(true));
         EditorGUI.DrawRect(panelRect, new Color(0.18f, 0.18f, 0.18f));
 
-        GUILayout.Label("\U0001f6a7  SEGMENTO", phaseHeaderStyle);
+        CityNode selectedNode = cityData.GetNode(cityManager.GetSelectedNodeID());
+        GUILayout.Label(
+            selectedNode != null ? "\u2b55  NODO / GIUNZIONE" : "\U0001f6a7  SEGMENTO",
+            phaseHeaderStyle);
         Rect lr = GUILayoutUtility.GetRect(0, 2, GUILayout.ExpandWidth(true));
         EditorGUI.DrawRect(lr, ColPaths);
 
@@ -1074,7 +1077,16 @@ public class CityBuilderWindow : EditorWindow
         CitySegment selectedSegment = cityData.GetSegment(selectedSegmentID);
         if (selectedSegment == null)
         {
-            EditorGUILayout.HelpBox("Clicca un segmento in Idle per modificarne profilo e geometria.", MessageType.None);
+            if (selectedNode != null)
+            {
+                DrawNodeJunctionInspector(selectedNode);
+            }
+            else
+            {
+                EditorGUILayout.HelpBox(
+                    "Clicca un nodo o un segmento in Idle per modificarne le proprietà.",
+                    MessageType.None);
+            }
         }
         else
         {
@@ -1138,6 +1150,85 @@ public class CityBuilderWindow : EditorWindow
         EditorGUILayout.EndScrollView();
         EditorGUILayout.EndVertical();
         EditorGUILayout.EndVertical();
+    }
+
+    private void DrawNodeJunctionInspector(CityNode node)
+    {
+        EditorGUILayout.LabelField("ID: " + node.id, EditorStyles.miniLabel);
+        int connections = node.connectedSegmentIDs != null ? node.connectedSegmentIDs.Count : 0;
+        EditorGUILayout.LabelField("Strade collegate: " + connections, EditorStyles.miniLabel);
+        EditorGUILayout.Space(5);
+
+        EditorGUI.BeginChangeCheck();
+        CityJunctionType junctionType = (CityJunctionType)EditorGUILayout.EnumPopup(
+            new GUIContent(
+                "Tipo",
+                "Standard usa una giunzione piena. Roundabout genera un anello. Auto genera un anello con almeno tre strade."),
+            node.junctionType);
+
+        CityRoundaboutSettings current = node.roundabout ?? new CityRoundaboutSettings();
+        float islandRadius = current.islandRadius;
+        float carriagewayWidth = current.carriagewayWidth;
+        int resolution = current.resolution;
+        Material islandMaterial = current.islandMaterial;
+        bool generateIsland = current.generateIsland;
+
+        if (junctionType != CityJunctionType.Standard)
+        {
+            EditorGUILayout.Space(5);
+            EditorGUILayout.LabelField("Rotonda", EditorStyles.boldLabel);
+            islandRadius = EditorGUILayout.FloatField(
+                new GUIContent("Raggio isola", "Raggio libero al centro della rotonda."),
+                islandRadius);
+            carriagewayWidth = EditorGUILayout.FloatField(
+                new GUIContent("Carreggiata", "Larghezza dell'anello percorribile."),
+                carriagewayWidth);
+            resolution = EditorGUILayout.IntSlider("Risoluzione", resolution, 12, 96);
+            EditorGUILayout.HelpBox(
+                "Il materiale dell'anello viene ricavato dal Road Profile della strada principale collegata.",
+                MessageType.None);
+            generateIsland = EditorGUILayout.Toggle("Genera isola", generateIsland);
+            if (generateIsland)
+            {
+                islandMaterial = (Material)EditorGUILayout.ObjectField(
+                    "Materiale isola", islandMaterial, typeof(Material), false);
+            }
+
+            float outerRadius = Mathf.Max(1f, islandRadius) + Mathf.Max(2f, carriagewayWidth);
+            EditorGUILayout.LabelField(
+                "Raggio esterno: " + outerRadius.ToString("F2") + " m",
+                EditorStyles.miniLabel);
+            if (connections < 3)
+            {
+                EditorGUILayout.HelpBox(
+                    "Servono almeno 3 strade collegate. Finché il nodo non le possiede verrà generata una giunzione standard.",
+                    MessageType.Warning);
+            }
+        }
+
+        if (EditorGUI.EndChangeCheck())
+        {
+            Undo.RecordObject(cityData, "Edit Road Junction");
+            node.junctionType = junctionType;
+            if (node.roundabout == null)
+            {
+                node.roundabout = new CityRoundaboutSettings();
+            }
+            node.roundabout.islandRadius = Mathf.Max(1f, islandRadius);
+            node.roundabout.carriagewayWidth = Mathf.Max(2f, carriagewayWidth);
+            node.roundabout.resolution = Mathf.Clamp(resolution, 12, 96);
+            node.roundabout.islandMaterial = islandMaterial;
+            node.roundabout.generateIsland = generateIsland;
+            EditorUtility.SetDirty(cityData);
+            SceneView.RepaintAll();
+        }
+
+        if (node.junctionType == CityJunctionType.Standard)
+        {
+            EditorGUILayout.HelpBox(
+                "Seleziona Roundabout per forzare una rotonda, oppure Auto per attivarla automaticamente quando il nodo ha almeno tre strade.",
+                MessageType.Info);
+        }
     }
 
     // ── Helper methods ─────────────────────────────────────────

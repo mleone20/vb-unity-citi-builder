@@ -19,4 +19,5 @@ MonoBehaviour:
   intersectionClearanceRadius: 9
   blockInset: 3
   meshMaterial: {fileID: 2100000, guid: a7078032eef7634438c528735892ea98, type: 2}
-  description: Arteria urbana a più corsie che collega quartieri e distribuisce il traffico.
+  description: "Arteria urbana a pi\xF9 corsie che collega quartieri e distribuisce
+    il traffico."

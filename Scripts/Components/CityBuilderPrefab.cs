@@ -36,6 +36,14 @@ public class CityBuilderPrefab : MonoBehaviour
 
     [SerializeField, HideInInspector]
     private Vector2 cachedRendererFootprint;
+    [SerializeField, HideInInspector]
+    private Vector3 cachedRendererBoundsCenter;
+    [SerializeField, HideInInspector]
+    private Vector3 cachedRendererBoundsSize;
+
+    [Tooltip("Distanza minima aggiuntiva fra l'ingombro reale di questo prefab e gli edifici vicini.")]
+    [Min(0f)]
+    public float separationMargin = 0.25f;
 
     [Tooltip("Offset locale dal centro lotto applicato alla posizione finale.")]
     public Vector3 pivotOffset = Vector3.zero;
@@ -115,7 +123,60 @@ public class CityBuilderPrefab : MonoBehaviour
 
         float width = Mathf.Abs(Vector3.Dot(localRight, tangent)) * size.x + Mathf.Abs(Vector3.Dot(localForward, tangent)) * size.y;
         float depth = Mathf.Abs(Vector3.Dot(localRight, inward)) * size.x + Mathf.Abs(Vector3.Dot(localForward, inward)) * size.y;
-        return new Vector2(Mathf.Max(MinFootprint, width), Mathf.Max(MinFootprint, depth));
+        if (TryGetPlacementBounds(out _, out Vector2 rendererAlignedSize))
+        {
+            width = Mathf.Max(width, rendererAlignedSize.x);
+            depth = Mathf.Max(depth, rendererAlignedSize.y);
+        }
+        float margin = Mathf.Max(0f, separationMargin) * 2f;
+        return new Vector2(
+            Mathf.Max(MinFootprint, width + margin),
+            Mathf.Max(MinFootprint, depth + margin));
+    }
+
+    public bool TryGetPlacementBounds(
+        out Vector3 scaledLocalCenter,
+        out Vector2 alignedSize)
+    {
+        Vector3 center = cachedRendererBoundsCenter;
+        Vector3 size = cachedRendererBoundsSize;
+#if UNITY_EDITOR
+        if ((size.x <= 0f || size.z <= 0f) &&
+            TryCalculateLocalRendererBounds(out Bounds calculatedBounds))
+        {
+            center = calculatedBounds.center;
+            size = calculatedBounds.size;
+        }
+#endif
+        if (size.x <= 0f || size.z <= 0f)
+        {
+            scaledLocalCenter = Vector3.zero;
+            alignedSize = Vector2.zero;
+            return false;
+        }
+
+        Vector3 scale = transform.lossyScale;
+        scaledLocalCenter = new Vector3(
+            center.x * Mathf.Abs(scale.x),
+            center.y * Mathf.Abs(scale.y),
+            center.z * Mathf.Abs(scale.z));
+        Vector3 scaledSize = new Vector3(
+            size.x * Mathf.Abs(scale.x),
+            size.y * Mathf.Abs(scale.y),
+            size.z * Mathf.Abs(scale.z));
+        Vector3 front = GetFrontageDirectionLocal();
+        Vector3 inward = -front;
+        Vector3 tangent = new Vector3(-front.z, 0f, front.x).normalized;
+        float width =
+            Mathf.Abs(tangent.x) * scaledSize.x +
+            Mathf.Abs(tangent.z) * scaledSize.z;
+        float depth =
+            Mathf.Abs(inward.x) * scaledSize.x +
+            Mathf.Abs(inward.z) * scaledSize.z;
+        alignedSize = new Vector2(
+            Mathf.Max(MinFootprint, width),
+            Mathf.Max(MinFootprint, depth));
+        return true;
     }
 
     private void OnValidate()
@@ -300,6 +361,16 @@ public class CityBuilderPrefab : MonoBehaviour
 
         bool changed = (cachedRendererFootprint - rendererFootprint).sqrMagnitude > 0.0001f;
         cachedRendererFootprint = rendererFootprint;
+        if (TryCalculateLocalRendererBounds(out Bounds rendererBounds))
+        {
+            if ((cachedRendererBoundsCenter - rendererBounds.center).sqrMagnitude > 0.0001f ||
+                (cachedRendererBoundsSize - rendererBounds.size).sqrMagnitude > 0.0001f)
+            {
+                cachedRendererBoundsCenter = rendererBounds.center;
+                cachedRendererBoundsSize = rendererBounds.size;
+                changed = true;
+            }
+        }
         if (applyAutomaticValues)
         {
             if ((footprintSize - rendererFootprint).sqrMagnitude > 0.0001f)

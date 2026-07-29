@@ -24,6 +24,7 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
 
         SerializedProperty footprintSize = serializedObject.FindProperty("footprintSize");
         SerializedProperty autoCompute = serializedObject.FindProperty("autoComputeFromRenderers");
+        SerializedProperty separationMargin = serializedObject.FindProperty("separationMargin");
         SerializedProperty pivotOffset = serializedObject.FindProperty("pivotOffset");
         SerializedProperty groundLevelAnchor = serializedObject.FindProperty("groundLevelAnchor");
         SerializedProperty frontageOffset = serializedObject.FindProperty("frontageOffset");
@@ -39,6 +40,11 @@ public class CityBuilderPrefabEditor : UnityEditor.Editor
         }
 
         EditorGUILayout.PropertyField(autoCompute);
+        EditorGUILayout.PropertyField(
+            separationMargin,
+            new GUIContent(
+                "Separation Margin",
+                "Spazio minimo aggiuntivo riservato attorno all'ingombro reale del prefab."));
         EditorGUILayout.PropertyField(pivotOffset);
         EditorGUILayout.PropertyField(
             groundLevelAnchor,

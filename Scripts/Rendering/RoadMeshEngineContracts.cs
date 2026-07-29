@@ -39,6 +39,31 @@ public sealed class RoadJunctionBuildData
     public int nodeId;
     public Vector3 position;
     public IReadOnlyList<int> connectedSegmentIds;
+    public CityJunctionType junctionType;
+    public float roundaboutIslandRadius;
+    public float roundaboutCarriagewayWidth;
+    public int roundaboutResolution;
+    public Material roundaboutIslandMaterial;
+    public bool generateRoundaboutIsland;
+
+    public float RoundaboutOuterRadius =>
+        Mathf.Max(1f, roundaboutIslandRadius) + Mathf.Max(2f, roundaboutCarriagewayWidth);
+
+    public float GetRoundaboutConnectionRadius(float roadWidth)
+    {
+        float innerRadius = Mathf.Max(1f, roundaboutIslandRadius);
+        float laneWidth = Mathf.Max(2f, roundaboutCarriagewayWidth);
+        return Mathf.Min(
+            innerRadius + laneWidth,
+            innerRadius + Mathf.Max(laneWidth * 0.5f, Mathf.Max(0.1f, roadWidth) * 0.5f));
+    }
+
+    public bool IsRoundabout(int validArmCount)
+    {
+        return validArmCount >= 3 &&
+               (junctionType == CityJunctionType.Roundabout ||
+                junctionType == CityJunctionType.Auto);
+    }
 }
 
 public sealed class RoadNetworkBuildRequest
@@ -57,6 +82,7 @@ public sealed class RoadMeshBuildResult
     public GameObject outputRoot;
     public int roadsGenerated;
     public int junctionsGenerated;
+    public int roundaboutsGenerated;
     public readonly List<string> messages = new List<string>();
 
     public string ToMultilineString()
@@ -65,7 +91,8 @@ public sealed class RoadMeshBuildResult
         {
             succeeded ? "Generazione completata." : "Generazione non completata.",
             "Strade: " + roadsGenerated,
-            "Giunzioni: " + junctionsGenerated
+            "Giunzioni: " + junctionsGenerated,
+            "Rotonde: " + roundaboutsGenerated
         };
         lines.AddRange(messages);
         return string.Join("\n", lines);

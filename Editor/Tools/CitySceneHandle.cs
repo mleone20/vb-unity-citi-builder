@@ -197,6 +197,7 @@ public class CitySceneHandle
         {
             manager.SetSelectedNodeID(nearestNode.id);
             manager.SetSelectedLotID(-1);
+            BSCCityBuilder.Editor.Windows.CityRoadElementInspectorWindow.ShowForManager(manager);
             Debug.Log($"Nodo selezionato: {nearestNode.id}");
         }
         else
@@ -205,6 +206,7 @@ public class CitySceneHandle
             if (nearestSegment != null)
             {
                 manager.SetSelectedSegmentID(nearestSegment.id);
+                BSCCityBuilder.Editor.Windows.CityRoadElementInspectorWindow.ShowForManager(manager);
                 Debug.Log($"Segmento selezionato: {nearestSegment.id}");
                 return;
             }
@@ -311,6 +313,21 @@ public class CitySceneHandle
             return;
         }
 
+        if (selectedNode.junctionType != CityJunctionType.Standard &&
+            selectedNode.roundabout != null)
+        {
+            Handles.color = new Color(1f, 0.75f, 0.1f, 0.9f);
+            Handles.DrawWireDisc(
+                selectedNode.position,
+                Vector3.up,
+                Mathf.Max(1f, selectedNode.roundabout.islandRadius));
+            Handles.color = new Color(0.2f, 0.8f, 1f, 0.9f);
+            Handles.DrawWireDisc(
+                selectedNode.position,
+                Vector3.up,
+                selectedNode.roundabout.GetOuterRadius());
+        }
+
         EditorGUI.BeginChangeCheck();
         Vector3 newPosition = Handles.PositionHandle(selectedNode.position, Quaternion.identity);
         if (EditorGUI.EndChangeCheck())
@@ -388,6 +405,7 @@ public class CitySceneHandle
             }
 
             manager.SetSelectedNodeID(existingNode.id);
+            BSCCityBuilder.Editor.Windows.CityRoadElementInspectorWindow.ShowForManager(manager);
             lastAddedNodeID = existingNode.id;
             Debug.Log($"Nodo selezionato in AddNodes: {existingNode.id}");
             return;
@@ -408,6 +426,7 @@ public class CitySceneHandle
             }
 
             manager.SetSelectedNodeID(newNode.id);
+            BSCCityBuilder.Editor.Windows.CityRoadElementInspectorWindow.ShowForManager(manager);
             lastAddedNodeID = newNode.id;
             Debug.Log($"Nodo aggiunto a {hitPoint}");
         }
@@ -445,6 +464,7 @@ public class CitySceneHandle
         {
             // Primo click: seleziona nodo sorgente
             manager.SetSelectedNodeID(nearestNode.id);
+            BSCCityBuilder.Editor.Windows.CityRoadElementInspectorWindow.ShowForManager(manager);
             Debug.Log($"Nodo sorgente selezionato: {nearestNode.id}");
         }
         else if (selectedID == nearestNode.id)
