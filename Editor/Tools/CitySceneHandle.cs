@@ -358,17 +358,48 @@ public class CitySceneHandle
                 ? new Color(0.35f, 0.85f, 1f, selected ? 1f : 0.65f)
                 : new Color(0.1f, 0.75f, 1f, selected ? 1f : 0.8f);
 
-            Handles.color = islandColor;
-            Handles.DrawWireDisc(
+            Handles.color = new Color(
+                islandColor.r,
+                islandColor.g,
+                islandColor.b,
+                selected ? 0.2f : 0.1f);
+            Handles.DrawSolidDisc(
                 node.position,
                 Vector3.up,
                 Mathf.Max(1f, node.roundabout.islandRadius));
-            Handles.color = outerColor;
-            Handles.DrawWireDisc(
+            DrawRoundaboutCircle(
                 node.position,
-                Vector3.up,
-                node.roundabout.GetOuterRadius());
+                Mathf.Max(1f, node.roundabout.islandRadius),
+                islandColor,
+                selected ? 4f : 2.5f);
+            DrawRoundaboutCircle(
+                node.position,
+                node.roundabout.GetOuterRadius(),
+                outerColor,
+                selected ? 5f : 3f);
         }
+    }
+
+    private static void DrawRoundaboutCircle(
+        Vector3 center,
+        float radius,
+        Color color,
+        float thickness)
+    {
+        const int resolution = 48;
+        var points = new Vector3[resolution + 1];
+        for (int i = 0; i <= resolution; i++)
+        {
+            float angle = i / (float)resolution * Mathf.PI * 2f;
+            points[i] = center + new Vector3(
+                Mathf.Cos(angle) * radius,
+                0.025f,
+                Mathf.Sin(angle) * radius);
+        }
+        Handles.color = new Color(0.015f, 0.025f, 0.04f, 0.9f);
+        Handles.DrawAAPolyLine(thickness + 3f, points);
+        Handles.color = color;
+        Handles.DrawAAPolyLine(thickness, points);
     }
 
     /// <summary>

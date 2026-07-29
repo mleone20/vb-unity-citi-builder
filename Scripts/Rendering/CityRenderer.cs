@@ -18,7 +18,7 @@ public static class CityRenderer
 {
     private const float NODE_BASE_SIZE = 0.35f;
     private const float NODE_MIN_SIZE = 0.12f;
-    private const float NODE_MAX_SIZE = 1.5f;
+    private const float NODE_MAX_SIZE = 3.5f;
     private const float ROAD_THICKNESS = 8f;
     private const float BUILDING_WIREFRAME_THICKNESS = 2f;
 
@@ -26,7 +26,6 @@ public static class CityRenderer
     // Oltre queste distanze dalla camera alcuni elementi vengono nascosti.
     private const float SEG_DETAIL_MAX_DIST  = 400f;   // outline doppio + curve sampling
     private const float SEG_LABEL_MAX_DIST   = 120f;   // ID e RoadProfile del segmento
-    private const float NODE_DRAW_MAX_DIST   = 600f;   // nodi visibili
     private const float NODE_LABEL_MAX_DIST  = 80f;    // label ID visibili
     private const float BLOCK_LABEL_MAX_DIST = 200f;   // label blocco visibili
     private const float ERROR_CHECK_MAX_DIST = 300f;   // controllo broken link
@@ -93,7 +92,7 @@ public static class CityRenderer
             else
             {
                 // Modalità LOD: semplice linea centrale, accumulata nel batch
-                Color c = CityRoadGeometry.GetRoadColor(segment);
+                Color c = EnhanceRoadColor(CityRoadGeometry.GetRoadColor(segment));
                 if (!batchCenterLines.TryGetValue(c, out var lst))
                 {
                     lst = new List<Vector3>();
@@ -136,9 +135,48 @@ public static class CityRenderer
         }
 
         float width = CityRoadGeometry.GetRoadWidth(cityData, segment);
-        Color roadColor = CityRoadGeometry.GetRoadColor(segment);
-        Color borderColor = isSelected ? Color.yellow : roadColor;
+        Color roadColor = EnhanceRoadColor(CityRoadGeometry.GetRoadColor(segment));
+        Color borderColor = isSelected ? new Color(1f, 0.72f, 0.05f, 1f) : roadColor;
 
+#if UNITY_EDITOR
+        float strokeWidth = GetRoadStrokeWidth(segment, isSelected);
+        Color previousHandleColor = Handles.color;
+        UnityEngine.Rendering.CompareFunction roadZTest = Handles.zTest;
+        Handles.zTest = UnityEngine.Rendering.CompareFunction.LessEqual;
+        Handles.color = new Color(0.025f, 0.035f, 0.05f, 0.92f);
+        Handles.DrawAAPolyLine(strokeWidth + 5f, sampledPoints.ToArray());
+        Handles.color = borderColor;
+        Handles.DrawAAPolyLine(strokeWidth, sampledPoints.ToArray());
+        Handles.color = new Color(1f, 1f, 1f, isSelected ? 0.6f : 0.22f);
+        Handles.DrawAAPolyLine(Mathf.Max(1f, strokeWidth * 0.16f), sampledPoints.ToArray());
+
+        var leftEdge = new List<Vector3>(sampledPoints.Count);
+        var rightEdge = new List<Vector3>(sampledPoints.Count);
+        for (int i = 0; i < sampledPoints.Count; i++)
+        {
+            Vector3 tangent;
+            if (i == 0)
+                tangent = sampledPoints[1] - sampledPoints[0];
+            else if (i == sampledPoints.Count - 1)
+                tangent = sampledPoints[i] - sampledPoints[i - 1];
+            else
+                tangent = sampledPoints[i + 1] - sampledPoints[i - 1];
+            tangent.y = 0f;
+            tangent = tangent.sqrMagnitude > 0.0001f ? tangent.normalized : Vector3.forward;
+            Vector3 perpendicular = new Vector3(-tangent.z, 0f, tangent.x) * (width * 0.5f);
+            leftEdge.Add(sampledPoints[i] - perpendicular);
+            rightEdge.Add(sampledPoints[i] + perpendicular);
+        }
+        Handles.color = new Color(borderColor.r, borderColor.g, borderColor.b, 0.42f);
+        Handles.DrawAAPolyLine(2f, leftEdge.ToArray());
+        Handles.DrawAAPolyLine(2f, rightEdge.ToArray());
+        if (isSelected || showLabel)
+        {
+            DrawRoadDirectionIndicator(sampledPoints, borderColor, strokeWidth);
+        }
+        Handles.color = previousHandleColor;
+        Handles.zTest = roadZTest;
+#else
         for (int i = 1; i < sampledPoints.Count; i++)
         {
             Vector3 posA = sampledPoints[i - 1];
@@ -173,6 +211,7 @@ public static class CityRenderer
             Gizmos.color = Color.Lerp(roadColor, Color.black, 0.35f);
             Gizmos.DrawLine(posA, posB);
         }
+#endif
 
 #if UNITY_EDITOR
         if (showLabel)
@@ -207,14 +246,9 @@ public static class CityRenderer
         Vector3 camPos = cam != null ? cam.transform.position : Vector3.zero;
         Plane[] frustum = cam != null ? GeometryUtility.CalculateFrustumPlanes(cam) : null;
 
-        // Batch: nodi normali (bianchi) disegnati come coppie di linee incrociate
-        var normalDots = new List<Vector3>();
         foreach (var node in cityData.nodes)
         {
             float dist = cam != null ? Vector3.Distance(camPos, node.position) : 0f;
-
-            // LOD: salta nodi troppo lontani
-            if (dist > NODE_DRAW_MAX_DIST && node.id != selectedNodeID) continue;
 
             // Frustum culling
             if (frustum != null)
@@ -224,41 +258,35 @@ public static class CityRenderer
             }
 
             float adaptiveSize = GetAdaptiveNodeSize(node.position);
+            Color nodeColor = GetNodeColor(node, node.id == selectedNodeID);
 
             if (node.id == selectedNodeID)
             {
-                Gizmos.color = Color.yellow;
-                Gizmos.DrawWireCube(node.position, Vector3.one * (adaptiveSize * 1.6f));
-                Gizmos.DrawCube(node.position, Vector3.one * adaptiveSize);
+                DrawNodeMarker(node, adaptiveSize, nodeColor, true);
                 DrawNodeIdLabel(node.id, node.position, adaptiveSize, true);
                 if (dist < ERROR_CHECK_MAX_DIST)
                     DrawNodeBrokenLinkError(node, cityData, adaptiveSize);
             }
             else if (dist < NODE_LABEL_MAX_DIST)
             {
-                // Vicino: cubo dettagliato + label
-                Gizmos.color = Color.white;
-                Gizmos.DrawCube(node.position, Vector3.one * adaptiveSize);
+                DrawNodeMarker(node, adaptiveSize, nodeColor, false);
                 DrawNodeIdLabel(node.id, node.position, adaptiveSize, false);
                 if (dist < ERROR_CHECK_MAX_DIST)
                     DrawNodeBrokenLinkError(node, cityData, adaptiveSize);
             }
             else
             {
-                // Lontano: accumulato nel batch come incrocio di due linee
-                float h = adaptiveSize * 0.5f;
-                normalDots.Add(node.position - Vector3.right * h);
-                normalDots.Add(node.position + Vector3.right * h);
-                normalDots.Add(node.position - Vector3.forward * h);
-                normalDots.Add(node.position + Vector3.forward * h);
+                // Lontano: dot a dimensione costante sullo schermo.
+                // Non applica cutoff sulla distanza: ogni nodo nel frustum resta visibile.
+                float dotSize = HandleUtility.GetHandleSize(node.position) * 0.055f;
+                Handles.color = nodeColor;
+                Handles.DotHandleCap(
+                    node.id,
+                    node.position,
+                    Quaternion.identity,
+                    dotSize,
+                    EventType.Repaint);
             }
-        }
-
-        // Flush batch nodi normali
-        if (normalDots.Count > 0)
-        {
-            Handles.color = new Color(0.9f, 0.9f, 0.9f, 0.7f);
-            Handles.DrawLines(normalDots.ToArray());
         }
 #else
         foreach (var node in cityData.nodes)
@@ -270,6 +298,110 @@ public static class CityRenderer
         }
 #endif
     }
+
+#if UNITY_EDITOR
+    private static void DrawNodeMarker(
+        CityNode node,
+        float adaptiveSize,
+        Color color,
+        bool selected)
+    {
+        Vector3 normal = Vector3.up;
+        float outerRadius = adaptiveSize * (selected ? 1.15f : 0.85f);
+        UnityEngine.Rendering.CompareFunction previousZTest = Handles.zTest;
+        Color previousColor = Handles.color;
+        Handles.zTest = UnityEngine.Rendering.CompareFunction.LessEqual;
+        Handles.color = new Color(0.02f, 0.03f, 0.045f, 0.95f);
+        Handles.DrawSolidDisc(node.position, normal, outerRadius);
+        Handles.color = color;
+        Handles.DrawSolidDisc(node.position + Vector3.up * 0.008f, normal, outerRadius * 0.68f);
+        Handles.color = selected
+            ? new Color(1f, 0.85f, 0.15f, 1f)
+            : new Color(1f, 1f, 1f, 0.72f);
+        Handles.DrawWireDisc(node.position + Vector3.up * 0.012f, normal, outerRadius);
+
+        int degree = node.connectedSegmentIDs != null ? node.connectedSegmentIDs.Count : 0;
+        if (degree >= 3)
+        {
+            Handles.color = new Color(color.r, color.g, color.b, 0.55f);
+            Handles.DrawWireDisc(
+                node.position + Vector3.up * 0.014f,
+                normal,
+                outerRadius * 1.38f);
+        }
+        Handles.color = previousColor;
+        Handles.zTest = previousZTest;
+    }
+
+    private static Color GetNodeColor(CityNode node, bool selected)
+    {
+        if (selected)
+            return new Color(1f, 0.62f, 0.04f, 1f);
+        if (node.junctionType == CityJunctionType.Roundabout)
+            return new Color(0.05f, 0.85f, 1f, 1f);
+        if (node.junctionType == CityJunctionType.Auto)
+            return new Color(0.55f, 0.45f, 1f, 1f);
+
+        int degree = node.connectedSegmentIDs != null ? node.connectedSegmentIDs.Count : 0;
+        if (degree <= 1)
+            return new Color(0.25f, 0.78f, 1f, 1f);
+        if (degree == 2)
+            return new Color(0.15f, 0.68f, 0.92f, 1f);
+        return new Color(0.25f, 0.9f, 0.65f, 1f);
+    }
+
+    private static float GetRoadStrokeWidth(CitySegment segment, bool selected)
+    {
+        float width = ROAD_THICKNESS;
+        RoadProfile profile = segment.roadProfile;
+        if (profile != null)
+        {
+            switch (profile.hierarchyLevel)
+            {
+                case RoadHierarchyLevel.Alley: width = 4.5f; break;
+                case RoadHierarchyLevel.LocalStreet: width = 7f; break;
+                case RoadHierarchyLevel.MainRoad: width = 10f; break;
+                case RoadHierarchyLevel.Highway: width = 13f; break;
+            }
+        }
+        return selected ? width + 3f : width;
+    }
+
+    private static Color EnhanceRoadColor(Color color)
+    {
+        Color.RGBToHSV(color, out float hue, out float saturation, out float value);
+        saturation = Mathf.Clamp01(Mathf.Max(0.38f, saturation * 1.2f));
+        value = Mathf.Clamp(value * 1.15f, 0.48f, 1f);
+        Color enhanced = Color.HSVToRGB(hue, saturation, value);
+        enhanced.a = 1f;
+        return enhanced;
+    }
+
+    private static void DrawRoadDirectionIndicator(
+        List<Vector3> points,
+        Color color,
+        float strokeWidth)
+    {
+        int middle = Mathf.Clamp(points.Count / 2, 1, points.Count - 1);
+        Vector3 direction = points[middle] - points[middle - 1];
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.0001f)
+            return;
+        direction.Normalize();
+
+        Vector3 center = (points[middle] + points[middle - 1]) * 0.5f +
+                         Vector3.up * 0.025f;
+        float size = HandleUtility.GetHandleSize(center) * 0.16f;
+        Vector3 side = Vector3.Cross(Vector3.up, direction).normalized;
+        Vector3 tip = center + direction * size;
+        Vector3 left = center - direction * size * 0.55f + side * size * 0.58f;
+        Vector3 right = center - direction * size * 0.55f - side * size * 0.58f;
+        Handles.color = new Color(0.02f, 0.03f, 0.04f, 0.9f);
+        Handles.DrawAAPolyLine(strokeWidth * 0.42f, left, tip, right);
+        Handles.color = Color.Lerp(color, Color.white, 0.55f);
+        Handles.DrawAAPolyLine(Mathf.Max(2f, strokeWidth * 0.18f), left, tip, right);
+    }
+#endif
 
     private static void DrawBrokenSegmentError(CitySegment segment, CityNode nodeA, CityNode nodeB)
     {
