@@ -782,6 +782,15 @@ public static class CityLotGenerator
         Vector3 edgeEnd,
         float safetyMargin)
     {
+        CityNode roundabout = FindRoundaboutForArcEdge(cityData, edgeStart, edgeEnd);
+        if (roundabout != null)
+        {
+            float roundaboutInset = GetRoundaboutBlockInset(cityData, roundabout);
+            return Mathf.Max(2f, roundabout.roundabout.carriagewayWidth) * 0.5f +
+                   roundaboutInset +
+                   Mathf.Max(0f, safetyMargin);
+        }
+
         float fallbackWidth = cityData != null
             ? Mathf.Max(0.5f, cityData.globalRoadWidth)
             : 3f;
@@ -798,6 +807,71 @@ public static class CityLotGenerator
             ? Mathf.Max(0f, segment.roadProfile.blockInset)
             : 0f;
         return roadWidth * 0.5f + blockInset + Mathf.Max(0f, safetyMargin);
+    }
+
+    private static CityNode FindRoundaboutForArcEdge(
+        CityData cityData,
+        Vector3 edgeStart,
+        Vector3 edgeEnd)
+    {
+        if (cityData == null || cityData.nodes == null)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < cityData.nodes.Count; i++)
+        {
+            CityNode node = cityData.nodes[i];
+            int connections = node != null && node.connectedSegmentIDs != null
+                ? node.connectedSegmentIDs.Count
+                : 0;
+            if (node == null ||
+                node.junctionType == CityJunctionType.Standard ||
+                node.roundabout == null ||
+                connections < 3)
+            {
+                continue;
+            }
+
+            float centerlineRadius =
+                Mathf.Max(1f, node.roundabout.islandRadius) +
+                Mathf.Max(2f, node.roundabout.carriagewayWidth) * 0.5f;
+            float tolerance = Mathf.Max(0.15f, centerlineRadius * 0.025f);
+            float startRadius = FlatDistance(edgeStart, node.position);
+            float endRadius = FlatDistance(edgeEnd, node.position);
+            if (Mathf.Abs(startRadius - centerlineRadius) <= tolerance &&
+                Mathf.Abs(endRadius - centerlineRadius) <= tolerance)
+            {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    private static float GetRoundaboutBlockInset(CityData cityData, CityNode node)
+    {
+        float result = 0f;
+        if (cityData == null || node.connectedSegmentIDs == null)
+        {
+            return result;
+        }
+
+        for (int i = 0; i < node.connectedSegmentIDs.Count; i++)
+        {
+            CitySegment segment = cityData.GetSegment(node.connectedSegmentIDs[i]);
+            if (segment != null && segment.roadProfile != null)
+            {
+                result = Mathf.Max(result, Mathf.Max(0f, segment.roadProfile.blockInset));
+            }
+        }
+        return result;
+    }
+
+    private static float FlatDistance(Vector3 a, Vector3 b)
+    {
+        float x = a.x - b.x;
+        float z = a.z - b.z;
+        return Mathf.Sqrt(x * x + z * z);
     }
 
     private static bool IsOutsideBuildableArea(List<Vector3> vertices, List<Vector3> blockPolygon, float roadSetback)

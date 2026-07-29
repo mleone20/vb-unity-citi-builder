@@ -96,7 +96,7 @@ public static class CityBlockDetector
                 continue;
             }
 
-            List<Vector3> polygon = NodeIdCycleToPositions(detectedFaces[i], cityData);
+            List<Vector3> polygon = BuildBoundaryForNodeCycle(detectedFaces[i], cityData);
             if (polygon.Count < 3)
             {
                 continue;
@@ -224,19 +224,88 @@ public static class CityBlockDetector
         return face;
     }
 
-    private static List<Vector3> NodeIdCycleToPositions(List<int> cycleNodeIds, CityData cityData)
+    public static List<Vector3> BuildBoundaryForNodeCycle(
+        IReadOnlyList<int> cycleNodeIds,
+        CityData cityData)
     {
         List<Vector3> points = new List<Vector3>();
-        foreach (int nodeId in cycleNodeIds)
+        for (int i = 0; i < cycleNodeIds.Count; i++)
         {
-            CityNode node = cityData.GetNode(nodeId);
+            CityNode node = cityData.GetNode(cycleNodeIds[i]);
             if (node == null)
             {
                 return new List<Vector3>();
             }
-            points.Add(node.position);
+
+            if (!IsActiveRoundabout(node))
+            {
+                points.Add(node.position);
+                continue;
+            }
+
+            CityNode previous = cityData.GetNode(
+                cycleNodeIds[(i - 1 + cycleNodeIds.Count) % cycleNodeIds.Count]);
+            CityNode next = cityData.GetNode(
+                cycleNodeIds[(i + 1) % cycleNodeIds.Count]);
+            if (previous == null || next == null)
+            {
+                points.Add(node.position);
+                continue;
+            }
+
+            AppendRoundaboutArc(points, previous.position, node, next.position);
         }
         return points;
+    }
+
+    private static bool IsActiveRoundabout(CityNode node)
+    {
+        int connections = node.connectedSegmentIDs != null
+            ? node.connectedSegmentIDs.Count
+            : 0;
+        return node.junctionType != CityJunctionType.Standard &&
+               node.roundabout != null &&
+               connections >= 3;
+    }
+
+    private static void AppendRoundaboutArc(
+        List<Vector3> points,
+        Vector3 previous,
+        CityNode roundabout,
+        Vector3 next)
+    {
+        Vector3 center = roundabout.position;
+        Vector3 from = previous - center;
+        Vector3 to = next - center;
+        from.y = 0f;
+        to.y = 0f;
+        if (from.sqrMagnitude < 0.0001f || to.sqrMagnitude < 0.0001f)
+        {
+            points.Add(center);
+            return;
+        }
+
+        float radius =
+            Mathf.Max(1f, roundabout.roundabout.islandRadius) +
+            Mathf.Max(2f, roundabout.roundabout.carriagewayWidth) * 0.5f;
+        float startAngle = Mathf.Atan2(from.z, from.x);
+        float endAngle = Mathf.Atan2(to.z, to.x);
+        float delta = Mathf.DeltaAngle(
+            startAngle * Mathf.Rad2Deg,
+            endAngle * Mathf.Rad2Deg) * Mathf.Deg2Rad;
+        int resolution = Mathf.Clamp(
+            Mathf.CeilToInt(Mathf.Abs(delta) / (Mathf.PI / 12f)),
+            2,
+            12);
+
+        for (int sample = 0; sample <= resolution; sample++)
+        {
+            float angle = startAngle + delta * (sample / (float)resolution);
+            points.Add(new Vector3(
+                center.x + Mathf.Cos(angle) * radius,
+                center.y,
+                center.z + Mathf.Sin(angle) * radius));
+        }
     }
 
     private static float CalculateSignedArea(List<int> cycleNodeIds, CityData cityData)

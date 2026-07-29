@@ -64,6 +64,7 @@ public class CitySceneHandle
         // input del City Builder sono disattivati (per esempio dopo "Suggerisci Blocchi").
         CityBlockEditor.DrawManualSelectionPreview(cachedCityManager);
         CityBlockEditor.DrawSuggestedBlocksPreview();
+        DrawRoundaboutPreviews(cachedCityManager);
 
         if (!IsEnabled) return;
 
@@ -313,21 +314,6 @@ public class CitySceneHandle
             return;
         }
 
-        if (selectedNode.junctionType != CityJunctionType.Standard &&
-            selectedNode.roundabout != null)
-        {
-            Handles.color = new Color(1f, 0.75f, 0.1f, 0.9f);
-            Handles.DrawWireDisc(
-                selectedNode.position,
-                Vector3.up,
-                Mathf.Max(1f, selectedNode.roundabout.islandRadius));
-            Handles.color = new Color(0.2f, 0.8f, 1f, 0.9f);
-            Handles.DrawWireDisc(
-                selectedNode.position,
-                Vector3.up,
-                selectedNode.roundabout.GetOuterRadius());
-        }
-
         EditorGUI.BeginChangeCheck();
         Vector3 newPosition = Handles.PositionHandle(selectedNode.position, Quaternion.identity);
         if (EditorGUI.EndChangeCheck())
@@ -343,6 +329,45 @@ public class CitySceneHandle
             selectedNode.position = newPosition;
             EditorUtility.SetDirty(cityData);
             SceneView.RepaintAll();
+        }
+    }
+
+    private static void DrawRoundaboutPreviews(CityManager manager)
+    {
+        CityData data = manager != null ? manager.GetCityData() : null;
+        if (data == null || data.nodes == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < data.nodes.Count; i++)
+        {
+            CityNode node = data.nodes[i];
+            if (node == null ||
+                node.junctionType == CityJunctionType.Standard ||
+                node.roundabout == null)
+            {
+                continue;
+            }
+
+            bool selected = manager.GetSelectedNodeID() == node.id;
+            Color islandColor = node.junctionType == CityJunctionType.Auto
+                ? new Color(1f, 0.65f, 0.15f, selected ? 1f : 0.65f)
+                : new Color(1f, 0.82f, 0.1f, selected ? 1f : 0.75f);
+            Color outerColor = node.junctionType == CityJunctionType.Auto
+                ? new Color(0.35f, 0.85f, 1f, selected ? 1f : 0.65f)
+                : new Color(0.1f, 0.75f, 1f, selected ? 1f : 0.8f);
+
+            Handles.color = islandColor;
+            Handles.DrawWireDisc(
+                node.position,
+                Vector3.up,
+                Mathf.Max(1f, node.roundabout.islandRadius));
+            Handles.color = outerColor;
+            Handles.DrawWireDisc(
+                node.position,
+                Vector3.up,
+                node.roundabout.GetOuterRadius());
         }
     }
 

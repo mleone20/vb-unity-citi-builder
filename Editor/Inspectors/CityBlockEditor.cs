@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 using BSCCityBuilder.Core;
+using BSCCityBuilder.Generation;
 using BSCCityBuilder.Management;
 using BSCCityBuilder.Components;
 using BSCCityBuilder.Config;
@@ -309,18 +310,19 @@ public class CityBlockEditor
             }
         }
 
-        List<Vector3> vertices = new List<Vector3>();
-        foreach (int nodeId in selectedManualNodeIds)
+        for (int i = 0; i < selectedManualNodeIds.Count; i++)
         {
+            int nodeId = selectedManualNodeIds[i];
             CityNode node = cityData.GetNode(nodeId);
             if (node == null)
             {
                 Debug.LogWarning($"[CityBlockEditor] Nodo {nodeId} non trovato.");
                 return;
             }
-            vertices.Add(node.position);
         }
 
+        List<Vector3> vertices =
+            CityBlockDetector.BuildBoundaryForNodeCycle(selectedManualNodeIds, cityData);
         CityBlock newBlock = manager.AddBlock(vertices);
         if (newBlock != null)
         {

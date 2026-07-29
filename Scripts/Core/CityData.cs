@@ -78,7 +78,21 @@ public class CityData : ScriptableObject
         // Deep clone collections
         foreach (var node in nodes)
         {
-            clone.nodes.Add(new CityNode(node.id, node.position) { connectedSegmentIDs = new List<int>(node.connectedSegmentIDs) });
+            CityRoundaboutSettings sourceRoundabout =
+                node.roundabout ?? new CityRoundaboutSettings();
+            clone.nodes.Add(new CityNode(node.id, node.position)
+            {
+                connectedSegmentIDs = new List<int>(node.connectedSegmentIDs),
+                junctionType = node.junctionType,
+                roundabout = new CityRoundaboutSettings
+                {
+                    islandRadius = sourceRoundabout.islandRadius,
+                    carriagewayWidth = sourceRoundabout.carriagewayWidth,
+                    resolution = sourceRoundabout.resolution,
+                    islandMaterial = sourceRoundabout.islandMaterial,
+                    generateIsland = sourceRoundabout.generateIsland
+                }
+            });
         }
         
         foreach (var seg in segments)
